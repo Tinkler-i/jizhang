@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个人记账系统 - 首页</title>
+    <link rel="stylesheet" href="/jizhang/css/dashboard.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <h2>记账系统</h2>
+            </div>
+            <ul class="sidebar-menu">
+                <li class="menu-item active">
+                    <a href="/jizhang/dashboard">首页</a>
+                </li>
+                <li class="menu-item">
+                    <a href="/jizhang/income">收入管理</a>
+                </li>
+                <li class="menu-item">
+                    <a href="/jizhang/expense">支出管理</a>
+                </li>
+                <li class="menu-item">
+                    <a href="/jizhang/budget">预算管理</a>
+                </li>
+                <li class="menu-item">
+                    <a href="/jizhang/tax">税务记录</a>
+                </li>
+                <li class="menu-item">
+                    <a href="/jizhang/report">报表分析</a>
+                </li>
+            </ul>
+            <div class="sidebar-footer">
+                <p th:text="'欢迎，' + ${user.username}">欢迎</p>
+                <a href="/jizhang/logout" class="logout-btn">退出登录</a>
+            </div>
+        </nav>
+        
+        <main class="main-content">
+            <header class="header">
+                <h1>欢迎来到个人记账系统</h1>
+            </header>
+            
+            <div class="content">
+                <div class="welcome-section">
+                    <h2>欢迎使用个人记账系统</h2>
+                    <p>这是一个功能完善的个人财务管理工具，帮助您轻松管理收入、支出、预算和税务。</p>
+                </div>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h3>总收入</h3>
+                        <p class="stat-value">¥0.00</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>总支出</h3>
+                        <p class="stat-value">¥0.00</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>账户余额</h3>
+                        <p class="stat-value">¥0.00</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>本月预算</h3>
+                        <p class="stat-value">¥0.00</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>
