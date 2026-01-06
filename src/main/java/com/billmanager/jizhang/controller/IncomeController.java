@@ -5,11 +5,14 @@ import com.billmanager.jizhang.dto.IncomeRequest;
 import com.billmanager.jizhang.dto.IncomeStatistics;
 import com.billmanager.jizhang.entity.Income;
 import com.billmanager.jizhang.entity.User;
+import com.billmanager.jizhang.mapper.UserMapper;
 import com.billmanager.jizhang.service.IncomeService;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -22,10 +25,30 @@ import java.util.List;
 public class IncomeController {
     
     private final IncomeService incomeService;
+    private final UserMapper userMapper;
+    
+    private User getCurrentUser(HttpSession session) {
+        User user = (User) session.getAttribute("user");
+        if (user != null) {
+            return user;
+        }
+        
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.isAuthenticated() && !auth.getPrincipal().equals("anonymousUser")) {
+            String username = auth.getName();
+            user = userMapper.findByUsername(username);
+            if (user != null) {
+                session.setAttribute("user", user);
+                return user;
+            }
+        }
+        
+        return null;
+    }
     
     @GetMapping("/income")
     public String incomePage(Model model, HttpSession session) {
-        User user = (User) session.getAttribute("user");
+        User user = getCurrentUser(session);
         if (user == null) {
             return "redirect:/login";
         }
@@ -40,7 +63,7 @@ public class IncomeController {
     @PostMapping("/api/income")
     @ResponseBody
     public ApiResponse<Income> add(@Valid @RequestBody IncomeRequest request, HttpSession session) {
-        User user = (User) session.getAttribute("user");
+        User user = getCurrentUser(session);
         if (user == null) {
             return ApiResponse.error("请先登录");
         }
@@ -54,7 +77,7 @@ public class IncomeController {
     public ApiResponse<Income> update(@PathVariable Long id, 
                                        @Valid @RequestBody IncomeRequest request, 
                                        HttpSession session) {
-        User user = (User) session.getAttribute("user");
+        User user = getCurrentUser(session);
         if (user == null) {
             return ApiResponse.error("请先登录");
         }
@@ -66,7 +89,7 @@ public class IncomeController {
     @DeleteMapping("/api/income/{id}")
     @ResponseBody
     public ApiResponse<Void> delete(@PathVariable Long id, HttpSession session) {
-        User user = (User) session.getAttribute("user");
+        User user = getCurrentUser(session);
         if (user == null) {
             return ApiResponse.error("请先登录");
         }
@@ -78,7 +101,7 @@ public class IncomeController {
     @GetMapping("/api/income/{id}")
     @ResponseBody
     public ApiResponse<Income> get(@PathVariable Long id, HttpSession session) {
-        User user = (User) session.getAttribute("user");
+        User user = getCurrentUser(session);
         if (user == null) {
             return ApiResponse.error("请先登录");
         }
@@ -97,7 +120,7 @@ public class IncomeController {
                                            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
                                            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
                                            @RequestParam(required = false) Long categoryId) {
-        User user = (User) session.getAttribute("user");
+        User user = getCurrentUser(session);
         if (user == null) {
             return ApiResponse.error("请先登录");
         }
@@ -119,7 +142,7 @@ public class IncomeController {
     public ApiResponse<IncomeStatistics> statistics(HttpSession session,
                                                      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
                                                      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
-        User user = (User) session.getAttribute("user");
+        User user = getCurrentUser(session);
         if (user == null) {
             return ApiResponse.error("请先登录");
         }

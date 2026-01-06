@@ -22,6 +22,7 @@
         <set>
             <if test="name != null">name = #{name},</if>
             <if test="description != null">description = #{description},</if>
+            update_time = CURRENT_TIMESTAMP
         </set>
         WHERE id = #{id}
     </update>

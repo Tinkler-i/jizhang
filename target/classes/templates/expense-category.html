@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个人记账系统 - 支出分类管理</title>
+    <link rel="stylesheet" href="/jizhang/css/expense-category.css">
+</head>
+<body>
+    <div class="category-container">
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <h2>记账系统</h2>
+            </div>
+            <ul class="sidebar-menu">
+                <li class="menu-item">
+                    <a href="/jizhang/dashboard">首页</a>
+                </li>
+                <li class="menu-item">
+                    <a href="/jizhang/income">收入管理</a>
+                </li>
+                <li class="menu-item">
+                    <a href="/jizhang/income-category">收入分类</a>
+                </li>
+                <li class="menu-item">
+                    <a href="/jizhang/expense">支出管理</a>
+                </li>
+                <li class="menu-item active">
+                    <a href="/jizhang/expense-category">支出分类</a>
+                </li>
+                <li class="menu-item">
+                    <a href="/jizhang/budget">预算管理</a>
+                </li>
+                <li class="menu-item">
+                    <a href="/jizhang/report">报表分析</a>
+                </li>
+            </ul>
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar" th:text="${user != null ? #strings.toUpperCase(user.username.substring(0,1)) : 'U'}">U</div>
+                    <div class="user-details">
+                        <div class="user-name" th:text="${user != null ? user.username : '未登录'}">用户名</div>
+                    </div>
+                </div>
+                <a href="/jizhang/logout" class="logout-btn">退出登录</a>
+            </div>
+        </nav>
+        
+        <main class="main-content">
+            <header class="header">
+                <h1>支出分类管理</h1>
+                <button class="add-btn" id="addCategoryBtn">添加分类</button>
+            </header>
+            
+            <div class="content">
+                <div class="category-list">
+                    <table class="category-table">
+                        <thead>
+                            <tr>
+                                <th>分类名称</th>
+                                <th>描述</th>
+                                <th>创建时间</th>
+                                <th>更新时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="categoryTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <div class="modal" id="categoryModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">添加分类</h2>
+                <button class="close-btn" id="closeModal">&times;</button>
+            </div>
+            <form id="categoryForm">
+                <div class="form-group">
+                    <label for="name">分类名称 *</label>
+                    <input type="text" id="name" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="description">描述</label>
+                    <textarea id="description" name="description"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="cancel-btn" id="cancelBtn">取消</button>
+                    <button type="submit" class="submit-btn">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script src="/jizhang/js/expense-category.js"></script>
+</body>
+</html>

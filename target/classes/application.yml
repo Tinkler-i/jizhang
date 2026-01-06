@@ -14,6 +14,10 @@ spring:
     mode: HTML
     encoding: UTF-8
     cache: false
+  
+  session:
+    store-type: memory
+    timeout: 30m
 
 mybatis:
   mapper-locations: classpath:mapper/*.xml
@@ -26,6 +30,11 @@ server:
   port: 8080
   servlet:
     context-path: /jizhang
+    session:
+      cookie:
+        secure: false
+        http-only: true
+        max-age: 1800
 
 logging:
   level:

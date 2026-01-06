@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个人记账系统 - 预算管理</title>
+    <link rel="stylesheet" href="/jizhang/css/budget.css">
+</head>
+<body>
+    <div class="budget-container">
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <h2>记账系统</h2>
+            </div>
+            <ul class="sidebar-menu">
+                <li class="menu-item">
+                    <a href="/jizhang/dashboard">首页</a>
+                </li>
+                <li class="menu-item">
+                    <a href="/jizhang/income">收入管理</a>
+                </li>
+                <li class="menu-item">
+                    <a href="/jizhang/income-category">收入分类</a>
+                </li>
+                <li class="menu-item">
+                    <a href="/jizhang/expense">支出管理</a>
+                </li>
+                <li class="menu-item">
+                    <a href="/jizhang/expense-category">支出分类</a>
+                </li>
+                <li class="menu-item active">
+                    <a href="/jizhang/budget">预算管理</a>
+                </li>
+                <li class="menu-item">
+                    <a href="/jizhang/report">报表分析</a>
+                </li>
+            </ul>
+            <div class="sidebar-footer">
+                <a href="/jizhang/logout" class="logout-btn">退出登录</a>
+            </div>
+        </nav>
+
+        <main class="main-content">
+            <header class="header">
+                <h1>预算管理</h1>
+            </header>
+
+            <div class="content">
+                <div class="budget-controls">
+                    <div class="month-selector">
+                        <label for="monthPicker">选择月份：</label>
+                        <input type="month" id="monthPicker" />
+                    </div>
+                    <button id="addBudgetBtn" class="btn btn-primary">+ 添加预算</button>
+                </div>
+
+                <div class="budget-list">
+                    <div id="budgetContainer" class="budget-grid">
+                        <!-- 预算卡片动态插入 -->
+                    </div>
+                </div>
+
+                <div id="emptyState" class="empty-state">
+                    <p>暂无预算数据，<a href="#" onclick="openAddModal()">创建预算</a></p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 添加/编辑预算模态框 -->
+    <div id="budgetModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h3 id="modalTitle">添加预算</h3>
+            
+            <form id="budgetForm">
+                <div class="form-group">
+                    <label for="categoryId">支出分类：</label>
+                    <select id="categoryId" required>
+                        <option value="">请选择分类</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="budgetAmount">预算金额：</label>
+                    <input type="number" id="budgetAmount" placeholder="0.00" step="0.01" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="budgetMonth">预算月份：</label>
+                    <input type="month" id="budgetMonth" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="remark">备注：</label>
+                    <textarea id="remark" placeholder="添加备注信息（可选）"></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">保存</button>
+                    <button type="button" class="btn btn-cancel" onclick="closeModal()">取消</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 预算详情模态框 -->
+    <div id="detailModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeDetailModal()">&times;</span>
+            <h3>预算详情</h3>
+            
+            <div id="detailContent">
+                <!-- 详情动态插入 -->
+            </div>
+
+            <div class="detail-actions">
+                <button id="editBtn" class="btn btn-warning" onclick="editBudget()">编辑</button>
+                <button id="deleteBtn" class="btn btn-danger" onclick="deleteBudget()">删除</button>
+                <button class="btn btn-cancel" onclick="closeDetailModal()">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/jizhang/js/budget.js"></script>
+</body>
+</html>
+                
+                <div class="budget-controls">
+                    <div class="month-selector">
+                        <label for="monthPicker">选择月份：</label>
+                        <input type="month" id="monthPicker" />
+                    </div>
+                    <button id="addBudgetBtn" class="btn btn-primary">+ 添加预算</button>
+                </div>
+
+                <div class="budget-list">
+                    <div id="budgetContainer" class="budget-grid">
+                        <!-- 预算卡片动态插入 -->
+                    </div>
+                </div>
+
+                <div id="emptyState" class="empty-state">
+                    <p>暂无预算数据，<a href="#" onclick="openAddModal()">创建预算</a></p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 添加/编辑预算模态框 -->
+    <div id="budgetModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h3 id="modalTitle">添加预算</h3>
+            
+            <form id="budgetForm">
+                <div class="form-group">
+                    <label for="categoryId">支出分类：</label>
+                    <select id="categoryId" required>
+                        <option value="">请选择分类</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="budgetAmount">预算金额：</label>
+                    <input type="number" id="budgetAmount" placeholder="0.00" step="0.01" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="budgetMonth">预算月份：</label>
+                    <input type="month" id="budgetMonth" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="remark">备注：</label>
+                    <textarea id="remark" placeholder="添加备注信息（可选）"></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">保存</button>
+                    <button type="button" class="btn btn-cancel" onclick="closeModal()">取消</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 预算详情模态框 -->
+    <div id="detailModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeDetailModal()">&times;</span>
+            <h3>预算详情</h3>
+            
+            <div id="detailContent">
+                <!-- 详情动态插入 -->
+            </div>
+
+            <div class="detail-actions">
+                <button id="editBtn" class="btn btn-warning" onclick="editBudget()">编辑</button>
+                <button id="deleteBtn" class="btn btn-danger" onclick="deleteBudget()">删除</button>
+                <button class="btn btn-cancel" onclick="closeDetailModal()">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/budget.js"></script>
+</body>
+</html>

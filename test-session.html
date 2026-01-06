@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>会话测试</title>
+    <style>
+        body { font-family: Arial; margin: 20px; }
+        .section { margin: 20px 0; padding: 10px; border: 1px solid #ccc; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        #output { background: #f0f0f0; padding: 10px; margin-top: 10px; min-height: 100px; white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+    <h1>会话测试工具</h1>
+    
+    <div class="section">
+        <h2>1. 登录测试</h2>
+        <button onclick="testLogin()">发送登录请求</button>
+    </div>
+    
+    <div class="section">
+        <h2>2. 访问受保护页面</h2>
+        <button onclick="testIncomePage()">访问 /income</button>
+        <button onclick="testCategoryPage()">访问 /income-category</button>
+    </div>
+    
+    <div class="section">
+        <h2>3. 会话信息</h2>
+        <button onclick="showSessionInfo()">显示Cookie信息</button>
+    </div>
+    
+    <h3>输出：</h3>
+    <div id="output"></div>
+    
+    <script>
+        const baseUrl = 'http://localhost:8080/jizhang';
+        
+        function log(msg) {
+            const output = document.getElementById('output');
+            output.textContent += msg + '\n';
+        }
+        
+        function clearLog() {
+            document.getElementById('output').textContent = '';
+        }
+        
+        async function testLogin() {
+            clearLog();
+            log('正在发送登录请求...');
+            try {
+                const response = await fetch(`${baseUrl}/api/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        username: 'admin',
+                        password: 'admin123'
+                    })
+                });
+                
+                log(`响应状态: ${response.status}`);
+                const data = await response.json();
+                log(`响应数据: ${JSON.stringify(data, null, 2)}`);
+                
+                // 显示Cookie
+                showSessionInfo();
+            } catch (e) {
+                log(`错误: ${e.message}`);
+            }
+        }
+        
+        async function testIncomePage() {
+            clearLog();
+            log('正在访问 /income 页面...');
+            try {
+                const response = await fetch(`${baseUrl}/income`, {
+                    credentials: 'include'
+                });
+                
+                log(`响应状态: ${response.status}`);
+                if (response.status === 200) {
+                    const html = await response.text();
+                    log(`页面已成功加载（长度: ${html.length}字节）`);
+                } else {
+                    log(`错误: 服务器返回 ${response.status}`);
+                }
+            } catch (e) {
+                log(`错误: ${e.message}`);
+            }
+        }
+        
+        async function testCategoryPage() {
+            clearLog();
+            log('正在访问 /income-category 页面...');
+            try {
+                const response = await fetch(`${baseUrl}/income-category`, {
+                    credentials: 'include'
+                });
+                
+                log(`响应状态: ${response.status}`);
+                if (response.status === 200) {
+                    const html = await response.text();
+                    log(`页面已成功加载（长度: ${html.length}字节）`);
+                } else {
+                    log(`错误: 服务器返回 ${response.status}`);
+                    const html = await response.text();
+                    if (html.includes('redirect')) {
+                        log('检测到重定向');
+                    }
+                }
+            } catch (e) {
+                log(`错误: ${e.message}`);
+            }
+        }
+        
+        function showSessionInfo() {
+            clearLog();
+            const cookies = document.cookie;
+            log(`当前Cookie: ${cookies || '(无)'}`);
+            log(`\nJSESSIONID: ${getCookie('JSESSIONID') || '未找到'}`);
+        }
+        
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+        }
+    </script>
+</body>
+</html>

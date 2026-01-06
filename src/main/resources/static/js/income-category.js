@@ -14,7 +14,7 @@ async function loadCategories() {
     try {
         const response = await fetch('/jizhang/api/income-category');
         const data = await response.json();
-        if (data.success) {
+        if (data.code === 200) {
             categories = data.data;
             renderCategories();
         } else {
@@ -24,6 +24,17 @@ async function loadCategories() {
         console.error('加载分类数据失败：', error);
         alert('加载分类数据失败');
     }
+}
+
+function formatDateTime(dateString) {
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day} ${hours}:${minutes}`;
 }
 
 function renderCategories() {
@@ -40,8 +51,8 @@ function renderCategories() {
         tr.innerHTML = `
             <td>${category.name}</td>
             <td>${category.description || '-'}</td>
-            <td>${category.createTime}</td>
-            <td>${category.updateTime}</td>
+            <td>${formatDateTime(category.createTime)}</td>
+            <td>${formatDateTime(category.updateTime)}</td>
             <td class="actions">
                 <button class="edit-btn" onclick="editCategory(${category.id})">编辑</button>
                 <button class="delete-btn" onclick="deleteCategory(${category.id})">删除</button>
@@ -103,7 +114,7 @@ async function handleSubmit(e) {
         }
         
         const data = await response.json();
-        if (data.success) {
+        if (data.code === 200) {
             alert(editingCategoryId ? '更新成功' : '添加成功');
             closeModal();
             loadCategories();
@@ -124,7 +135,7 @@ async function deleteCategory(id) {
             method: 'DELETE'
         });
         const data = await response.json();
-        if (data.success) {
+        if (data.code === 200) {
             alert('删除成功');
             loadCategories();
         } else {
