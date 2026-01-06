@@ -44,7 +44,10 @@
         <main class="main-content">
             <header class="header">
                 <h1>收入管理</h1>
-                <button class="add-btn" id="addIncomeBtn">添加收入</button>
+                <div class="header-actions">
+                    <button class="add-btn" id="addIncomeBtn">添加收入</button>
+                    <button class="export-btn" onclick="exportIncomeData()">导出数据</button>
+                </div>
             </header>
             
             <div class="content">
@@ -94,6 +97,7 @@
                                 <th>分类</th>
                                 <th>金额</th>
                                 <th>描述</th>
+                                <th>创建时间</th>
                                 <th>操作</th>
                             </tr>
                         </thead>
