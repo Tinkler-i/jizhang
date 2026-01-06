@@ -26,6 +26,7 @@
             <if test="amount != null">amount = #{amount},</if>
             <if test="transactionDate != null">transaction_date = #{transactionDate},</if>
             <if test="description != null">description = #{description},</if>
+            update_time = CURRENT_TIMESTAMP
         </set>
         WHERE id = #{id}
     </update>

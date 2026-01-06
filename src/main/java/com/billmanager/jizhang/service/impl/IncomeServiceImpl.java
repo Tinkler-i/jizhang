@@ -108,7 +108,7 @@ public class IncomeServiceImpl implements IncomeService {
         
         if (!incomes.isEmpty()) {
             BigDecimal avgIncome = statistics.getTotalIncome().divide(
-                    new BigDecimal(incomes.size()), 2, BigDecimal.ROUND_HALF_UP);
+                    new BigDecimal(incomes.size()), 2, java.math.RoundingMode.HALF_UP);
             statistics.setAvgIncome(avgIncome);
             
             BigDecimal maxIncome = incomes.stream()

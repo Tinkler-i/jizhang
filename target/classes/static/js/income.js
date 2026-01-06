@@ -12,13 +12,19 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('incomeForm').addEventListener('submit', handleSubmit);
     document.getElementById('filterBtn').addEventListener('click', handleFilter);
     document.getElementById('resetFilterBtn').addEventListener('click', resetFilter);
+    
+    // 添加取消按钮事件
+    const cancelBtn = document.getElementById('cancelBtn');
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', closeModal);
+    }
 });
 
 async function loadIncomes() {
     try {
         const response = await fetch('/jizhang/api/income');
         const data = await response.json();
-        if (data.success) {
+        if (data.code === 200) {
             incomes = data.data;
             renderIncomes(incomes);
         } else {
@@ -34,7 +40,7 @@ async function loadCategories() {
     try {
         const response = await fetch('/jizhang/api/income-category');
         const data = await response.json();
-        if (data.success) {
+        if (data.code === 200) {
             categories = data.data;
             renderCategoryOptions();
         } else {
@@ -54,12 +60,16 @@ async function loadStatistics(startDate = null, endDate = null) {
         }
         const response = await fetch(url);
         const data = await response.json();
-        if (data.success) {
+        if (data.code === 200) {
             const stats = data.data;
-            document.getElementById('totalIncome').textContent = '¥' + stats.totalIncome.toFixed(2);
+            const totalIncome = typeof stats.totalIncome === 'number' ? stats.totalIncome : parseFloat(stats.totalIncome);
+            const avgIncome = typeof stats.avgIncome === 'number' ? stats.avgIncome : parseFloat(stats.avgIncome);
+            const maxIncome = typeof stats.maxIncome === 'number' ? stats.maxIncome : parseFloat(stats.maxIncome);
+            
+            document.getElementById('totalIncome').textContent = '¥' + totalIncome.toFixed(2);
             document.getElementById('recordCount').textContent = stats.recordCount;
-            document.getElementById('avgIncome').textContent = '¥' + stats.avgIncome.toFixed(2);
-            document.getElementById('maxIncome').textContent = '¥' + stats.maxIncome.toFixed(2);
+            document.getElementById('avgIncome').textContent = '¥' + avgIncome.toFixed(2);
+            document.getElementById('maxIncome').textContent = '¥' + maxIncome.toFixed(2);
         }
     } catch (error) {
         console.error('加载统计数据失败：', error);
@@ -79,13 +89,16 @@ function renderIncomes(incomeList) {
         const category = categories.find(c => c.id === income.categoryId);
         const categoryName = category ? category.name : '未分类';
         
+        // 格式化时间
+        const createTime = formatDateTime(income.createTime);
+        
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>${income.transactionDate}</td>
             <td>${categoryName}</td>
-            <td>¥${income.amount.toFixed(2)}</td>
+            <td>¥${parseFloat(income.amount).toFixed(2)}</td>
             <td>${income.description || '-'}</td>
-            <td>${income.createTime}</td>
+            <td>${createTime}</td>
             <td class="actions">
                 <button class="edit-btn" onclick="editIncome(${income.id})">编辑</button>
                 <button class="delete-btn" onclick="deleteIncome(${income.id})">删除</button>
@@ -93,6 +106,21 @@ function renderIncomes(incomeList) {
         `;
         tbody.appendChild(tr);
     });
+}
+
+function formatDateTime(dateTimeString) {
+    if (!dateTimeString) return '-';
+    // 处理多种时间格式
+    const date = new Date(dateTimeString);
+    if (isNaN(date.getTime())) return dateTimeString;
+    
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    
+    return `${year}-${month}-${day} ${hours}:${minutes}`;
 }
 
 function renderCategoryOptions() {
@@ -143,11 +171,29 @@ function closeModal() {
 async function handleSubmit(e) {
     e.preventDefault();
     
+    const categoryId = document.getElementById('categoryId').value;
+    const amount = document.getElementById('amount').value;
+    const transactionDate = document.getElementById('transactionDate').value;
+    
+    // 前端验证
+    if (!categoryId) {
+        alert('请选择分类');
+        return;
+    }
+    if (!amount || parseFloat(amount) <= 0) {
+        alert('请输入有效的金额');
+        return;
+    }
+    if (!transactionDate) {
+        alert('请选择交易日期');
+        return;
+    }
+    
     const formData = {
-        amount: parseFloat(document.getElementById('amount').value),
-        transactionDate: document.getElementById('transactionDate').value,
-        categoryId: parseInt(document.getElementById('categoryId').value),
-        description: document.getElementById('description').value
+        amount: parseFloat(amount),
+        transactionDate: transactionDate,
+        categoryId: parseInt(categoryId),
+        description: document.getElementById('description').value || null
     };
     
     try {
@@ -171,17 +217,17 @@ async function handleSubmit(e) {
         }
         
         const data = await response.json();
-        if (data.success) {
+        if (data.code === 200) {
             alert(editingIncomeId ? '更新成功' : '添加成功');
             closeModal();
             loadIncomes();
             loadStatistics();
         } else {
-            alert((editingIncomeId ? '更新失败：' : '添加失败：') + data.message);
+            alert((editingIncomeId ? '更新失败：' : '添加失败：') + (data.message || '未知错误'));
         }
     } catch (error) {
         console.error('提交失败：', error);
-        alert('提交失败');
+        alert('提交失败，请检查网络连接');
     }
 }
 
@@ -193,7 +239,7 @@ async function deleteIncome(id) {
             method: 'DELETE'
         });
         const data = await response.json();
-        if (data.success) {
+        if (data.code === 200) {
             alert('删除成功');
             loadIncomes();
             loadStatistics();
@@ -225,7 +271,7 @@ async function handleFilter() {
         
         const response = await fetch(url);
         const data = await response.json();
-        if (data.success) {
+        if (data.code === 200) {
             incomes = data.data;
             renderIncomes(incomes);
             loadStatistics(startDate, endDate);
@@ -245,3 +291,45 @@ function resetFilter() {
     loadIncomes();
     loadStatistics();
 }
+
+// 导出收入数据为CSV
+function exportIncomeData() {
+    if (incomes.length === 0) {
+        alert('没有数据可导出');
+        return;
+    }
+    
+    const headers = ['日期', '分类', '金额', '描述', '创建时间'];
+    const rows = incomes.map(income => {
+        const category = categories.find(c => c.id === income.categoryId);
+        const categoryName = category ? category.name : '未分类';
+        return [
+            income.transactionDate,
+            categoryName,
+            income.amount,
+            income.description || '',
+            formatDateTime(income.createTime)
+        ];
+    });
+    
+    let csvContent = '\ufeff'; // BOM for Excel UTF-8
+    csvContent += headers.join(',') + '\n';
+    rows.forEach(row => {
+        csvContent += row.map(cell => {
+            // 对包含逗号的单元格进行引用
+            const cellStr = String(cell).replace(/"/g, '""');
+            return cellStr.includes(',') ? `"${cellStr}"` : cellStr;
+        }).join(',') + '\n';
+    });
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `income_${new Date().getTime()}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+

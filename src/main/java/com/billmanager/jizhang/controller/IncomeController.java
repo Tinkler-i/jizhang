@@ -75,6 +75,22 @@ public class IncomeController {
         return ApiResponse.success("删除成功", null);
     }
     
+    @GetMapping("/api/income/{id}")
+    @ResponseBody
+    public ApiResponse<Income> get(@PathVariable Long id, HttpSession session) {
+        User user = (User) session.getAttribute("user");
+        if (user == null) {
+            return ApiResponse.error("请先登录");
+        }
+        
+        try {
+            Income income = incomeService.findById(id, user.getId());
+            return ApiResponse.success("查询成功", income);
+        } catch (Exception e) {
+            return ApiResponse.error(e.getMessage());
+        }
+    }
+    
     @GetMapping("/api/income")
     @ResponseBody
     public ApiResponse<List<Income>> list(HttpSession session,
