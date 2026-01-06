@@ -1,0 +1,114 @@
+package com.billmanager.jizhang.controller;
+
+import com.billmanager.jizhang.dto.ApiResponse;
+import com.billmanager.jizhang.dto.IncomeRequest;
+import com.billmanager.jizhang.dto.IncomeStatistics;
+import com.billmanager.jizhang.entity.Income;
+import com.billmanager.jizhang.entity.User;
+import com.billmanager.jizhang.service.IncomeService;
+import jakarta.servlet.http.HttpSession;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
+import java.util.List;
+
+@Controller
+@RequiredArgsConstructor
+public class IncomeController {
+    
+    private final IncomeService incomeService;
+    
+    @GetMapping("/income")
+    public String incomePage(Model model, HttpSession session) {
+        User user = (User) session.getAttribute("user");
+        if (user == null) {
+            return "redirect:/login";
+        }
+        
+        List<Income> incomes = incomeService.findByUserId(user.getId());
+        model.addAttribute("incomes", incomes);
+        model.addAttribute("user", user);
+        
+        return "income";
+    }
+    
+    @PostMapping("/api/income")
+    @ResponseBody
+    public ApiResponse<Income> add(@Valid @RequestBody IncomeRequest request, HttpSession session) {
+        User user = (User) session.getAttribute("user");
+        if (user == null) {
+            return ApiResponse.error("请先登录");
+        }
+        
+        Income income = incomeService.add(request, user.getId());
+        return ApiResponse.success("添加成功", income);
+    }
+    
+    @PutMapping("/api/income/{id}")
+    @ResponseBody
+    public ApiResponse<Income> update(@PathVariable Long id, 
+                                       @Valid @RequestBody IncomeRequest request, 
+                                       HttpSession session) {
+        User user = (User) session.getAttribute("user");
+        if (user == null) {
+            return ApiResponse.error("请先登录");
+        }
+        
+        Income income = incomeService.update(id, request, user.getId());
+        return ApiResponse.success("更新成功", income);
+    }
+    
+    @DeleteMapping("/api/income/{id}")
+    @ResponseBody
+    public ApiResponse<Void> delete(@PathVariable Long id, HttpSession session) {
+        User user = (User) session.getAttribute("user");
+        if (user == null) {
+            return ApiResponse.error("请先登录");
+        }
+        
+        incomeService.delete(id, user.getId());
+        return ApiResponse.success("删除成功", null);
+    }
+    
+    @GetMapping("/api/income")
+    @ResponseBody
+    public ApiResponse<List<Income>> list(HttpSession session,
+                                           @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+                                           @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+                                           @RequestParam(required = false) Long categoryId) {
+        User user = (User) session.getAttribute("user");
+        if (user == null) {
+            return ApiResponse.error("请先登录");
+        }
+        
+        List<Income> incomes;
+        if (categoryId != null) {
+            incomes = incomeService.findByUserIdAndCategoryId(user.getId(), categoryId);
+        } else if (startDate != null && endDate != null) {
+            incomes = incomeService.findByUserIdAndDateRange(user.getId(), startDate, endDate);
+        } else {
+            incomes = incomeService.findByUserId(user.getId());
+        }
+        
+        return ApiResponse.success("查询成功", incomes);
+    }
+    
+    @GetMapping("/api/income/statistics")
+    @ResponseBody
+    public ApiResponse<IncomeStatistics> statistics(HttpSession session,
+                                                     @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+                                                     @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+        User user = (User) session.getAttribute("user");
+        if (user == null) {
+            return ApiResponse.error("请先登录");
+        }
+        
+        IncomeStatistics statistics = incomeService.getStatistics(user.getId(), startDate, endDate);
+        return ApiResponse.success("查询成功", statistics);
+    }
+}

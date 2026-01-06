@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个人记账系统 - 收入管理</title>
+    <link rel="stylesheet" href="/jizhang/css/income.css">
+</head>
+<body>
+    <div class="income-container">
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <h2>记账系统</h2>
+            </div>
+            <ul class="sidebar-menu">
+                <li class="menu-item">
+                    <a href="/jizhang/dashboard">首页</a>
+                </li>
+                <li class="menu-item active">
+                    <a href="/jizhang/income">收入管理</a>
+                </li>
+                <li class="menu-item">
+                    <a href="/jizhang/income-category">收入分类</a>
+                </li>
+                <li class="menu-item">
+                    <a href="/jizhang/expense">支出管理</a>
+                </li>
+                <li class="menu-item">
+                    <a href="/jizhang/budget">预算管理</a>
+                </li>
+                <li class="menu-item">
+                    <a href="/jizhang/tax">税务记录</a>
+                </li>
+                <li class="menu-item">
+                    <a href="/jizhang/report">报表分析</a>
+                </li>
+            </ul>
+            <div class="sidebar-footer">
+                <p th:text="'欢迎，' + ${user.username}">欢迎</p>
+                <a href="/jizhang/logout" class="logout-btn">退出登录</a>
+            </div>
+        </nav>
+        
+        <main class="main-content">
+            <header class="header">
+                <h1>收入管理</h1>
+                <button class="add-btn" id="addIncomeBtn">添加收入</button>
+            </header>
+            
+            <div class="content">
+                <div class="filter-section">
+                    <div class="filter-group">
+                        <label>开始日期：</label>
+                        <input type="date" id="startDate">
+                    </div>
+                    <div class="filter-group">
+                        <label>结束日期：</label>
+                        <input type="date" id="endDate">
+                    </div>
+                    <div class="filter-group">
+                        <label>分类：</label>
+                        <select id="filterCategoryId">
+                            <option value="">全部分类</option>
+                        </select>
+                    </div>
+                    <button class="filter-btn" id="filterBtn">查询</button>
+                    <button class="reset-btn" id="resetFilterBtn">重置</button>
+                </div>
+                
+                <div class="statistics-section">
+                    <div class="stat-card">
+                        <h3>总收入</h3>
+                        <p class="stat-value" id="totalIncome">¥0.00</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>记录数</h3>
+                        <p class="stat-value" id="recordCount">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>平均收入</h3>
+                        <p class="stat-value" id="avgIncome">¥0.00</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>最大收入</h3>
+                        <p class="stat-value" id="maxIncome">¥0.00</p>
+                    </div>
+                </div>
+                
+                <div class="income-list">
+                    <table class="income-table">
+                        <thead>
+                            <tr>
+                                <th>日期</th>
+                                <th>分类</th>
+                                <th>金额</th>
+                                <th>描述</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="incomeTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <div class="modal" id="incomeModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">添加收入</h2>
+                <span class="close" id="closeModal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="incomeForm">
+                    <input type="hidden" id="incomeId">
+                    <div class="form-group">
+                        <label for="categoryId">分类</label>
+                        <select id="categoryId" required>
+                            <option value="">请选择分类</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="amount">金额</label>
+                        <input type="number" id="amount" step="0.01" min="0" required placeholder="请输入金额">
+                    </div>
+                    <div class="form-group">
+                        <label for="transactionDate">交易日期</label>
+                        <input type="date" id="transactionDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="description">描述</label>
+                        <textarea id="description" rows="3" required placeholder="请输入描述"></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="submit-btn">保存</button>
+                        <button type="button" class="cancel-btn" id="cancelBtn">取消</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div id="alertMessage" class="alert-message"></div>
+    
+    <script src="/jizhang/js/income.js"></script>
+</body>
+</html>
