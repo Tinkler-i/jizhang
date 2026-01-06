@@ -78,17 +78,18 @@ DROP TABLE IF EXISTS `budget`;
 CREATE TABLE `budget` (
     `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '预算ID',
     `user_id` BIGINT NOT NULL COMMENT '用户ID',
-    `category_id` BIGINT COMMENT '分类ID（可为空，表示总预算）',
-    `name` VARCHAR(100) NOT NULL COMMENT '预算名称',
+    `category_id` BIGINT NOT NULL COMMENT '分类ID',
     `amount` DECIMAL(10,2) NOT NULL COMMENT '预算金额',
-    `start_date` DATE NOT NULL COMMENT '开始日期',
-    `end_date` DATE NOT NULL COMMENT '结束日期',
-    `status` TINYINT DEFAULT 1 COMMENT '状态：1-启用，0-禁用',
+    `budget_month` VARCHAR(7) NOT NULL COMMENT '预算年月（格式：YYYY-MM）',
+    `spent` DECIMAL(10,2) DEFAULT 0 COMMENT '已支出金额',
+    `remark` VARCHAR(500) COMMENT '备注',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
     KEY `idx_user_id` (`user_id`),
-    KEY `idx_category_id` (`category_id`)
+    KEY `idx_category_id` (`category_id`),
+    KEY `idx_budget_month` (`budget_month`),
+    UNIQUE KEY `uk_user_category_month` (`user_id`, `category_id`, `budget_month`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='预算表';
 
 DROP TABLE IF EXISTS `tax_record`;

@@ -37,7 +37,7 @@
             </ul>
             <div class="sidebar-footer">
                 <div class="user-info">
-                    <div class="user-avatar" th:text="${user != null ? user.username.charAt(0).toUpperCase() : 'U'}">U</div>
+                    <div class="user-avatar" th:text="${user != null ? #strings.toUpperCase(user.username.substring(0,1)) : 'U'}">U</div>
                     <div class="user-details">
                         <div class="user-name" th:text="${user != null ? user.username : '未登录'}">用户名</div>
                     </div>
