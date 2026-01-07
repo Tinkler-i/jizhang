@@ -127,7 +127,7 @@ function createBudgetCard(budget) {
     card.innerHTML = `
         <div class="budget-card-header">
             <div class="budget-card-title">${escapeHtml(budget.categoryName || '未分类')}</div>
-            <div class="budget-card-month">${budget.yearMonth}</div>
+            <div class="budget-card-month">${budget.budgetMonth}</div>
         </div>
         
         <div class="budget-card-content">
@@ -182,9 +182,11 @@ function openAddModal() {
     document.getElementById('modalTitle').textContent = '添加预算';
     document.getElementById('budgetForm').reset();
     
-    const today = new Date();
-    const currentMonthStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0');
-    document.getElementById('budgetMonth').value = currentMonthStr;
+    // 使用已选择的月份，而不是当前日期
+    const monthStr = currentMonth || new Date().toISOString().slice(0, 7);
+    const monthField = document.getElementById('budgetMonth');
+    monthField.value = monthStr;
+    monthField.readOnly = true;  // 添加时月份只读
     
     document.getElementById('budgetModal').style.display = 'block';
 }
@@ -213,7 +215,7 @@ function saveBudget(e) {
     const budgetData = {
         categoryId: parseInt(categoryId),
         amount: parseFloat(amount),
-        yearMonth: yearMonth,
+        budgetMonth: yearMonth,
         remark: remark || null
     };
     
@@ -234,7 +236,8 @@ function saveBudget(e) {
             closeModal();
             loadBudgets();
         } else {
-            alert('操作失败：' + (data.message || '未知错误'));
+            const operationType = currentEditingId ? '修改' : '添加';
+            alert(operationType + '失败：' + (data.message || '未知错误'));
         }
     })
     .catch(error => {
@@ -265,7 +268,7 @@ function showBudgetDetail(budgetId) {
                     
                     <div class="detail-item">
                         <span class="detail-item-label">月份：</span>
-                        <span class="detail-item-value">${budget.yearMonth}</span>
+                        <span class="detail-item-value">${budget.budgetMonth}</span>
                     </div>
                     
                     <div class="detail-item">
@@ -318,19 +321,26 @@ function closeDetailModal() {
 function editBudget() {
     if (!currentEditingId) return;
     
-    fetch(`/jizhang/api/budget/${currentEditingId}`)
+    const budgetId = currentEditingId;  // 保存ID，防止closeDetailModal重置
+    
+    fetch(`/jizhang/api/budget/${budgetId}`)
         .then(response => response.json())
         .then(data => {
-            if (data.success && data.data) {
+            if (data.code === 200 && data.data) {
                 const budget = data.data;
                 
                 document.getElementById('modalTitle').textContent = '编辑预算';
                 document.getElementById('categoryId').value = budget.categoryId;
                 document.getElementById('budgetAmount').value = parseFloat(budget.budgetAmount);
-                document.getElementById('budgetMonth').value = budget.yearMonth;
+                
+                const monthField = document.getElementById('budgetMonth');
+                monthField.value = budget.budgetMonth;
+                monthField.readOnly = true;  // 编辑时月份也只读，避免违反唯一约束
+                
                 document.getElementById('remark').value = budget.remark || '';
                 
                 closeDetailModal();
+                currentEditingId = budgetId;  // 恢复ID，确保saveBudget使用PUT
                 document.getElementById('budgetModal').style.display = 'block';
             } else {
                 alert('获取预算信息失败');
