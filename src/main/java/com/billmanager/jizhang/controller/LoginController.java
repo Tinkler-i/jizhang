@@ -97,4 +97,34 @@ public class LoginController {
         model.addAttribute("user", user);
         return "dashboard";
     }
+    
+    @GetMapping("/jizhang/dashboard")
+    public String dashboardWithPrefix(HttpSession session, Model model) {
+        User user = getCurrentUser(session);
+        if (user == null) {
+            return "redirect:/login";
+        }
+        model.addAttribute("user", user);
+        return "dashboard";
+    }
+    
+    @GetMapping("/report")
+    public String report(HttpSession session, Model model) {
+        User user = getCurrentUser(session);
+        if (user == null) {
+            return "redirect:/login";
+        }
+        model.addAttribute("user", user);
+        return "report";
+    }
+    
+    @GetMapping("/jizhang/report")
+    public String reportWithPrefix(HttpSession session, Model model) {
+        User user = getCurrentUser(session);
+        if (user == null) {
+            return "redirect:/login";
+        }
+        model.addAttribute("user", user);
+        return "report";
+    }
 }
