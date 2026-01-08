@@ -1,0 +1,22 @@
+{
+  "name": "jizhang-vue",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "vue": "^3.3.11",
+    "vue-router": "^4.2.5",
+    "pinia": "^2.1.6",
+    "axios": "^1.6.5",
+    "chart.js": "^4.4.0"
+  },
+  "devDependencies": {
+    "vite": "^5.0.8",
+    "@vitejs/plugin-vue": "^5.0.4",
+    "sass": "^1.70.0"
+  }
+}

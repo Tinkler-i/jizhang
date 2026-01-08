@@ -1,4 +1,5 @@
 D:\Code\Java\SorceCode\jizhang\src\main\java\com\billmanager\jizhang\service\impl\IncomeServiceImpl.java
+D:\Code\Java\SorceCode\jizhang\src\main\java\com\billmanager\jizhang\dto\BudgetVsActual.java
 D:\Code\Java\SorceCode\jizhang\src\main\java\com\billmanager\jizhang\entity\User.java
 D:\Code\Java\SorceCode\jizhang\src\main\java\com\billmanager\jizhang\dto\IncomeCategoryRequest.java
 D:\Code\Java\SorceCode\jizhang\src\main\java\com\billmanager\jizhang\dto\ApiResponse.java
@@ -23,6 +24,7 @@ D:\Code\Java\SorceCode\jizhang\src\main\java\com\billmanager\jizhang\controller\
 D:\Code\Java\SorceCode\jizhang\src\main\java\com\billmanager\jizhang\mapper\BudgetMapper.java
 D:\Code\Java\SorceCode\jizhang\src\main\java\com\billmanager\jizhang\exception\BusinessException.java
 D:\Code\Java\SorceCode\jizhang\src\main\java\com\billmanager\jizhang\dto\TrendAnalysis.java
+D:\Code\Java\SorceCode\jizhang\src\main\java\com\billmanager\jizhang\mapper\UserTargetMapper.java
 D:\Code\Java\SorceCode\jizhang\src\main\java\com\billmanager\jizhang\mapper\ExpenseMapper.java
 D:\Code\Java\SorceCode\jizhang\src\main\java\com\billmanager\jizhang\controller\AnalysisController.java
 D:\Code\Java\SorceCode\jizhang\src\main\java\com\billmanager\jizhang\service\BudgetService.java
@@ -32,7 +34,9 @@ D:\Code\Java\SorceCode\jizhang\src\main\java\com\billmanager\jizhang\service\Ana
 D:\Code\Java\SorceCode\jizhang\src\main\java\com\billmanager\jizhang\dto\ExpenseCategoryRequest.java
 D:\Code\Java\SorceCode\jizhang\src\main\java\com\billmanager\jizhang\dto\IncomeRequest.java
 D:\Code\Java\SorceCode\jizhang\src\main\java\com\billmanager\jizhang\mapper\IncomeCategoryMapper.java
+D:\Code\Java\SorceCode\jizhang\src\main\java\com\billmanager\jizhang\controller\UserTargetController.java
 D:\Code\Java\SorceCode\jizhang\src\main\java\com\billmanager\jizhang\controller\BudgetController.java
+D:\Code\Java\SorceCode\jizhang\src\main\java\com\billmanager\jizhang\dto\CategoryAnalysis.java
 D:\Code\Java\SorceCode\jizhang\src\main\java\com\billmanager\jizhang\service\impl\ExpenseServiceImpl.java
 D:\Code\Java\SorceCode\jizhang\src\main\java\com\billmanager\jizhang\config\WebMvcConfig.java
 D:\Code\Java\SorceCode\jizhang\src\main\java\com\billmanager\jizhang\dto\LoginRequest.java
@@ -52,5 +56,6 @@ D:\Code\Java\SorceCode\jizhang\src\main\java\com\billmanager\jizhang\service\Exp
 D:\Code\Java\SorceCode\jizhang\src\main\java\com\billmanager\jizhang\entity\Expense.java
 D:\Code\Java\SorceCode\jizhang\src\main\java\com\billmanager\jizhang\entity\IncomeCategory.java
 D:\Code\Java\SorceCode\jizhang\src\main\java\com\billmanager\jizhang\dto\BudgetRequest.java
+D:\Code\Java\SorceCode\jizhang\src\main\java\com\billmanager\jizhang\entity\UserTarget.java
 D:\Code\Java\SorceCode\jizhang\src\main\java\com\billmanager\jizhang\exception\GlobalExceptionHandler.java
 D:\Code\Java\SorceCode\jizhang\src\main\java\com\billmanager\jizhang\service\ReportService.java

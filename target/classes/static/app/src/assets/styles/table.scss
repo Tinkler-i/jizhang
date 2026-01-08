@@ -1,0 +1,98 @@
+/* Table 表格样式 */
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  overflow: hidden;
+
+  thead {
+    background: #fafafa;
+    border-bottom: 2px solid #f0f0f0;
+  }
+
+  th {
+    padding: 12px 16px;
+    text-align: left;
+    font-weight: 600;
+    color: #333;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  td {
+    padding: 12px 16px;
+    border-bottom: 1px solid #f0f0f0;
+    color: #666;
+  }
+
+  tbody tr {
+    transition: background 0.3s;
+
+    &:hover {
+      background: #f9f9f9;
+    }
+
+    &:last-child td {
+      border-bottom: none;
+    }
+  }
+}
+
+.table-responsive {
+  overflow-x: auto;
+
+  .table {
+    min-width: 600px;
+  }
+}
+
+/* Table Pagination */
+.pagination {
+  display: flex;
+  gap: 8px;
+  margin-top: 20px;
+  justify-content: center;
+
+  .page-item {
+    a,
+    span {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 36px;
+      height: 36px;
+      padding: 0 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.3s;
+      font-size: 14px;
+      color: #666;
+
+      &:hover {
+        border-color: #667eea;
+        color: #667eea;
+      }
+    }
+
+    &.active a {
+      background: #667eea;
+      border-color: #667eea;
+      color: white;
+    }
+
+    &.disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+
+      a:hover {
+        border-color: #ddd;
+        color: #666;
+      }
+    }
+  }
+}

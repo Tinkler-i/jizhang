@@ -125,6 +125,20 @@ CREATE TABLE `tax_rule` (
     KEY `idx_tax_type` (`tax_type`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='税率规则表';
 
+DROP TABLE IF EXISTS `user_target`;
+CREATE TABLE `user_target` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '目标ID',
+    `user_id` BIGINT NOT NULL COMMENT '用户ID',
+    `target_month` VARCHAR(7) NOT NULL COMMENT '目标年月（格式：YYYY-MM）',
+    `income_target` DECIMAL(10,2) NOT NULL COMMENT '收入目标',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_user_id` (`user_id`),
+    KEY `idx_target_month` (`target_month`),
+    UNIQUE KEY `uk_user_month` (`user_id`, `target_month`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户收入目标表';
+
 INSERT INTO `user` (`username`, `password`, `phone`, `email`, `status`) VALUES
 ('admin', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTVKIUi', '13800138000', 'admin@example.com', 1);
 
@@ -144,3 +158,6 @@ INSERT INTO `expense_category` (`user_id`, `name`, `description`) VALUES
 (1, '医疗', '医疗健康'),
 (1, '教育', '教育培训'),
 (1, '其他', '其他支出');
+
+INSERT INTO `user_target` (`user_id`, `target_month`, `income_target`) VALUES
+(1, '2026-01', 100000);

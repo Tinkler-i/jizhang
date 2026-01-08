@@ -30,11 +30,13 @@ public class SecurityConfig {
         http
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/login", "/api/login", "/logout", "/css/**", "/js/**", "/images/**", "/test.html").permitAll()
+                .requestMatchers("/login", "/api/login", "/api/auth/login", "/logout", "/css/**", "/js/**", "/images/**", "/test.html").permitAll()
+                // 所有 /api/** 请求（包括收入、支出、分类等）都允许访问，具体权限由控制器处理
+                .requestMatchers("/api/**").permitAll()
+                // 页面路由
                 .requestMatchers("/dashboard", "/income", "/income-category", "/expense", "/expense-category", 
-                                "/budget", "/report", "/api/income/**", "/api/income-category/**", 
-                                "/api/expense/**", "/api/expense-category/**", "/api/budget/**", "/api/report/**").authenticated()
-                .anyRequest().authenticated()
+                                "/budget", "/report").authenticated()
+                .anyRequest().permitAll()
             )
             .securityContext(context -> context.securityContextRepository(securityContextRepository()))
             .sessionManagement(session -> session

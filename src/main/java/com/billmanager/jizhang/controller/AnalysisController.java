@@ -2,6 +2,8 @@ package com.billmanager.jizhang.controller;
 
 import com.billmanager.jizhang.dto.ApiResponse;
 import com.billmanager.jizhang.dto.DashboardData;
+import com.billmanager.jizhang.dto.CategoryAnalysis;
+import com.billmanager.jizhang.dto.BudgetVsActual;
 import com.billmanager.jizhang.entity.User;
 import com.billmanager.jizhang.mapper.UserMapper;
 import com.billmanager.jizhang.service.AnalysisService;
@@ -9,9 +11,9 @@ import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 /**
  * 分析控制器
@@ -90,5 +92,37 @@ public class AnalysisController {
         
         String recommendation = analysisService.getFinancialRecommendation(user.getId());
         return ApiResponse.success("获取财务建议成功", recommendation);
+    }
+    
+    /**
+     * 获取分类分析数据
+     * @param month 年月（格式：2026-01）
+     * @return 分类分析列表
+     */
+    @GetMapping("/category")
+    public ApiResponse<List<CategoryAnalysis>> getCategoryAnalysis(@RequestParam String month, HttpSession session) {
+        User user = getCurrentUser(session);
+        if (user == null) {
+            return ApiResponse.error("请先登录");
+        }
+        
+        List<CategoryAnalysis> analysis = analysisService.getCategoryAnalysis(user.getId(), month);
+        return ApiResponse.success("获取分类分析数据成功", analysis);
+    }
+    
+    /**
+     * 获取预算与实际对比数据
+     * @param month 年月（格式：2026-01）
+     * @return 预算与实际对比列表
+     */
+    @GetMapping("/budget-vs-actual/{month}")
+    public ApiResponse<List<BudgetVsActual>> getBudgetVsActual(@PathVariable String month, HttpSession session) {
+        User user = getCurrentUser(session);
+        if (user == null) {
+            return ApiResponse.error("请先登录");
+        }
+        
+        List<BudgetVsActual> comparison = analysisService.getBudgetVsActual(user.getId(), month);
+        return ApiResponse.success("获取预算与实际对比数据成功", comparison);
     }
 }

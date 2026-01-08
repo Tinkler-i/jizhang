@@ -1,0 +1,44 @@
+<template>
+  <div class="app">
+    <MainLayout v-if="$route.path !== '/login'">
+      <RouterView />
+    </MainLayout>
+    <RouterView v-else />
+  </div>
+</template>
+
+<script setup>
+import { useRouter } from 'vue-router'
+import MainLayout from './layouts/MainLayout.vue'
+
+const router = useRouter()
+
+// 检查认证状态
+const checkAuth = () => {
+  const token = localStorage.getItem('token')
+  if (!token && router.currentRoute.value.path !== '/login') {
+    router.push('/login')
+  }
+}
+
+// 监听路由变化
+router.beforeEach((to, from, next) => {
+  const token = localStorage.getItem('token')
+  if (to.path === '/login') {
+    next()
+  } else if (!token) {
+    next('/login')
+  } else {
+    next()
+  }
+})
+
+checkAuth()
+</script>
+
+<style scoped>
+.app {
+  height: 100vh;
+  overflow: hidden;
+}
+</style>
