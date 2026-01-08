@@ -6,7 +6,15 @@ import com.billmanager.jizhang.dto.CashFlowAnalysis;
 import com.billmanager.jizhang.dto.FinancialReport;
 import com.billmanager.jizhang.dto.TrendAnalysis;
 import com.billmanager.jizhang.entity.User;
+import com.billmanager.jizhang.entity.Expense;
+import com.billmanager.jizhang.entity.Income;
+import com.billmanager.jizhang.entity.Budget;
+import com.billmanager.jizhang.entity.UserTarget;
 import com.billmanager.jizhang.mapper.UserMapper;
+import com.billmanager.jizhang.mapper.UserTargetMapper;
+import com.billmanager.jizhang.mapper.IncomeMapper;
+import com.billmanager.jizhang.mapper.ExpenseMapper;
+import com.billmanager.jizhang.mapper.BudgetMapper;
 import com.billmanager.jizhang.service.ReportService;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +24,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.time.YearMonth;
+import java.math.BigDecimal;
+import java.util.List;
 
 /**
  * 报表控制器
@@ -28,6 +39,10 @@ public class ReportController {
     
     private final ReportService reportService;
     private final UserMapper userMapper;
+    private final UserTargetMapper userTargetMapper;
+    private final IncomeMapper incomeMapper;
+    private final ExpenseMapper expenseMapper;
+    private final BudgetMapper budgetMapper;
     
     /**
      * 获取当前用户
@@ -49,6 +64,193 @@ public class ReportController {
         }
         
         return null;
+    }
+    
+    /**
+     * 获取仪表盘摘要数据 (与 /api/report/summary 重复映射)
+     */
+    @GetMapping("/summary")
+    public ApiResponse<?> getSummary(
+            @RequestParam String month,
+            HttpSession session) {
+        
+        User user = getCurrentUser(session);
+        if (user == null) {
+            return ApiResponse.error("请先登录");
+        }
+        
+        System.out.println("【ReportController】获取摘要数据，月份: " + month);
+        
+        try {
+            // 解析年月
+            YearMonth ym = YearMonth.parse(month);
+            LocalDate monthStart = ym.atDay(1);
+            LocalDate monthEnd = ym.atEndOfMonth();
+            
+            // 获取本月收入
+            List<Income> monthIncomes = incomeMapper.findByUserIdAndDateRange(user.getId(), monthStart, monthEnd);
+            BigDecimal totalIncome = monthIncomes.stream()
+                    .map(Income::getAmount)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            
+            // 获取本月支出
+            List<Expense> monthExpenses = expenseMapper.findByUserIdAndDateRange(user.getId(), monthStart, monthEnd);
+            BigDecimal totalExpense = monthExpenses.stream()
+                    .map(Expense::getAmount)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            
+            // 获取本月收入目标
+            UserTarget target = userTargetMapper.findByUserIdAndMonth(user.getId(), month);
+            BigDecimal targetIncome = target != null ? target.getIncomeTarget() : BigDecimal.ZERO;
+            
+            // 获取本月预算总额
+            List<Budget> budgets = budgetMapper.findByUserIdAndYearMonth(user.getId(), month);
+            BigDecimal budgetExpense = budgets.stream()
+                    .map(Budget::getAmount)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            
+            // 计算预算使用率
+            BigDecimal budgetUsage = budgetExpense.compareTo(BigDecimal.ZERO) > 0
+                    ? totalExpense.divide(budgetExpense, 4, java.math.RoundingMode.HALF_UP).multiply(new BigDecimal("100"))
+                    : new BigDecimal("0");
+            
+            // 计算利润率
+            BigDecimal profitRate = totalIncome.compareTo(BigDecimal.ZERO) > 0
+                    ? totalIncome.subtract(totalExpense)
+                        .divide(totalIncome, 4, java.math.RoundingMode.HALF_UP)
+                        .multiply(new BigDecimal("100"))
+                    : new BigDecimal("0");
+            
+            java.util.Map<String, Object> data = new java.util.HashMap<>();
+            data.put("totalIncome", totalIncome);
+            data.put("totalExpense", totalExpense);
+            data.put("targetIncome", targetIncome);
+            data.put("budgetExpense", budgetExpense);
+            data.put("budgetUsage", budgetUsage.setScale(2, java.math.RoundingMode.HALF_UP) + "%");
+            data.put("profitRate", profitRate.setScale(2, java.math.RoundingMode.HALF_UP) + "%");
+            
+            System.out.println("【ReportController】返回摘要数据: " + data);
+            return ApiResponse.success("获取摘要成功", data);
+        } catch (Exception e) {
+            System.err.println("【ReportController】获取摘要失败: " + e.getMessage());
+            e.printStackTrace();
+            return ApiResponse.error("获取摘要失败: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 获取收入趋势图表数据
+     */
+    @GetMapping("/income-chart/{month}")
+    public ApiResponse<?> getIncomeChart(
+            @PathVariable String month,
+            HttpSession session) {
+        
+        User user = getCurrentUser(session);
+        if (user == null) {
+            return ApiResponse.error("请先登录");
+        }
+        
+        System.out.println("【ReportController】获取收入图表，月份: " + month);
+        
+        try {
+            // 解析年月
+            YearMonth ym = YearMonth.parse(month);
+            LocalDate monthStart = ym.atDay(1);
+            LocalDate monthEnd = ym.atEndOfMonth();
+            int daysInMonth = monthEnd.getDayOfMonth();
+            
+            // 初始化日期标签和数据数组
+            java.util.List<String> labels = new java.util.ArrayList<>();
+            java.util.Map<Integer, BigDecimal> dailyIncome = new java.util.HashMap<>();
+            java.util.Map<Integer, BigDecimal> dailyExpense = new java.util.HashMap<>();
+            
+            for (int i = 1; i <= daysInMonth; i++) {
+                labels.add(i + "日");
+                dailyIncome.put(i, BigDecimal.ZERO);
+                dailyExpense.put(i, BigDecimal.ZERO);
+            }
+            
+            // 获取本月收入并按日期汇总
+            List<Income> monthIncomes = incomeMapper.findByUserIdAndDateRange(user.getId(), monthStart, monthEnd);
+            for (Income income : monthIncomes) {
+                int day = income.getTransactionDate().getDayOfMonth();
+                dailyIncome.put(day, dailyIncome.get(day).add(income.getAmount()));
+            }
+            
+            // 获取本月支出并按日期汇总
+            List<Expense> monthExpenses = expenseMapper.findByUserIdAndDateRange(user.getId(), monthStart, monthEnd);
+            for (Expense expense : monthExpenses) {
+                int day = expense.getTransactionDate().getDayOfMonth();
+                dailyExpense.put(day, dailyExpense.get(day).add(expense.getAmount()));
+            }
+            
+            // 构建响应数据
+            java.util.Map<String, Object> data = new java.util.HashMap<>();
+            data.put("labels", labels);
+            
+            java.util.List<BigDecimal> incomeList = new java.util.ArrayList<>();
+            java.util.List<BigDecimal> expenseList = new java.util.ArrayList<>();
+            for (int i = 1; i <= daysInMonth; i++) {
+                incomeList.add(dailyIncome.get(i));
+                expenseList.add(dailyExpense.get(i));
+            }
+            data.put("income", incomeList);
+            data.put("expense", expenseList);
+            
+            System.out.println("【ReportController】返回收入图表数据成功");
+            return ApiResponse.success("获取收入图表成功", data);
+        } catch (Exception e) {
+            System.err.println("【ReportController】获取收入图表失败: " + e.getMessage());
+            e.printStackTrace();
+            return ApiResponse.error("获取收入图表失败: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 获取支出分类分布图表数据
+     */
+    @GetMapping("/expense-chart/{month}")
+    public ApiResponse<?> getExpenseChart(
+            @PathVariable String month,
+            HttpSession session) {
+        
+        User user = getCurrentUser(session);
+        if (user == null) {
+            return ApiResponse.error("请先登录");
+        }
+        
+        System.out.println("【ReportController】获取支出图表，月份: " + month);
+        
+        try {
+            // 解析年月
+            YearMonth ym = YearMonth.parse(month);
+            LocalDate monthStart = ym.atDay(1);
+            LocalDate monthEnd = ym.atEndOfMonth();
+            
+            // 获取本月支出
+            List<Expense> monthExpenses = expenseMapper.findByUserIdAndDateRange(user.getId(), monthStart, monthEnd);
+            
+            // 按分类汇总
+            java.util.Map<String, BigDecimal> expenseByCategory = new java.util.HashMap<>();
+            for (Expense expense : monthExpenses) {
+                String categoryName = expense.getCategoryId().toString();
+                // 在实际应用中，应该从ExpenseCategoryMapper查询分类名称
+                expenseByCategory.put(categoryName, 
+                    expenseByCategory.getOrDefault(categoryName, BigDecimal.ZERO).add(expense.getAmount()));
+            }
+            
+            java.util.Map<String, Object> data = new java.util.HashMap<>();
+            data.put("labels", new java.util.ArrayList<>(expenseByCategory.keySet()));
+            data.put("values", new java.util.ArrayList<>(expenseByCategory.values()));
+            
+            System.out.println("【ReportController】返回支出图表数据成功");
+            return ApiResponse.success("获取支出图表成功", data);
+        } catch (Exception e) {
+            System.err.println("【ReportController】获取支出图表失败: " + e.getMessage());
+            e.printStackTrace();
+            return ApiResponse.error("获取支出图表失败: " + e.getMessage());
+        }
     }
     
     /**

@@ -81,6 +81,61 @@ public class LoginController {
         return ApiResponse.success("登录成功", user);
     }
     
+    @PostMapping("/api/auth/login")
+    @ResponseBody
+    public ApiResponse<User> authLogin(@Valid @RequestBody LoginRequest request, HttpSession session, HttpServletRequest httpRequest) {
+        User user = userService.login(request);
+        session.setAttribute("user", user);
+        
+        // 创建Spring Security认证对象，包含权限
+        UsernamePasswordAuthenticationToken token = 
+            new UsernamePasswordAuthenticationToken(
+                user.getUsername(), 
+                null, 
+                Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
+            );
+        
+        // 设置到SecurityContextHolder
+        SecurityContext context = SecurityContextHolder.getContext();
+        context.setAuthentication(token);
+        
+        // 显式保存到Session
+        session.setAttribute(
+            HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY,
+            context
+        );
+        
+        return ApiResponse.success("登录成功", user);
+    }
+    
+    /**
+     * 获取当前用户信息，用于验证登录状态
+     */
+    @GetMapping("/api/user/profile")
+    @ResponseBody
+    public ApiResponse<User> getProfile(HttpSession session) {
+        User user = getCurrentUser(session);
+        if (user == null) {
+            return ApiResponse.error("未登录或会话已过期");
+        }
+        System.out.println("【LoginController】获取用户信息成功: " + user.getUsername());
+        return ApiResponse.success("获取成功", user);
+    }
+    
+    /**
+     * 获取当前用户信息，用于验证登录状态（auth 路径）
+     */
+    @GetMapping("/api/auth/profile")
+    @ResponseBody
+    public ApiResponse<User> getAuthProfile(HttpSession session) {
+        User user = getCurrentUser(session);
+        if (user == null) {
+            return ApiResponse.error("未登录或会话已过期");
+        }
+        System.out.println("【LoginController】获取用户信息成功: " + user.getUsername());
+        return ApiResponse.success("获取成功", user);
+    }
+    
     @GetMapping("/logout")
     public String logout(HttpSession session) {
         session.invalidate();
