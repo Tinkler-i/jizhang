@@ -93,6 +93,7 @@ export const budgetAPI = {
 export const reportAPI = {
   getSummary: (params) => api.get('/reports/summary', { params }),
   getIncomeChart: (month) => api.get(`/reports/income-chart/${month}`),
+  getIncomeCategoryChart: (month) => api.get(`/reports/income-category-chart/${month}`),
   getExpenseChart: (month) => api.get(`/reports/expense-chart/${month}`),
   getAnalysis: (params) => api.get('/reports/analysis', { params })
 }

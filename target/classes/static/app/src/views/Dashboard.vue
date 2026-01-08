@@ -75,14 +75,60 @@
           </div>
         </Card>
       </div>
+    </div>
 
-      <div class="chart-container">
+    <!-- 分类分布图表区域 -->
+    <div class="category-charts-section">
+      <div class="category-chart-container">
         <Card>
           <template #header>
-            <h3>分类分布</h3>
+            <h3>收入分类分布</h3>
+            <span class="chart-total">总计: ¥{{ incomeCategoryTotal.toFixed(2) }}</span>
           </template>
-          <div class="chart-placeholder">
-            <canvas ref="categoryChart"></canvas>
+          <div class="category-content">
+            <div class="chart-placeholder">
+              <canvas ref="incomeCategoryChart"></canvas>
+            </div>
+            <div class="category-details">
+              <div 
+                v-for="item in incomeCategoryDetails"
+                :key="item.categoryId"
+                class="category-item"
+                @click="selectedIncomeCategory = item"
+                :class="{ active: selectedIncomeCategory?.categoryId === item.categoryId }"
+              >
+                <div class="category-name">{{ item.categoryName }}</div>
+                <div class="category-amount">¥{{ item.amount.toFixed(2) }}</div>
+                <div class="category-percentage">{{ item.percentage.toFixed(2) }}%</div>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      <div class="category-chart-container">
+        <Card>
+          <template #header>
+            <h3>支出分类分布</h3>
+            <span class="chart-total">总计: ¥{{ expenseCategoryTotal.toFixed(2) }}</span>
+          </template>
+          <div class="category-content">
+            <div class="chart-placeholder">
+              <canvas ref="expenseCategoryChart"></canvas>
+            </div>
+            <div class="category-details">
+              <div 
+                v-for="item in expenseCategoryDetails"
+                :key="item.categoryId"
+                class="category-item"
+                @click="selectedExpenseCategory = item"
+                :class="{ active: selectedExpenseCategory?.categoryId === item.categoryId }"
+              >
+                <div class="category-name">{{ item.categoryName }}</div>
+                <div class="category-amount">¥{{ item.amount.toFixed(2) }}</div>
+                <div class="category-percentage">{{ item.percentage.toFixed(2) }}%</div>
+              </div>
+            </div>
           </div>
         </Card>
       </div>
@@ -135,14 +181,23 @@ import Input from '../components/Input.vue'
 import Chart from 'chart.js/auto'
 
 const trendChart = ref(null)
-const categoryChart = ref(null)
+const incomeCategoryChart = ref(null)
+const expenseCategoryChart = ref(null)
 let trendChartInstance = null
-let categoryChartInstance = null
+let incomeCategoryChartInstance = null
+let expenseCategoryChartInstance = null
 
 const showEditTargetModal = ref(false)
 const targetForm = reactive({
   incomeTarget: '0'
 })
+
+const incomeCategoryDetails = ref([])
+const expenseCategoryDetails = ref([])
+const selectedIncomeCategory = ref(null)
+const selectedExpenseCategory = ref(null)
+const incomeCategoryTotal = ref(0)
+const expenseCategoryTotal = ref(0)
 
 const metrics = reactive({
   income: '0.00',
@@ -206,14 +261,24 @@ const loadCharts = async () => {
       console.warn('【趋势图】数据格式错误:', trendData)
     }
 
-    // 加载分类分布图
-    const categoryData = await reportAPI.getExpenseChart(month)
-    console.log('【分类图】原始响应:', JSON.stringify(categoryData, null, 2))
-    if (categoryData && categoryData.code === 200 && categoryData.data) {
-      console.log('【分类图】绘制数据:', JSON.stringify(categoryData.data, null, 2))
-      drawCategoryChart(categoryData.data)
+    // 加载收入分类分布图
+    const incomeCategoryData = await reportAPI.getIncomeCategoryChart(month)
+    console.log('【收入分类图】原始响应:', JSON.stringify(incomeCategoryData, null, 2))
+    if (incomeCategoryData && incomeCategoryData.code === 200 && incomeCategoryData.data) {
+      console.log('【收入分类图】绘制数据:', JSON.stringify(incomeCategoryData.data, null, 2))
+      drawIncomeCategoryChart(incomeCategoryData.data)
     } else {
-      console.warn('【分类图】数据格式错误:', categoryData)
+      console.warn('【收入分类图】数据格式错误:', incomeCategoryData)
+    }
+
+    // 加载支出分类分布图
+    const expenseCategoryData = await reportAPI.getExpenseChart(month)
+    console.log('【支出分类图】原始响应:', JSON.stringify(expenseCategoryData, null, 2))
+    if (expenseCategoryData && expenseCategoryData.code === 200 && expenseCategoryData.data) {
+      console.log('【支出分类图】绘制数据:', JSON.stringify(expenseCategoryData.data, null, 2))
+      drawExpenseCategoryChart(expenseCategoryData.data)
+    } else {
+      console.warn('【支出分类图】数据格式错误:', expenseCategoryData)
     }
   } catch (error) {
     console.error('【图表】加载失败:', error)
@@ -260,13 +325,25 @@ const drawTrendChart = (data) => {
   })
 }
 
-const drawCategoryChart = (data) => {
-  if (categoryChartInstance) categoryChartInstance.destroy()
+const drawIncomeCategoryChart = (data) => {
+  if (incomeCategoryChartInstance) incomeCategoryChartInstance.destroy()
   
-  const ctx = categoryChart.value
+  const ctx = incomeCategoryChart.value
   if (!ctx) return
 
-  categoryChartInstance = new Chart(ctx, {
+  // 存储详细数据用于交互
+  if (data.details) {
+    incomeCategoryDetails.value = data.details.map(d => ({
+      ...d,
+      amount: Number(d.amount),
+      percentage: Number(d.percentage)
+    }))
+  }
+  if (data.total) {
+    incomeCategoryTotal.value = Number(data.total)
+  }
+
+  incomeCategoryChartInstance = new Chart(ctx, {
     type: 'doughnut',
     data: {
       labels: data.labels || [],
@@ -281,16 +358,87 @@ const drawCategoryChart = (data) => {
             '#00f2fe',
             '#43e97b',
             '#fa709a',
-            '#fee140'
-          ]
+            '#fee140',
+            '#34c759',
+            '#ff3b30'
+          ],
+          borderWidth: 2,
+          borderColor: '#fff'
         }
       ]
     },
     options: {
       responsive: true,
+      maintainAspectRatio: true,
       plugins: {
         legend: {
-          position: 'right'
+          position: 'bottom',
+          labels: {
+            padding: 15,
+            font: {
+              size: 12
+            }
+          }
+        }
+      }
+    }
+  })
+}
+
+const drawExpenseCategoryChart = (data) => {
+  if (expenseCategoryChartInstance) expenseCategoryChartInstance.destroy()
+  
+  const ctx = expenseCategoryChart.value
+  if (!ctx) return
+
+  // 存储详细数据用于交互
+  if (data.details) {
+    expenseCategoryDetails.value = data.details.map(d => ({
+      ...d,
+      amount: Number(d.amount),
+      percentage: Number(d.percentage)
+    }))
+  }
+  if (data.total) {
+    expenseCategoryTotal.value = Number(data.total)
+  }
+
+  expenseCategoryChartInstance = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: data.labels || [],
+      datasets: [
+        {
+          data: data.values || [],
+          backgroundColor: [
+            '#667eea',
+            '#764ba2',
+            '#f093fb',
+            '#4facfe',
+            '#00f2fe',
+            '#43e97b',
+            '#fa709a',
+            '#fee140',
+            '#34c759',
+            '#ff3b30'
+          ],
+          borderWidth: 2,
+          borderColor: '#fff'
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: {
+            padding: 15,
+            font: {
+              size: 12
+            }
+          }
         }
       }
     }
@@ -414,7 +562,7 @@ onMounted(() => {
 
 .charts-section {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  grid-template-columns: 1fr;
   gap: 20px;
   margin-bottom: 40px;
 }
@@ -426,6 +574,78 @@ onMounted(() => {
 .chart-placeholder {
   position: relative;
   height: 300px;
+}
+
+.category-charts-section {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+  gap: 20px;
+  margin-bottom: 40px;
+}
+
+.category-chart-container {
+  width: 100%;
+}
+
+.category-content {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.category-details {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding-right: 10px;
+}
+
+.category-item {
+  padding: 12px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-left: 4px solid #f0f0f0;
+}
+
+.category-item:hover {
+  background-color: #f0f0f0;
+  transform: translateX(4px);
+}
+
+.category-item.active {
+  background-color: #e8f5e9;
+  border-left-color: #27ae60;
+}
+
+.category-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.category-amount {
+  font-size: 14px;
+  font-weight: 700;
+  color: #27ae60;
+  margin-bottom: 2px;
+}
+
+.category-percentage {
+  font-size: 12px;
+  color: #999;
+}
+
+.chart-total {
+  font-size: 12px;
+  color: #666;
+  margin-left: 10px;
+  font-weight: normal;
 }
 
 .quick-actions {
@@ -469,7 +689,11 @@ onMounted(() => {
     grid-template-columns: 1fr;
   }
 
-  .charts-section {
+  .category-charts-section {
+    grid-template-columns: 1fr;
+  }
+
+  .category-content {
     grid-template-columns: 1fr;
   }
 
