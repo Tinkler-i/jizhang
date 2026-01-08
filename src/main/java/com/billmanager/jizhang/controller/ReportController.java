@@ -15,6 +15,10 @@ import com.billmanager.jizhang.mapper.UserTargetMapper;
 import com.billmanager.jizhang.mapper.IncomeMapper;
 import com.billmanager.jizhang.mapper.ExpenseMapper;
 import com.billmanager.jizhang.mapper.BudgetMapper;
+import com.billmanager.jizhang.mapper.IncomeCategoryMapper;
+import com.billmanager.jizhang.mapper.ExpenseCategoryMapper;
+import com.billmanager.jizhang.entity.IncomeCategory;
+import com.billmanager.jizhang.entity.ExpenseCategory;
 import com.billmanager.jizhang.service.ReportService;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
@@ -43,6 +47,8 @@ public class ReportController {
     private final IncomeMapper incomeMapper;
     private final ExpenseMapper expenseMapper;
     private final BudgetMapper budgetMapper;
+    private final IncomeCategoryMapper incomeCategoryMapper;
+    private final ExpenseCategoryMapper expenseCategoryMapper;
     
     /**
      * 获取当前用户
@@ -208,6 +214,83 @@ public class ReportController {
     }
     
     /**
+     * 获取收入分类分布图表数据
+     */
+    @GetMapping("/income-category-chart/{month}")
+    public ApiResponse<?> getIncomeCategoryChart(
+            @PathVariable String month,
+            HttpSession session) {
+        
+        User user = getCurrentUser(session);
+        if (user == null) {
+            return ApiResponse.error("请先登录");
+        }
+        
+        System.out.println("【ReportController】获取收入分类图表，月份: " + month);
+        
+        try {
+            // 解析年月
+            YearMonth ym = YearMonth.parse(month);
+            LocalDate monthStart = ym.atDay(1);
+            LocalDate monthEnd = ym.atEndOfMonth();
+            
+            // 获取本月收入
+            List<Income> monthIncomes = incomeMapper.findByUserIdAndDateRange(user.getId(), monthStart, monthEnd);
+            
+            // 按分类汇总，并获取分类名称
+            java.util.Map<Long, BigDecimal> incomeByCategory = new java.util.HashMap<>();
+            for (Income income : monthIncomes) {
+                Long categoryId = income.getCategoryId();
+                incomeByCategory.put(categoryId, 
+                    incomeByCategory.getOrDefault(categoryId, BigDecimal.ZERO).add(income.getAmount()));
+            }
+            
+            // 计算总金额
+            BigDecimal totalIncome = incomeByCategory.values().stream()
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            
+            // 构建响应数据，包含分类名称和占比
+            java.util.List<String> labels = new java.util.ArrayList<>();
+            java.util.List<BigDecimal> values = new java.util.ArrayList<>();
+            java.util.List<java.util.Map<String, Object>> details = new java.util.ArrayList<>();
+            
+            for (java.util.Map.Entry<Long, BigDecimal> entry : incomeByCategory.entrySet()) {
+                IncomeCategory category = incomeCategoryMapper.findById(entry.getKey());
+                String categoryName = category != null ? category.getName() : "未知分类";
+                BigDecimal amount = entry.getValue();
+                
+                // 计算占比百分比
+                BigDecimal percentage = totalIncome.compareTo(BigDecimal.ZERO) > 0
+                        ? amount.divide(totalIncome, 4, java.math.RoundingMode.HALF_UP).multiply(new BigDecimal("100"))
+                        : BigDecimal.ZERO;
+                
+                labels.add(categoryName);
+                values.add(amount);
+                
+                java.util.Map<String, Object> detail = new java.util.HashMap<>();
+                detail.put("categoryName", categoryName);
+                detail.put("categoryId", entry.getKey());
+                detail.put("amount", amount);
+                detail.put("percentage", percentage.setScale(2, java.math.RoundingMode.HALF_UP));
+                details.add(detail);
+            }
+            
+            java.util.Map<String, Object> data = new java.util.HashMap<>();
+            data.put("labels", labels);
+            data.put("values", values);
+            data.put("details", details);
+            data.put("total", totalIncome);
+            
+            System.out.println("【ReportController】返回收入分类图表数据成功");
+            return ApiResponse.success("获取收入分类图表成功", data);
+        } catch (Exception e) {
+            System.err.println("【ReportController】获取收入分类图表失败: " + e.getMessage());
+            e.printStackTrace();
+            return ApiResponse.error("获取收入分类图表失败: " + e.getMessage());
+        }
+    }
+    
+    /**
      * 获取支出分类分布图表数据
      */
     @GetMapping("/expense-chart/{month}")
@@ -231,18 +314,49 @@ public class ReportController {
             // 获取本月支出
             List<Expense> monthExpenses = expenseMapper.findByUserIdAndDateRange(user.getId(), monthStart, monthEnd);
             
-            // 按分类汇总
-            java.util.Map<String, BigDecimal> expenseByCategory = new java.util.HashMap<>();
+            // 按分类汇总，并获取分类名称
+            java.util.Map<Long, BigDecimal> expenseByCategory = new java.util.HashMap<>();
             for (Expense expense : monthExpenses) {
-                String categoryName = expense.getCategoryId().toString();
-                // 在实际应用中，应该从ExpenseCategoryMapper查询分类名称
-                expenseByCategory.put(categoryName, 
-                    expenseByCategory.getOrDefault(categoryName, BigDecimal.ZERO).add(expense.getAmount()));
+                Long categoryId = expense.getCategoryId();
+                expenseByCategory.put(categoryId, 
+                    expenseByCategory.getOrDefault(categoryId, BigDecimal.ZERO).add(expense.getAmount()));
+            }
+            
+            // 计算总金额
+            BigDecimal totalExpense = expenseByCategory.values().stream()
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            
+            // 构建响应数据，包含分类名称和占比
+            java.util.List<String> labels = new java.util.ArrayList<>();
+            java.util.List<BigDecimal> values = new java.util.ArrayList<>();
+            java.util.List<java.util.Map<String, Object>> details = new java.util.ArrayList<>();
+            
+            for (java.util.Map.Entry<Long, BigDecimal> entry : expenseByCategory.entrySet()) {
+                ExpenseCategory category = expenseCategoryMapper.findById(entry.getKey());
+                String categoryName = category != null ? category.getName() : "未知分类";
+                BigDecimal amount = entry.getValue();
+                
+                // 计算占比百分比
+                BigDecimal percentage = totalExpense.compareTo(BigDecimal.ZERO) > 0
+                        ? amount.divide(totalExpense, 4, java.math.RoundingMode.HALF_UP).multiply(new BigDecimal("100"))
+                        : BigDecimal.ZERO;
+                
+                labels.add(categoryName);
+                values.add(amount);
+                
+                java.util.Map<String, Object> detail = new java.util.HashMap<>();
+                detail.put("categoryName", categoryName);
+                detail.put("categoryId", entry.getKey());
+                detail.put("amount", amount);
+                detail.put("percentage", percentage.setScale(2, java.math.RoundingMode.HALF_UP));
+                details.add(detail);
             }
             
             java.util.Map<String, Object> data = new java.util.HashMap<>();
-            data.put("labels", new java.util.ArrayList<>(expenseByCategory.keySet()));
-            data.put("values", new java.util.ArrayList<>(expenseByCategory.values()));
+            data.put("labels", labels);
+            data.put("values", values);
+            data.put("details", details);
+            data.put("total", totalExpense);
             
             System.out.println("【ReportController】返回支出图表数据成功");
             return ApiResponse.success("获取支出图表成功", data);
