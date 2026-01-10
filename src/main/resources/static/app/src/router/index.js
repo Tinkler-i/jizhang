@@ -9,6 +9,7 @@ import ExpenseCategory from '../views/ExpenseCategory.vue'
 import Budget from '../views/Budget.vue'
 import Report from '../views/Report.vue'
 import UserProfile from '../views/UserProfile.vue'
+import BillImport from '../views/BillImport.vue'
 
 const routes = [
   {
@@ -64,6 +65,12 @@ const routes = [
     name: 'UserProfile',
     component: UserProfile,
     meta: { requiresAuth: true, title: '个人设置' }
+  },
+  {
+    path: '/bill-import',
+    name: 'BillImport',
+    component: BillImport,
+    meta: { requiresAuth: true, title: '账单导入' }
   }
 ]
 

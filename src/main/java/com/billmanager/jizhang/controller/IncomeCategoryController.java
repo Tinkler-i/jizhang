@@ -9,6 +9,7 @@ import com.billmanager.jizhang.service.IncomeCategoryService;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@Slf4j
 @Controller
 @RequiredArgsConstructor
 public class IncomeCategoryController {
@@ -109,10 +111,12 @@ public class IncomeCategoryController {
     public ApiResponse<List<IncomeCategory>> list(HttpSession session) {
         User user = getCurrentUser(session);
         if (user == null) {
+            log.warn("获取收入分类失败: 用户未登录");
             return ApiResponse.error("请先登录");
         }
         
         List<IncomeCategory> categories = incomeCategoryService.findByUserId(user.getId());
+        log.info("查询用户 {} 的收入分类，共 {} 条", user.getId(), categories.size());
         return ApiResponse.success("查询成功", categories);
     }
 }

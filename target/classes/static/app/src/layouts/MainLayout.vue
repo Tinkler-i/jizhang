@@ -106,6 +106,11 @@ const menuItems = [
     icon: '📈'
   },
   {
+    path: '/bill-import',
+    label: '账单导入',
+    icon: '📸'
+  },
+  {
     path: '/profile',
     label: '个人设置',
     icon: '⚙️'

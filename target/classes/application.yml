@@ -40,3 +40,17 @@ logging:
   level:
     com.billmanager.jizhang: debug
     org.springframework.security: debug
+
+# 讯飞大模型API配置
+xunfei:
+  api:
+    # 讯飞Spark API的AppId
+    app-id: f12d4937
+    # 讯飞API Key
+    api-key: 2e04d279bb72b1b13d768782c20a4514
+    # 讯飞API Secret
+    api-secret: Zjg5MGM2N2ZmYjlhZjcwOTIyMTg1ODBi
+    # 图像理解API的请求URL
+    image-understanding-url: wss://spark-api.xf-yun.com/v1/private/s9d79457c6/imageunderstanding
+    # API调用超时时间（毫秒）
+    timeout: 30000
