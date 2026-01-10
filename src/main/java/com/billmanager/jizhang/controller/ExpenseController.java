@@ -119,7 +119,8 @@ public class ExpenseController {
     public ApiResponse<List<Expense>> list(HttpSession session,
                                             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
                                             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
-                                            @RequestParam(required = false) Long categoryId) {
+                                            @RequestParam(required = false) Long categoryId,
+                                            @RequestParam(required = false) String keyword) {
         User user = getCurrentUser(session);
         if (user == null) {
             return ApiResponse.error("请先登录");
@@ -132,6 +133,14 @@ public class ExpenseController {
             expenses = expenseService.findByUserIdAndDateRange(user.getId(), startDate, endDate);
         } else {
             expenses = expenseService.findByUserId(user.getId());
+        }
+        
+        // 按关键字过滤描述
+        if (keyword != null && !keyword.isEmpty()) {
+            final String key = keyword.toLowerCase();
+            expenses = expenses.stream()
+                    .filter(e -> e.getDescription() != null && e.getDescription().toLowerCase().contains(key))
+                    .collect(java.util.stream.Collectors.toList());
         }
         
         return ApiResponse.success("查询成功", expenses);

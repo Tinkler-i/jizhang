@@ -196,10 +196,21 @@ const loadIncomes = async () => {
   loading.value = true
   try {
     const params = {
-      month: filters.month,
       ...(filters.categoryId && { categoryId: filters.categoryId }),
       ...(filters.keyword && { keyword: filters.keyword })
     }
+    
+    // 处理月份参数，转换为日期范围
+    if (filters.month) {
+      const [year, month] = filters.month.split('-')
+      const startDate = `${year}-${month}-01`
+      const lastDay = new Date(year, month, 0).getDate()
+      const endDate = `${year}-${month}-${lastDay}`
+      params.startDate = startDate
+      params.endDate = endDate
+      console.log('月份筛选:', filters.month, '转换为日期范围:', startDate, '~', endDate)
+    }
+    
     console.log('加载收入，参数:', params)
     const response = await incomeAPI.getList(params)
     console.log('【原始响应】', JSON.stringify(response, null, 2))

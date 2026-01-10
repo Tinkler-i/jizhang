@@ -15,10 +15,6 @@
             <div class="metric-content">
               <p class="metric-label">本月收入</p>
               <p class="metric-value">¥ {{ metrics.income || '0.00' }}</p>
-              <p class="metric-target">
-                目标: ¥ {{ metrics.targetIncome || '0.00' }}
-                <button class="edit-btn" @click="showEditTargetModal = true" title="编辑目标">✏️</button>
-              </p>
             </div>
           </div>
         </Card>
@@ -38,11 +34,14 @@
           <div class="metric-card">
             <div class="metric-icon balance">💰</div>
             <div class="metric-content">
-              <p class="metric-label">净收入</p>
+              <p class="metric-label">攒下</p>
               <p class="metric-value" :class="{ 'text-danger': metrics.balance < 0 }">
                 ¥ {{ metrics.balance || '0.00' }}
               </p>
-              <p class="metric-target">收入比: {{ metrics.profitRate || '0%' }}</p>
+              <p class="metric-target">
+                目标达成度: <span :class="{ 'text-success': achievementRate >= 100, 'text-danger': achievementRate < 50 }">{{ achievementRate }}%</span> (¥{{ metrics.targetIncome || '0.00' }})
+                <button class="edit-btn" @click="openEditTargetModal" title="编辑目标">✏️</button>
+              </p>
             </div>
           </div>
         </Card>
@@ -155,18 +154,21 @@
 
     <!-- 编辑目标模态框 -->
     <Modal
-      v-model:visible="showEditTargetModal"
-      title="编辑本月收入目标"
-      @confirm="saveIncomeTarget"
+      v-model="showEditTargetModal"
+      title="编辑本月攒下的目标"
     >
       <div class="form-group">
-        <label>本月收入目标（¥）</label>
+        <label>本月攒下的目标（¥）</label>
         <Input
           v-model="targetForm.incomeTarget"
           type="number"
-          placeholder="请输入本月收入目标"
+          placeholder="请输入本月攒下的目标"
         />
       </div>
+      <template #footer>
+        <Button type="secondary" @click="showEditTargetModal = false">取消</Button>
+        <Button type="primary" @click="saveIncomeTarget">保存</Button>
+      </template>
     </Modal>
   </div>
 </template>
@@ -213,6 +215,14 @@ const metrics = reactive({
 const currentMonthDisplay = computed(() => {
   const now = new Date()
   return `${now.getFullYear()}年${now.getMonth() + 1}月`
+})
+
+const achievementRate = computed(() => {
+  const balance = parseFloat(metrics.balance) || 0
+  const target = parseFloat(metrics.targetIncome) || 0
+  if (target <= 0) return 0
+  const rate = Math.round((balance / target) * 100)
+  return Math.max(0, rate)
 })
 
 const loadDashboardData = async () => {
@@ -463,6 +473,11 @@ const saveIncomeTarget = async () => {
   } catch (error) {
     console.error('【仪表盘】保存异常:', error)
   }
+}
+
+const openEditTargetModal = () => {
+  targetForm.incomeTarget = metrics.targetIncome || '0'
+  showEditTargetModal.value = true
 }
 
 onMounted(() => {
