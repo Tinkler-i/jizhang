@@ -20,13 +20,36 @@ api.interceptors.request.use(
   error => Promise.reject(error)
 )
 
-// 响应拦截器
+// 响应拦截器 - 统一处理会话过期
 api.interceptors.response.use(
-  response => response.data,
+  response => {
+    // 检查返回数据中是否包含错误且是认证相关错误
+    if (response.data && response.data.code && response.data.code !== 0) {
+      // 如果是认证相关错误，清除登录信息并跳转到登录页
+      if (response.data.code === 401 || response.data.message?.includes('未登录') || response.data.message?.includes('会话已过期')) {
+        localStorage.removeItem('token')
+        localStorage.removeItem('username')
+        // 使用 window.location 确保强制刷新
+        window.location.href = '/jizhang/login'
+      }
+    }
+    return response.data
+  },
   error => {
+    // 处理HTTP状态码错误
     if (error.response?.status === 401) {
       localStorage.removeItem('token')
+      localStorage.removeItem('username')
       window.location.href = '/jizhang/login'
+    }
+    // 处理网络错误或其他错误
+    if (error.response?.status === 500) {
+      // 检查是否是认证相关的500错误
+      if (error.response?.data?.message?.includes('未登录') || error.response?.data?.message?.includes('会话已过期')) {
+        localStorage.removeItem('token')
+        localStorage.removeItem('username')
+        window.location.href = '/jizhang/login'
+      }
     }
     return Promise.reject(error)
   }

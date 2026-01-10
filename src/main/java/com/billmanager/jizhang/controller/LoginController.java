@@ -7,6 +7,7 @@ import com.billmanager.jizhang.mapper.UserMapper;
 import com.billmanager.jizhang.service.UserService;
 import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -113,9 +114,11 @@ public class LoginController {
      */
     @GetMapping("/api/user/profile")
     @ResponseBody
-    public ApiResponse<User> getProfile(HttpSession session) {
+    public ApiResponse<User> getProfile(HttpSession session, HttpServletResponse response) {
         User user = getCurrentUser(session);
         if (user == null) {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            System.out.println("【LoginController】验证失败：未登录或会话已过期");
             return ApiResponse.error("未登录或会话已过期");
         }
         System.out.println("【LoginController】获取用户信息成功: " + user.getUsername());
@@ -127,9 +130,11 @@ public class LoginController {
      */
     @GetMapping("/api/auth/profile")
     @ResponseBody
-    public ApiResponse<User> getAuthProfile(HttpSession session) {
+    public ApiResponse<User> getAuthProfile(HttpSession session, HttpServletResponse response) {
         User user = getCurrentUser(session);
         if (user == null) {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            System.out.println("【LoginController】验证失败：未登录或会话已过期");
             return ApiResponse.error("未登录或会话已过期");
         }
         System.out.println("【LoginController】获取用户信息成功: " + user.getUsername());

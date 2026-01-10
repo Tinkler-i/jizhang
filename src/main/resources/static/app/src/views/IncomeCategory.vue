@@ -7,11 +7,16 @@
 
     <!-- 分类列表 -->
     <div class="category-grid">
-      <Card v-for="category in categories" :key="category.id" class="category-card">
+      <Card 
+        v-for="category in categories" 
+        :key="category.id" 
+        class="category-card clickable-card"
+        @click="viewCategoryDetails(category)"
+      >
         <template #header>
           <div class="category-header">
             <h3>{{ category.name }}</h3>
-            <div class="category-actions">
+            <div class="category-actions" @click.stop>
               <button class="link-btn" @click="editCategory(category)">编辑</button>
               <button class="link-btn danger" @click="deleteCategory(category.id)">删除</button>
             </div>
@@ -48,6 +53,38 @@
         <Button type="primary" @click="handleSave">保存</Button>
       </template>
     </Modal>
+
+    <!-- 分类详情模态框 -->
+    <Modal
+      v-model="showDetailsModal"
+      :title="`${selectedCategory?.name} - 详细记录`"
+      size="lg"
+    >
+      <div v-if="categoryDetails.length === 0" class="empty-state">
+        <p>暂无数据</p>
+      </div>
+      <div v-else class="details-table">
+        <table>
+          <thead>
+            <tr>
+              <th>日期</th>
+              <th>金额</th>
+              <th>描述</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="item in categoryDetails" :key="item.id">
+              <td>{{ formatDate(item.transactionDate) }}</td>
+              <td>¥{{ item.amount }}</td>
+              <td>{{ item.description || '-' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <template #footer>
+        <Button type="secondary" @click="showDetailsModal = false">关闭</Button>
+      </template>
+    </Modal>
   </div>
 </template>
 
@@ -62,7 +99,10 @@ import Modal from '../components/Modal.vue'
 const categories = ref([])
 const incomes = ref([])
 const showModal = ref(false)
+const showDetailsModal = ref(false)
 const editingId = ref(null)
+const selectedCategory = ref(null)
+const categoryDetails = ref([])
 
 const form = reactive({
   name: '',
@@ -149,6 +189,17 @@ const handleSave = async () => {
   }
 }
 
+const formatDate = (date) => {
+  if (!date) return '-'
+  return new Date(date).toLocaleDateString('zh-CN')
+}
+
+const viewCategoryDetails = (category) => {
+  selectedCategory.value = category
+  categoryDetails.value = incomes.value.filter(item => item.categoryId === category.id)
+  showDetailsModal.value = true
+}
+
 const deleteCategory = async (id) => {
   if (confirm('确定删除此分类吗？')) {
     try {
@@ -192,6 +243,11 @@ onMounted(() => {
 
 .category-card {
   transition: all 0.3s;
+  cursor: pointer;
+}
+
+.category-card.clickable-card {
+  cursor: pointer;
 }
 
 .category-card:hover {
@@ -226,6 +282,44 @@ onMounted(() => {
   color: #999;
   font-size: 13px;
   margin: 10px 0 0 0;
+}
+
+.details-table {
+  width: 100%;
+}
+
+.details-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.details-table thead {
+  background-color: #f5f5f5;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.details-table th {
+  padding: 12px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 13px;
+  color: #333;
+}
+
+.details-table td {
+  padding: 12px;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 13px;
+}
+
+.details-table tbody tr:hover {
+  background-color: #fafafa;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: #999;
 }
 
 .link-btn {

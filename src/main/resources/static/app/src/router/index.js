@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { authAPI } from '../api'
+import { useUIStore } from '../stores/ui'
 import Login from '../views/Login.vue'
 import Dashboard from '../views/Dashboard.vue'
 import Income from '../views/Income.vue'
@@ -84,6 +85,7 @@ let isVerifying = false
 router.beforeEach(async (to, from, next) => {
   const token = localStorage.getItem('token')
   const username = localStorage.getItem('username')
+  const uiStore = useUIStore()
   
   // 如果是登录页，直接放行
   if (to.meta.requiresAuth === false) {
@@ -109,13 +111,43 @@ router.beforeEach(async (to, from, next) => {
   try {
     console.log('【路由守卫】验证 token 有效性...')
     const response = await authAPI.getProfile()
-    console.log('【路由守卫】验证成功，用户:', response)
-    next()
+    
+    // 检查响应是否成功
+    if (response.code === 0 && response.data) {
+      console.log('【路由守卫】验证成功，用户:', response.data)
+      next()
+    } else if (response.code === 401 || response.message?.includes('未登录') || response.message?.includes('会话已过期')) {
+      console.warn('【路由守卫】会话已过期，用户信息:', response)
+      // 清除登录信息
+      localStorage.removeItem('token')
+      localStorage.removeItem('username')
+      // 显示提示信息
+      if (uiStore && uiStore.showNotification) {
+        uiStore.showNotification('登录已过期，请重新登录', 'warning', 3000)
+      }
+      // 重定向到登录页
+      next('/login')
+    } else {
+      console.warn('【路由守卫】未知响应:', response)
+      next()
+    }
   } catch (error) {
-    console.warn('【路由守卫】token 验证失败，清除登录信息:', error)
-    localStorage.removeItem('token')
-    localStorage.removeItem('username')
-    next('/login')
+    console.warn('【路由守卫】token 验证失败:', error.message)
+    
+    // 检查是否是401错误
+    if (error.response?.status === 401) {
+      console.warn('【路由守卫】收到 401 错误，会话已过期')
+      localStorage.removeItem('token')
+      localStorage.removeItem('username')
+      if (uiStore && uiStore.showNotification) {
+        uiStore.showNotification('登录已过期，请重新登录', 'warning', 3000)
+      }
+      next('/login')
+    } else {
+      // 其他错误，允许继续（会在页面请求时再次处理）
+      console.warn('【路由守卫】验证出错，继续导航:', error)
+      next()
+    }
   } finally {
     isVerifying = false
   }
