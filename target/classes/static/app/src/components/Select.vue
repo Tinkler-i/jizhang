@@ -8,10 +8,14 @@
       :required="required"
       @change="$emit('update:modelValue', $event.target.value)"
     >
-      <option v-if="placeholder" value="">{{ placeholder }}</option>
-      <option v-for="item in options" :key="item.value" :value="item.value">
-        {{ item.label }}
-      </option>
+      <!-- 支持通过 slot 传入 option 和 optgroup -->
+      <slot>
+        <!-- 如果没有 slot，则使用 props 中的 options -->
+        <option v-if="placeholder" value="">{{ placeholder }}</option>
+        <option v-for="item in options" :key="item.value" :value="item.value">
+          {{ item.label }}
+        </option>
+      </slot>
     </select>
     <span v-if="error" class="error-message">{{ error }}</span>
     <span v-if="help" class="help-text">{{ help }}</span>

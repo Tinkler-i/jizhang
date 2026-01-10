@@ -2,7 +2,7 @@ import axios from 'axios'
 
 const api = axios.create({
   baseURL: '/jizhang/api',
-  timeout: 10000,
+  timeout: 60000,
   headers: {
     'Content-Type': 'application/json'
   }
@@ -110,6 +110,12 @@ export const userTargetAPI = {
   getByMonth: (month) => api.get(`/user-target/${month}`),
   update: (month, incomeTarget) => api.put(`/user-target/${month}`, { incomeTarget }),
   create: (targetMonth, incomeTarget) => api.post('/user-target', { targetMonth, incomeTarget })
+}
+
+// Bill Import API - 账单导入
+export const billImportAPI = {
+  recognize: (image, accountType) => api.post('/bill-import/recognize', { image, accountType }, { timeout: 120000 }),
+  confirm: (records) => api.post('/bill-import/confirm', { records })
 }
 
 export default api
