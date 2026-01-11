@@ -24,6 +24,7 @@ CREATE TABLE `income_category` (
     `user_id` BIGINT NOT NULL COMMENT '用户ID',
     `name` VARCHAR(50) NOT NULL COMMENT '分类名称',
     `description` VARCHAR(200) COMMENT '分类描述',
+    `is_built_in` TINYINT DEFAULT 0 COMMENT '是否系统内置分类：0-用户自定义，1-系统内置',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
@@ -52,6 +53,7 @@ CREATE TABLE `expense_category` (
     `user_id` BIGINT NOT NULL COMMENT '用户ID',
     `name` VARCHAR(50) NOT NULL COMMENT '分类名称',
     `description` VARCHAR(200) COMMENT '分类描述',
+    `is_built_in` TINYINT DEFAULT 0 COMMENT '是否系统内置分类：0-用户自定义，1-系统内置',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
@@ -141,22 +143,24 @@ CREATE TABLE `user_target` (
 
 INSERT INTO `user` (`username`, `password`, `phone`, `email`, `status`) VALUES
 ('admin', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTVKIUi', '13800138000', 'admin@example.com', 1);
+, `is_built_in`) VALUES
+(1, '工资', '工资收入', 0),
+(1, '奖金', '奖金收入', 0),
+(1, '投资收益', '投资理财收益', 0),
+(1, '兼职收入', '兼职工作收入', 0),
+(1, '其他', '其他收入', 0),
+(1, '待分类', '自动导入账单时未匹配分类的默认分类', 1);
 
-INSERT INTO `income_category` (`user_id`, `name`, `description`) VALUES
-(1, '工资', '工资收入'),
-(1, '奖金', '奖金收入'),
-(1, '投资收益', '投资理财收益'),
-(1, '兼职收入', '兼职工作收入'),
-(1, '其他', '其他收入');
-
-INSERT INTO `expense_category` (`user_id`, `name`, `description`) VALUES
-(1, '餐饮', '餐饮消费'),
-(1, '交通', '交通出行'),
-(1, '购物', '购物消费'),
-(1, '娱乐', '娱乐消费'),
-(1, '住房', '住房相关支出'),
-(1, '医疗', '医疗健康'),
-(1, '教育', '教育培训'),
+INSERT INTO `expense_category` (`user_id`, `name`, `description`, `is_built_in`) VALUES
+(1, '餐饮', '餐饮消费', 0),
+(1, '交通', '交通出行', 0),
+(1, '购物', '购物消费', 0),
+(1, '娱乐', '娱乐消费', 0),
+(1, '住房', '住房相关支出', 0),
+(1, '医疗', '医疗健康', 0),
+(1, '教育', '教育培训', 0),
+(1, '其他', '其他支出', 0),
+(1, '待分类', '自动导入账单时未匹配分类的默认分类', 1),
 (1, '其他', '其他支出');
 
 INSERT INTO `user_target` (`user_id`, `target_month`, `income_target`) VALUES

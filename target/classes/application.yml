@@ -18,6 +18,24 @@ spring:
   session:
     store-type: memory
     timeout: 30m
+  
+  # 邮箱配置
+  mail:
+    host: smtp.qq.com
+    port: 587
+    username: 161871946@qq.com  # 替换为你的 QQ 邮箱
+    password: xskynmokzqdvbieb  # 替换为 QQ 邮箱的授权码
+    default-encoding: UTF-8
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
 
 mybatis:
   mapper-locations: classpath:mapper/*.xml
@@ -38,8 +56,17 @@ server:
 
 logging:
   level:
+    root: info
     com.billmanager.jizhang: debug
+    com.billmanager.jizhang.service: info
+    com.billmanager.jizhang.controller: info
     org.springframework.security: debug
+    org.springframework.mail: info
+    org.springframework.mail.javamail: debug
+    org.springframework.web: debug
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
 
 # 讯飞大模型API配置
 xunfei:

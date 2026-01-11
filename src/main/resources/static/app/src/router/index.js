@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { authAPI } from '../api'
 import { useUIStore } from '../stores/ui'
 import Login from '../views/Login.vue'
+import Register from '../views/Register.vue'
 import Dashboard from '../views/Dashboard.vue'
 import Income from '../views/Income.vue'
 import IncomeCategory from '../views/IncomeCategory.vue'
@@ -17,6 +18,12 @@ const routes = [
     path: '/login',
     name: 'Login',
     component: Login,
+    meta: { requiresAuth: false }
+  },
+  {
+    path: '/register',
+    name: 'Register',
+    component: Register,
     meta: { requiresAuth: false }
   },
   {

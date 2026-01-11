@@ -1,6 +1,6 @@
 <template>
   <div class="app">
-    <MainLayout v-if="$route.path !== '/login'">
+    <MainLayout v-if="$route.path !== '/login' && $route.path !== '/register'">
       <RouterView />
     </MainLayout>
     <RouterView v-else />
@@ -16,7 +16,7 @@ const router = useRouter()
 // 检查认证状态
 const checkAuth = () => {
   const token = localStorage.getItem('token')
-  if (!token && router.currentRoute.value.path !== '/login') {
+  if (!token && router.currentRoute.value.path !== '/login' && router.currentRoute.value.path !== '/register') {
     router.push('/login')
   }
 }
@@ -24,7 +24,7 @@ const checkAuth = () => {
 // 监听路由变化
 router.beforeEach((to, from, next) => {
   const token = localStorage.getItem('token')
-  if (to.path === '/login') {
+  if (to.path === '/login' || to.path === '/register') {
     next()
   } else if (!token) {
     next('/login')

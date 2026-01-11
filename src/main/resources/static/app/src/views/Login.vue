@@ -45,7 +45,7 @@
       </form>
 
       <div class="login-footer">
-        <p>还没有账户？<a href="#" class="register-link">立即注册</a></p>
+        <p>还没有账户？<router-link to="/register" class="register-link">立即注册</router-link></p>
       </div>
     </div>
   </div>

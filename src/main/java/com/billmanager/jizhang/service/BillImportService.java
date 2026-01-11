@@ -14,9 +14,11 @@ public interface BillImportService {
      *
      * @param base64Image Base64编码的图像数据
      * @param accountType 账单类型提示
+     * @param currentDate 当前日期，格式为 YYYY-MM-DD，用于转换相对日期
+     * @param userId 用户ID，用于获取用户的分类信息
      * @return 识别结果
      */
-    BillImportResponse recognize(String base64Image, String accountType);
+    BillImportResponse recognize(String base64Image, String accountType, String currentDate, Long userId);
     
     /**
      * 确认并导入账单记录
@@ -27,3 +29,4 @@ public interface BillImportService {
      */
     BillImportConfirmResponse confirm(Long userId, BillImportConfirmRequest request);
 }
+

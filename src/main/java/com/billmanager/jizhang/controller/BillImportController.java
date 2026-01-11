@@ -79,7 +79,9 @@ public class BillImportController {
             
             BillImportResponse response = billImportService.recognize(
                     request.getImage(),
-                    request.getAccountType()
+                    request.getAccountType(),
+                    request.getCurrentDate(),
+                    user.getId()
             );
             
             log.info("识别成功，识别到 {} 条记录", response.getRecords().size());

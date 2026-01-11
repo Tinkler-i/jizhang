@@ -3,7 +3,7 @@
     <label v-if="label" :for="id">{{ label }}</label>
     <textarea
       :id="id"
-      v-model="modelValue"
+      :value="modelValue"
       :placeholder="placeholder"
       :disabled="disabled"
       :required="required"

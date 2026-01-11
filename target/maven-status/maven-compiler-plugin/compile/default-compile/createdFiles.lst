@@ -4,6 +4,7 @@ com\billmanager\jizhang\dto\BillImportResponse.class
 com\billmanager\jizhang\controller\BillImportController.class
 com\billmanager\jizhang\dto\TrendAnalysis.class
 com\billmanager\jizhang\service\AnalysisService.class
+com\billmanager\jizhang\service\impl\EmailServiceImpl.class
 com\billmanager\jizhang\controller\LoginController.class
 com\billmanager\jizhang\service\impl\BudgetServiceImpl.class
 com\billmanager\jizhang\dto\BillImportConfirmResponse$BillImportConfirmResponseBuilder.class
@@ -11,7 +12,9 @@ com\billmanager\jizhang\service\impl\IncomeServiceImpl.class
 com\billmanager\jizhang\dto\BudgetRequest.class
 com\billmanager\jizhang\entity\Income.class
 com\billmanager\jizhang\entity\Expense.class
+com\billmanager\jizhang\controller\RegisterController.class
 com\billmanager\jizhang\dto\DashboardData$CategoryData.class
+com\billmanager\jizhang\service\impl\VerificationCodeServiceImpl.class
 com\billmanager\jizhang\dto\DashboardData$ChartData.class
 com\billmanager\jizhang\dto\BillImportConfirmRequest$BillRecordConfirmDTO.class
 com\billmanager\jizhang\service\BudgetService.class
@@ -21,6 +24,7 @@ com\billmanager\jizhang\dto\ExpenseRequest.class
 com\billmanager\jizhang\exception\BusinessException.class
 com\billmanager\jizhang\dto\BillRecordDTO$BillRecordDTOBuilder.class
 com\billmanager\jizhang\service\UserService.class
+com\billmanager\jizhang\dto\VerifyCodeResponse.class
 com\billmanager\jizhang\dto\BudgetVsActual.class
 com\billmanager\jizhang\mapper\IncomeCategoryMapper.class
 com\billmanager\jizhang\service\impl\AnalysisServiceImpl.class
@@ -29,12 +33,17 @@ com\billmanager\jizhang\service\impl\ReportServiceImpl.class
 com\billmanager\jizhang\controller\BudgetController.class
 com\billmanager\jizhang\dto\TrendAnalysis$Forecast.class
 com\billmanager\jizhang\service\ExpenseService.class
+com\billmanager\jizhang\mapper\VerificationCodeMapper.class
 com\billmanager\jizhang\dto\CashFlowAnalysis.class
 com\billmanager\jizhang\dto\ApiResponse.class
 com\billmanager\jizhang\service\impl\BillImportServiceImpl.class
+com\billmanager\jizhang\dto\SendVerificationCodeRequest.class
+com\billmanager\jizhang\dto\RegisterRequest.class
 com\billmanager\jizhang\JizhangApplication.class
 com\billmanager\jizhang\dto\CategoryAnalysis.class
 com\billmanager\jizhang\entity\UserTarget.class
+com\billmanager\jizhang\entity\VerificationCode.class
+com\billmanager\jizhang\service\VerificationCodeService.class
 com\billmanager\jizhang\dto\BudgetStatistics.class
 com\billmanager\jizhang\config\XunfeiApiProperties.class
 com\billmanager\jizhang\mapper\UserTargetMapper.class
@@ -67,6 +76,7 @@ com\billmanager\jizhang\dto\LoginRequest.class
 com\billmanager\jizhang\dto\BillImportConfirmRequest$BillImportConfirmRequestBuilder.class
 com\billmanager\jizhang\controller\IncomeCategoryController.class
 com\billmanager\jizhang\dto\IncomeCategoryRequest.class
+com\billmanager\jizhang\service\EmailService.class
 com\billmanager\jizhang\controller\ExpenseController.class
 com\billmanager\jizhang\dto\BillRecordDTO.class
 com\billmanager\jizhang\mapper\IncomeMapper.class
