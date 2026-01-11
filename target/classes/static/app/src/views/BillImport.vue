@@ -53,7 +53,7 @@
               
               <div v-if="!selectedFile" class="upload-hint">
                 <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path d="M12 2v16m8-8H4m-2 6h20"/>
+                  <path d="M12 2v16m8-8H4"/>
                 </svg>
                 <h3>点击或拖拽上传图片</h3>
                 <p>支持 JPG、PNG 等常见图片格式</p>
@@ -108,20 +108,37 @@
               <p>未识别到任何账单信息</p>
             </div>
 
-            <div v-else class="table-wrapper">
+            <div v-else>
+              <!-- 状态说明 -->
+              <div class="status-legend">
+                <div class="legend-item">
+                  <span class="legend-color auto-matched-color"></span>
+                  <span class="legend-text">自动匹配成功</span>
+                </div>
+                <div class="legend-item">
+                  <span class="legend-color manual-match-color"></span>
+                  <span class="legend-text">待手动匹配</span>
+                </div>
+                <div class="legend-item">
+                  <span class="legend-color manually-added-color"></span>
+                  <span class="legend-text">手动添加</span>
+                </div>
+              </div>
+
+              <div class="table-wrapper">
               <table class="confirm-table">
                 <thead>
                   <tr>
-                    <th width="10%">操作</th>
-                    <th width="10%">类型</th>
-                    <th width="15%">金额</th>
-                    <th width="15%">日期</th>
-                    <th width="20%">分类</th>
-                    <th width="30%">说明</th>
+                    <th width="5%">操作</th>
+                    <th width="12%">类型</th>
+                    <th width="12%">金额</th>
+                    <th width="12%">日期</th>
+                    <th width="12%">分类</th>
+                    <th width="8%">说明</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="(record, index) in recognizedRecords" :key="index" class="editable-row">
+                  <tr v-for="(record, index) in recognizedRecords" :key="index" class="editable-row" :class="getRowClass(record)">
                     <td class="action-cell">
                       <button @click="deleteRecord(index)" class="btn-delete" title="删除">×</button>
                     </td>
@@ -147,29 +164,31 @@
                       />
                     </td>
                     <td>
-                      <Select v-model="record.categoryId" class="inline-select">
-                        <option value="">-- 选择分类 --</option>
-                        <optgroup v-if="record.type === 'INCOME'" label="收入分类">
-                          <option v-for="cat in incomeCategories" :key="cat.id" :value="cat.id">
-                            {{ cat.name }}
-                          </option>
-                        </optgroup>
-                        <optgroup v-if="record.type === 'EXPENSE'" label="支出分类">
-                          <option v-for="cat in expenseCategories" :key="cat.id" :value="cat.id">
-                            {{ cat.name }}
-                          </option>
-                        </optgroup>
-                      </Select>
+                      <div class="category-cell">
+                        <Select v-model="record.categoryId" class="inline-select">
+                          <option value="">-- 选择分类 --</option>
+                          <optgroup v-if="record.type === 'INCOME'" label="收入分类">
+                            <option v-for="cat in incomeCategories" :key="cat.id" :value="cat.id">
+                              {{ cat.name }}
+                            </option>
+                          </optgroup>
+                          <optgroup v-if="record.type === 'EXPENSE'" label="支出分类">
+                            <option v-for="cat in expenseCategories" :key="cat.id" :value="cat.id">
+                              {{ cat.name }}
+                            </option>
+                          </optgroup>
+                        </Select>
+                      </div>
                     </td>
                     <td>
-                      <Input 
-                        v-model="record.description" 
-                        class="inline-input"
-                      />
+                      <div class="description-cell" @click="openDescriptionModal(index, record)">
+                        <span class="description-preview">{{ record.description || '(无)' }}</span>
+                      </div>
                     </td>
                   </tr>
                 </tbody>
               </table>
+              </div>
             </div>
 
             <div class="add-record-section">
@@ -269,6 +288,48 @@
         </Card>
       </div>
   </div>
+
+  <!-- 说明编辑模态框 -->
+  <Modal 
+    v-model="showDescriptionModal"
+    title="账单详情"
+  >
+    <div class="modal-content">
+      <!-- 账单详情显示 -->
+      <div class="bill-details">
+        <div class="detail-row">
+          <span class="detail-label">交易类型:</span>
+          <span class="detail-value">{{ currentEditRecord?.type === 'INCOME' ? '收入' : '支出' }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">金额:</span>
+          <span class="detail-value">{{ currentEditRecord?.amount }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">日期:</span>
+          <span class="detail-value">{{ currentEditRecord?.transactionDate }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">分类:</span>
+          <span class="detail-value">{{ currentEditRecord?.categoryName }}</span>
+        </div>
+      </div>
+
+      <!-- 说明编辑区域 -->
+      <div class="description-edit-section">
+        <label class="description-label">说明信息:</label>
+        <Textarea 
+          v-model="currentEditRecord.description"
+          placeholder="输入说明信息..."
+          class="description-textarea"
+        />
+      </div>
+    </div>
+    <template #footer>
+      <button @click="showDescriptionModal = false" class="btn btn-secondary">取消</button>
+      <button @click="saveDescription" class="btn btn-primary">保存</button>
+    </template>
+  </Modal>
 </template>
 
 <script setup>
@@ -278,6 +339,8 @@ import MainLayout from '../layouts/MainLayout.vue'
 import Card from '../components/Card.vue'
 import Input from '../components/Input.vue'
 import Select from '../components/Select.vue'
+import Modal from '../components/Modal.vue'
+import Textarea from '../components/Textarea.vue'
 import { billImportAPI, incomeCategoryAPI, expenseCategoryAPI } from '../api'
 
 const router = useRouter()
@@ -320,6 +383,11 @@ const importResult = ref(null)
 // 提示信息
 const errorMessage = ref('')
 const successMessage = ref('')
+
+// 说明编辑模态框
+const showDescriptionModal = ref(false)
+const currentEditRecord = ref({})
+const currentEditIndex = ref(-1)
 
 // 触发文件输入
 const triggerFileInput = () => {
@@ -398,25 +466,90 @@ const recognizeBill = async () => {
         console.log('开始识别账单，图片大小:', base64Image.length, '字节')
         console.log('账单类型:', accountType.value || '未指定')
         
-        const response = await billImportAPI.recognize(base64Image, accountType.value)
+        // 获取当前日期，格式为 YYYY-MM-DD
+        const today = new Date()
+        const currentDate = today.toISOString().split('T')[0]
+        console.log('当前日期:', currentDate)
+        
+        const response = await billImportAPI.recognize(base64Image, accountType.value, currentDate)
         
         console.log('API响应:', response)
 
         if (response.code === 200) {
           console.log('识别成功，记录数:', response.data.records.length)
           
-          // 格式化识别到的记录
-          recognizedRecords.value = response.data.records.map(record => ({
-            type: record.type,
-            amount: record.amount,
-            transactionDate: record.transactionDate,
-            categoryName: record.categoryName,
-            categoryId: '',
-            description: record.description || ''
-          }))
-
-          currentStep.value = 2
+          // 加载分类
           await loadCategories()
+          
+          // 格式化识别到的记录，并尝试自动匹配分类
+          recognizedRecords.value = response.data.records.map(record => {
+            let categoryId = ''
+            let isMatched = false
+            const cleanCategoryName = record.categoryName?.trim() || ''
+            
+            // 如果后端返回了categoryId，直接使用
+            if (record.categoryId) {
+              categoryId = record.categoryId
+              // 检查是否是"待分类"（需要找到这个分类的ID来确认）
+              const categories = record.type === 'INCOME' ? incomeCategories.value : expenseCategories.value
+              const unclassifiedCategory = categories.find(cat => cat.name === '待分类')
+              // 如果分配的分类ID是待分类的ID，则不标记为已匹配
+              isMatched = !(unclassifiedCategory && categoryId === unclassifiedCategory.id)
+              console.log(`记录自动匹配分类: ${cleanCategoryName} -> ID: ${categoryId}, 已匹配: ${isMatched}, 待分类ID: ${unclassifiedCategory?.id}`)
+            } else {
+              // 否则尝试手动匹配
+              const categories = record.type === 'INCOME' ? incomeCategories.value : expenseCategories.value
+              const matched = categories.find(cat => cat.name === cleanCategoryName)
+              if (matched) {
+                categoryId = matched.id
+                isMatched = true
+                console.log(`记录手动匹配分类: ${cleanCategoryName} -> ID: ${categoryId}`)
+              } else {
+                // 查找"待分类"分类
+                const unclassified = categories.find(cat => cat.name === '待分类')
+                if (unclassified) {
+                  categoryId = unclassified.id
+                  isMatched = false
+                  console.log(`记录无法匹配，使用待分类: ${cleanCategoryName} -> ID: ${categoryId}`)
+                }
+              }
+            }
+            
+            return {
+              type: record.type,
+              amount: record.amount,
+              transactionDate: record.transactionDate,
+              categoryName: cleanCategoryName,
+              categoryId: categoryId,
+              description: record.description || '',
+              isMatched: isMatched, // 仅当真正匹配到非待分类分类时才标记为已匹配
+              isManuallyAdded: false // 标记是否手动添加
+            }
+          })
+
+          // 对识别结果进行排序：待分类的在前，已匹配的在后，手动添加的在最后
+          recognizedRecords.value.sort((a, b) => {
+            // 待分类（isMatched === false）排在最前
+            if (!a.isMatched && b.isMatched) return -1
+            if (a.isMatched && !b.isMatched) return 1
+            
+            // 手动添加的排在最后
+            if (!a.isManuallyAdded && b.isManuallyAdded) return -1
+            if (a.isManuallyAdded && !b.isManuallyAdded) return 1
+            
+            return 0
+          })
+
+          // 检查是否有记录自动匹配了
+          const matchedCount = recognizedRecords.value.filter(r => r.categoryId).length
+          
+          if (matchedCount > 0) {
+            // 有记录已自动匹配，显示提示
+            successMessage.value = `已自动匹配 ${matchedCount} 条记录，请确认信息后导入`
+          }
+          
+          // 无论是否自动匹配，都进入确认步骤，让用户人工审核
+          currentStep.value = 2
         } else {
           const errorMsg = response.msg || '识别失败'
           console.error('识别失败:', errorMsg)
@@ -496,7 +629,9 @@ const addNewRecord = () => {
 
   recognizedRecords.value.push({
     ...newRecord.value,
-    amount: parseFloat(newRecord.value.amount)
+    amount: parseFloat(newRecord.value.amount),
+    isMatched: false,
+    isManuallyAdded: true // 标记为手动添加
   })
 
   newRecord.value = {
@@ -526,6 +661,7 @@ const confirmImport = async () => {
 
   isConfirming.value = true
   errorMessage.value = ''
+  successMessage.value = ''
 
   try {
     const records = recognizedRecords.value.map(r => ({
@@ -542,6 +678,7 @@ const confirmImport = async () => {
     console.log('导入响应:', response)
     if (response.code === 200) {
       importResult.value = response.data
+      successMessage.value = `成功导入 ${response.data.importedIds?.length || 0} 条记录`
       currentStep.value = 3
     } else {
       errorMessage.value = response.msg || '导入失败'
@@ -580,19 +717,47 @@ const startOver = () => {
     description: ''
   }
 }
+
+// 获取行的CSS class
+const getRowClass = (record) => {
+  if (record.isManuallyAdded) {
+    return 'manually-added'
+  } else if (record.isMatched) {
+    return 'auto-matched'
+  } else {
+    return 'manual-match'
+  }
+}
+
+// 打开说明编辑模态框
+const openDescriptionModal = (index, record) => {
+  console.log('打开模态框:', index, record)
+  currentEditIndex.value = index
+  currentEditRecord.value = { ...record }
+  showDescriptionModal.value = true
+  console.log('showDescriptionModal.value:', showDescriptionModal.value)
+}
+
+// 保存说明
+const saveDescription = () => {
+  if (currentEditIndex.value >= 0 && currentEditRecord.value) {
+    recognizedRecords.value[currentEditIndex.value].description = currentEditRecord.value.description
+  }
+  showDescriptionModal.value = false
+}
 </script>
 
 <style scoped>
 .bill-import-container {
   width: 100%;
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-  padding: 20px 0;
+  padding: 20px 12px;
 }
 
 .page-header {
   text-align: center;
   margin-bottom: 40px;
-  padding: 0 20px;
+  padding: 0 12px;
 }
 
 .page-header h1 {
@@ -703,14 +868,14 @@ const startOver = () => {
 
 /* 步骤内容 */
 .step-content {
-  max-width: 900px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 0 20px;
+  padding: 0 16px;
 }
 
 /* 上传部分 */
 .upload-section {
-  padding: 30px;
+  padding: 24px 20px;
 }
 
 .upload-area {
@@ -793,11 +958,25 @@ const startOver = () => {
 .account-type-select {
   flex: 1;
   max-width: 200px;
+  height: 36px;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  cursor: pointer;
+  box-sizing: border-box;
+  background: transparent;
+}
+
+.account-type-select:focus {
+  outline: none;
+  border-bottom: 2px solid #007bff;
 }
 
 /* 确认部分 */
 .confirm-section {
-  padding: 30px;
+  padding: 24px 20px;
 }
 
 .confirm-section h2 {
@@ -817,6 +996,47 @@ const startOver = () => {
   color: #999;
 }
 
+/* 状态图例 */
+.status-legend {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 20px;
+  padding: 12px 0;
+  font-size: 13px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legend-color {
+  width: 16px;
+  height: 16px;
+  border-radius: 2px;
+}
+
+.auto-matched-color {
+  background-color: #d4edda;
+  border: 1px solid #28a745;
+}
+
+.manual-match-color {
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+}
+
+.manually-added-color {
+  background-color: #e2e3e5;
+  border: 1px solid #d3d3d3;
+}
+
+.legend-text {
+  color: #555;
+  font-weight: 500;
+}
+
 .table-wrapper {
   overflow-x: auto;
   margin-bottom: 30px;
@@ -828,99 +1048,234 @@ const startOver = () => {
   width: 100%;
   border-collapse: collapse;
   background: white;
+  table-layout: fixed;
 }
 
 .confirm-table th {
-  background: #f9f9f9;
-  border-bottom: 1px solid #ddd;
-  padding: 12px;
-  text-align: left;
+  background: #f5f5f5;
+  border-bottom: 2px solid #e0e0e0;
+  padding: 10px 8px;
+  text-align: center;
   font-weight: 600;
   color: #333;
-  font-size: 14px;
+  font-size: 13px;
+  height: auto;
+  vertical-align: middle;
 }
 
 .confirm-table td {
-  padding: 12px;
-  border-bottom: 1px solid #f0f0f0;
+  padding: 6px 4px;
+  border-bottom: 1px solid #e8e8e8;
   font-size: 14px;
+  vertical-align: middle;
+  height: 38px;
 }
 
 .confirm-table tbody tr:hover {
   background: #f9f9f9;
 }
 
+/* 说明单元格 */
+.description-cell {
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 4px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  background: white;
+  border: 1px solid #ddd;
+  box-sizing: border-box;
+  min-height: 32px;
+  overflow: hidden;
+}
+
+.description-cell:hover {
+  background-color: white;
+  border-color: #999;
+}
+
+.description-preview {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 13px;
+  padding: 0;
+  color: #333;
+  white-space: nowrap;
+  color: #333;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.editable-row {
+  transition: background-color 0.3s;
+}
+
+/* 自动匹配成功 - 绿色 */
+.editable-row.auto-matched {
+  background-color: #d4edda !important;
+}
+
+.editable-row.auto-matched:hover {
+  background-color: #c3e6cb !important;
+}
+
+/* 待手动匹配 - 粉红色 */
+.editable-row.manual-match {
+  background-color: #f8d7da !important;
+}
+
+.editable-row.manual-match:hover {
+  background-color: #f5c6cb !important;
+}
+
+/* 手动添加 - 灰色 */
+.editable-row.manually-added {
+  background-color: #e2e3e5 !important;
+}
+
+.editable-row.manually-added:hover {
+  background-color: #d3d3d3 !important;
+}
+
+.category-cell {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  position: relative;
+  width: 100%;
+}
+
 .action-cell {
   text-align: center;
+  padding: 0 !important;
+  margin: 0 !important;
+  min-width: 36px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-bottom: none !important;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .btn-delete {
-  background: #ff6b6b;
+  background: #ff5252;
   color: white;
   border: none;
-  border-radius: 4px;
-  width: 32px;
-  height: 32px;
-  font-size: 18px;
+  border-radius: 3px;
+  width: 28px;
+  height: 28px;
+  font-size: 16px;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.2s;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
 
 .btn-delete:hover {
-  background: #ff5252;
+  background: #ff1744;
+  transform: scale(1.05);
 }
 
 .inline-select,
 .inline-input {
   width: 100%;
   padding: 6px 8px;
+  height: 100%;
   border: 1px solid #ddd;
   border-radius: 4px;
-  font-size: 14px;
+  font-size: 13px;
+  line-height: 1.4;
+  box-sizing: border-box;
+  background: white;
+  transition: all 0.2s;
+  color: #333;
+  min-height: 32px;
+}
+
+.inline-select {
+  cursor: pointer;
+}
+
+.inline-input {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.inline-select:hover,
+.inline-input:hover {
+  border-color: #999;
 }
 
 .inline-select:focus,
 .inline-input:focus {
   outline: none;
   border-color: #007bff;
-  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
 }
 
 .add-record-section {
   background: #f9f9f9;
-  padding: 20px;
+  padding: 20px 16px;
   border-radius: 8px;
   margin-bottom: 20px;
 }
 
 .add-record-section h3 {
   color: #333;
-  margin-top: 0;
+  margin: 0 0 20px 0;
+  font-size: 16px;
+  font-weight: 600;
 }
 
 .form-row {
   display: flex;
-  gap: 12px;
+  gap: 16px;
   margin-bottom: 12px;
   align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: #555;
+  min-width: 50px;
 }
 
 .form-input {
   width: 100%;
   padding: 8px 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  min-height: 36px;
+  border: none;
+  border-radius: 0;
   font-size: 14px;
+  line-height: 1.5;
+  box-sizing: border-box;
+  background: transparent;
 }
 
 .form-input:focus {
   outline: none;
-  border-color: #007bff;
-  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+  border-bottom: 2px solid #007bff;
 }
 
 .btn-add {
-  padding: 8px 20px;
+  padding: 8px 24px;
+  min-height: 36px;
   background: #28a745;
   color: white;
   border: none;
@@ -928,6 +1283,9 @@ const startOver = () => {
   cursor: pointer;
   transition: background 0.2s;
   white-space: nowrap;
+  font-size: 14px;
+  font-weight: 500;
+  align-self: flex-end;
 }
 
 .btn-add:hover {
@@ -936,7 +1294,7 @@ const startOver = () => {
 
 /* 成功部分 */
 .success-section {
-  padding: 60px 30px;
+  padding: 60px 20px;
   text-align: center;
 }
 
@@ -1028,6 +1386,85 @@ const startOver = () => {
   background: #545b62;
   transform: translateY(-2px);
   box-shadow: 0 4px 8px rgba(108, 117, 125, 0.3);
+}
+
+/* 模态框样式 */
+.modal-content {
+  padding: 20px 0;
+}
+
+.description-textarea {
+  width: 100%;
+  min-height: 150px;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.description-textarea:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+/* 账单详情显示 */
+.bill-details {
+  background: #f9f9f9;
+  padding: 16px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  border-left: 4px solid #007bff;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  font-size: 14px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.detail-row:last-child {
+  border-bottom: none;
+}
+
+.detail-label {
+  font-weight: 600;
+  color: #555;
+  min-width: 80px;
+}
+
+.detail-value {
+  color: #333;
+  text-align: right;
+  flex: 1;
+  padding-left: 12px;
+}
+
+/* 说明编辑区域 */
+.description-edit-section {
+  margin-bottom: 20px;
+}
+
+.description-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #555;
+  margin-bottom: 8px;
+}
+
+.modal-footer {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #f0f0f0;
 }
 
 /* 响应式设计 */

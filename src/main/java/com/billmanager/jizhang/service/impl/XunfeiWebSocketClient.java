@@ -31,6 +31,8 @@ public class XunfeiWebSocketClient {
     
     private final String base64Image;
     private final String accountType;
+    private final String categoryContext;
+    private final String currentDate;
     private final String appId;
     private final String apiKey;
     private final String apiSecret;
@@ -48,11 +50,25 @@ public class XunfeiWebSocketClient {
     
     public XunfeiWebSocketClient(String appId, String apiKey, String apiSecret, 
                                  String base64Image, String accountType, long timeout) {
+        this(appId, apiKey, apiSecret, base64Image, accountType, "", null, timeout);
+    }
+    
+    public XunfeiWebSocketClient(String appId, String apiKey, String apiSecret, 
+                                 String base64Image, String accountType, 
+                                 String categoryContext, long timeout) {
+        this(appId, apiKey, apiSecret, base64Image, accountType, categoryContext, null, timeout);
+    }
+    
+    public XunfeiWebSocketClient(String appId, String apiKey, String apiSecret, 
+                                 String base64Image, String accountType, 
+                                 String categoryContext, String currentDate, long timeout) {
         this.appId = appId;
         this.apiKey = apiKey;
         this.apiSecret = apiSecret;
         this.base64Image = base64Image;
         this.accountType = accountType;
+        this.categoryContext = categoryContext != null ? categoryContext : "";
+        this.currentDate = currentDate != null ? currentDate : "";
         this.timeout = timeout;
         
         // 启动连接
@@ -333,12 +349,12 @@ public class XunfeiWebSocketClient {
      * 构建系统提示词
      */
     private String buildPrompt() {
-        return "你是一个专业的账单数据提取助手。你的任务是从账单截图中准确提取交易信息。\n" +
+        String basePrompt = "你是一个专业的账单数据提取助手。你的任务是从账单截图中准确提取交易信息。\n" +
                 "\n请从图像中提取以下信息:\n" +
                 "- type: 交易类型，必须是 'INCOME'(收入) 或 'EXPENSE'(支出)\n" +
                 "- amount: 交易金额，必须是数字，例如 1000.00\n" +
                 "- transactionDate: 交易日期，格式必须是 YYYY-MM-DD\n" +
-                "- categoryName: 交易分类，例如 '工资', '餐饮', '购物', '转账', '红包'等\n" +
+                "- categoryName: 交易分类，必须尽可能匹配用户已有的分类\n" +
                 "- description: 交易说明或备注（可选）\n" +
                 "\n重要要求:\n" +
                 "1. 如果图像中有多条交易记录，请全部提取并返回\n" +
@@ -346,8 +362,29 @@ public class XunfeiWebSocketClient {
                 "3. 日期格式必须严格按照 YYYY-MM-DD\n" +
                 "4. 必须返回标准的JSON数组格式，每条记录一个对象\n" +
                 "5. 不要返回任何其他文本，只返回JSON数组\n" +
-                "\n返回格式示例:\n" +
+                "6. 如果识别出的分类在下面的用户分类列表中，请使用列表中的分类名称\n" +
+                "7. 如果识别出的分类不在用户列表中，请尽量选择最接近的分类；如果完全没有接近的分类，请使用'待分类'\n";
+        
+        // 添加当前日期信息，用于转换相对日期
+        if (!currentDate.isEmpty()) {
+            basePrompt += "\n【重要】当前日期是: " + currentDate + "\n" +
+                    "如果账单中出现相对日期表示（如\"今天\"、\"昨天\"、\"前天\"、\"本周\"等），请按以下规则转换:\n" +
+                    "- \"今天\" 或 \"当日\" → " + currentDate + "\n" +
+                    "- \"昨天\" 或 \"前一天\" → 前一天的日期\n" +
+                    "- \"前天\" 或 \"前两天\" → 前两天的日期\n" +
+                    "- \"本周\" → 本周内的日期，如果只有星期信息，请根据当前日期推算具体日期\n" +
+                    "- \"本月\" → 本月内的日期\n" +
+                    "- \"上周\"、\"上月\"等相对日期也要按此规则转换为具体日期\n";
+        }
+        
+        if (!categoryContext.isEmpty()) {
+            basePrompt += "\n用户现有的交易分类:\n" + categoryContext;
+        }
+        
+        basePrompt += "\n返回格式示例:\n" +
                 "[{\"type\": \"INCOME\", \"amount\": 5000.00, \"transactionDate\": \"2026-01-10\", \"categoryName\": \"工资\", \"description\": \"一月工资\"}]";
+        
+        return basePrompt;
     }
     
     /**

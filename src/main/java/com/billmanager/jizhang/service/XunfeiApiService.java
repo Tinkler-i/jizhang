@@ -13,7 +13,9 @@ public interface XunfeiApiService {
      *
      * @param base64Image Base64编码的图像数据
      * @param accountType 账单类型提示 (ALIPAY|WECHAT|BANK|UNKNOWN)
+     * @param currentDate 当前日期，格式为 YYYY-MM-DD，用于转换相对日期（如今天、昨天等）
+     * @param userId 用户ID，用于获取用户的分类信息
      * @return 识别到的账单记录列表
      */
-    List<BillRecordDTO> recognizeBillFromImage(String base64Image, String accountType);
+    List<BillRecordDTO> recognizeBillFromImage(String base64Image, String accountType, String currentDate, Long userId);
 }

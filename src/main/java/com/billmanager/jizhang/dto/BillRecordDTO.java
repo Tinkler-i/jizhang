@@ -38,6 +38,11 @@ public class BillRecordDTO {
     private String categoryName;
     
     /**
+     * AI匹配的分类ID，如果未找到匹配分类则为null
+     */
+    private Long categoryId;
+    
+    /**
      * 交易说明/备注
      */
     private String description;

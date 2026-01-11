@@ -142,6 +142,12 @@
             <version>2.0.42</version>
         </dependency>
 
+        <!-- Spring Mail 邮箱发送 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>

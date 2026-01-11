@@ -16,4 +16,9 @@ public class BillImportRequest {
      * 账单类型: ALIPAY | WECHAT | BANK | UNKNOWN
      */
     private String accountType;
+    
+    /**
+     * 当前日期，格式为 YYYY-MM-DD，用于转换相对日期（如今天、昨天等）
+     */
+    private String currentDate;
 }

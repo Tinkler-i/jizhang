@@ -61,7 +61,10 @@ export const authAPI = {
     api.post('/auth/login', { username, password }),
   logout: () => api.post('/auth/logout'),
   getProfile: () => api.get('/user/profile'),
-  updateProfile: (data) => api.put('/user/profile', data)
+  updateProfile: (data) => api.put('/user/profile', data),
+  sendVerificationCode: (data) => api.post('/auth/send-verification-code', data),
+  verifyCode: (data) => api.post('/auth/verify-code', data),
+  register: (data) => api.post('/auth/register', data)
 }
 
 // Income API
@@ -137,7 +140,7 @@ export const userTargetAPI = {
 
 // Bill Import API - 账单导入
 export const billImportAPI = {
-  recognize: (image, accountType) => api.post('/bill-import/recognize', { image, accountType }, { timeout: 120000 }),
+  recognize: (image, accountType, currentDate) => api.post('/bill-import/recognize', { image, accountType, currentDate }, { timeout: 120000 }),
   confirm: (records) => api.post('/bill-import/confirm', { records })
 }
 

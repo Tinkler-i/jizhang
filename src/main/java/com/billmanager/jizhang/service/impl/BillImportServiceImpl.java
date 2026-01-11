@@ -40,16 +40,20 @@ public class BillImportServiceImpl implements BillImportService {
      * 识别账单图像
      */
     @Override
-    public BillImportResponse recognize(String base64Image, String accountType) {
-        log.info("开始识别账单图像，账单类型: {}", accountType);
+    public BillImportResponse recognize(String base64Image, String accountType, String currentDate, Long userId) {
+        log.info("开始识别账单图像，账单类型: {}, 当前日期: {}, 用户ID: {}", accountType, currentDate, userId);
         
         // 验证图像数据
         if (base64Image == null || base64Image.trim().isEmpty()) {
             throw new BusinessException("图像数据不能为空");
         }
         
+        if (userId == null) {
+            throw new BusinessException("用户ID不能为空");
+        }
+        
         // 调用讯飞API识别
-        List<BillRecordDTO> records = xunfeiApiService.recognizeBillFromImage(base64Image, accountType);
+        List<BillRecordDTO> records = xunfeiApiService.recognizeBillFromImage(base64Image, accountType, currentDate, userId);
         
         log.info("成功识别 {} 条账单记录", records.size());
         
