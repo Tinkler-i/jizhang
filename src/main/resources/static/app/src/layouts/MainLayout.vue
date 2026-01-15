@@ -111,6 +111,11 @@ const menuItems = [
     icon: '📸'
   },
   {
+    path: '/family-management',
+    label: '家庭组管理',
+    icon: '👨‍👩‍👧‍👦'
+  },
+  {
     path: '/profile',
     label: '个人设置',
     icon: '⚙️'

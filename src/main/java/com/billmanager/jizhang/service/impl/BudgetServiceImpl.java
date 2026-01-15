@@ -1,15 +1,19 @@
 package com.billmanager.jizhang.service.impl;
 
+import com.billmanager.jizhang.annotation.FamilyPermission;
 import com.billmanager.jizhang.dto.BudgetRequest;
 import com.billmanager.jizhang.dto.BudgetStatistics;
 import com.billmanager.jizhang.entity.Budget;
 import com.billmanager.jizhang.entity.Expense;
 import com.billmanager.jizhang.entity.ExpenseCategory;
+import com.billmanager.jizhang.entity.FamilyGroup;
 import com.billmanager.jizhang.mapper.BudgetMapper;
 import com.billmanager.jizhang.mapper.ExpenseCategoryMapper;
 import com.billmanager.jizhang.mapper.ExpenseMapper;
 import com.billmanager.jizhang.service.BudgetService;
+import com.billmanager.jizhang.service.FamilyGroupService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,11 +25,13 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class BudgetServiceImpl implements BudgetService {
     
     private final BudgetMapper budgetMapper;
     private final ExpenseCategoryMapper expenseCategoryMapper;
     private final ExpenseMapper expenseMapper;
+    private final FamilyGroupService familyGroupService;
     
     @Override
     @Transactional
@@ -79,21 +85,38 @@ public class BudgetServiceImpl implements BudgetService {
     }
     
     @Override
+    @FamilyPermission("budget_view")
     public List<Budget> findByUserId(Long userId) {
-        return budgetMapper.findByUserId(userId);
+        FamilyGroup familyGroup = familyGroupService.getFamilyGroupByUserId(userId);
+        if (familyGroup == null) {
+            log.warn("【预算】用户{}不属于任何家庭组", userId);
+            return List.of();
+        }
+        return budgetMapper.findByFamilyGroupId(familyGroup.getId());
     }
     
     @Override
+    @FamilyPermission("budget_view")
     public List<Budget> findByUserIdAndBudgetMonth(Long userId, String budgetMonth) {
-        return budgetMapper.findByUserIdAndYearMonth(userId, budgetMonth);
+        FamilyGroup familyGroup = familyGroupService.getFamilyGroupByUserId(userId);
+        if (familyGroup == null) {
+            return List.of();
+        }
+        return budgetMapper.findByFamilyGroupIdAndYearMonth(familyGroup.getId(), budgetMonth);
     }
     
     @Override
+    @FamilyPermission("budget_view")
     public List<Budget> findByUserIdAndCategoryId(Long userId, Long categoryId) {
-        return budgetMapper.findByUserIdAndCategoryId(userId, categoryId);
+        FamilyGroup familyGroup = familyGroupService.getFamilyGroupByUserId(userId);
+        if (familyGroup == null) {
+            return List.of();
+        }
+        return budgetMapper.findByFamilyGroupIdAndCategoryId(familyGroup.getId(), categoryId);
     }
     
     @Override
+    @FamilyPermission("budget_view")
     public List<BudgetStatistics> getStatistics(Long userId, String budgetMonth) {
         List<Budget> budgets = findByUserIdAndBudgetMonth(userId, budgetMonth);
         
@@ -145,8 +168,15 @@ public class BudgetServiceImpl implements BudgetService {
             LocalDate startDate = yearMonth.atDay(1);
             LocalDate endDate = yearMonth.atEndOfMonth();
             
-            // 查询该用户在该时间范围内该分类的所有支出
-            List<Expense> expenses = expenseMapper.findByUserIdAndDateRange(userId, startDate, endDate);
+            // 获取用户所属家庭组
+            FamilyGroup familyGroup = familyGroupService.getFamilyGroupByUserId(userId);
+            if (familyGroup == null) {
+                return BigDecimal.ZERO;
+            }
+            
+            // 查询该家庭组在该时间范围内该分类的所有支出
+            List<Expense> expenses = expenseMapper.findByFamilyGroupIdAndDateRange(
+                    familyGroup.getId(), startDate, endDate);
             
             // 过滤该分类的支出并求和
             BigDecimal total = expenses.stream()
@@ -154,12 +184,12 @@ public class BudgetServiceImpl implements BudgetService {
                     .map(Expense::getAmount)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
             
-            System.out.println("【支出计算】用户: " + userId + ", 分类: " + categoryId + 
-                    ", 月份: " + budgetMonth + ", 支出: " + total);
+            log.debug("【支出计算】家庭组: {}, 分类: {}, 月份: {}, 支出: {}", 
+                    familyGroup.getId(), categoryId, budgetMonth, total);
             
             return total;
         } catch (Exception e) {
-            System.err.println("【支出计算错误】" + e.getMessage());
+            log.error("【支出计算错误】{}", e.getMessage());
             return BigDecimal.ZERO;
         }
     }

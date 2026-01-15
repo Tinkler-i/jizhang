@@ -10,6 +10,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -22,7 +23,9 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Collections;
+import java.util.Map;
 
+@Slf4j
 @Controller
 @RequiredArgsConstructor
 public class LoginController {
@@ -61,10 +64,14 @@ public class LoginController {
         User user = userService.login(request);
         session.setAttribute("user", user);
         
+        // 创建自定义的用户Principal，包含userId
+        com.billmanager.jizhang.security.CustomUserPrincipal principal = 
+            new com.billmanager.jizhang.security.CustomUserPrincipal(user.getId(), user.getUsername());
+        
         // 创建Spring Security认证对象，包含权限
         UsernamePasswordAuthenticationToken token = 
             new UsernamePasswordAuthenticationToken(
-                user.getUsername(), 
+                principal, 
                 null, 
                 Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
             );
@@ -88,10 +95,14 @@ public class LoginController {
         User user = userService.login(request);
         session.setAttribute("user", user);
         
+        // 创建自定义的用户Principal，包含userId
+        com.billmanager.jizhang.security.CustomUserPrincipal principal = 
+            new com.billmanager.jizhang.security.CustomUserPrincipal(user.getId(), user.getUsername());
+        
         // 创建Spring Security认证对象，包含权限
         UsernamePasswordAuthenticationToken token = 
             new UsernamePasswordAuthenticationToken(
-                user.getUsername(), 
+                principal, 
                 null, 
                 Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
             );
@@ -186,5 +197,49 @@ public class LoginController {
         }
         model.addAttribute("user", user);
         return "report";
+    }
+    
+    /**
+     * 修改用户昵称
+     * 
+     * 请求体格式:
+     * {
+     *   "nickname": "新昵称"
+     * }
+     * 
+     * @param request 包含新昵称的请求
+     * @param session HTTP会话
+     * @return 修改结果
+     */
+    @PutMapping("/api/user/nickname")
+    @ResponseBody
+    public ApiResponse<User> updateNickname(
+            @RequestBody Map<String, String> request, 
+            HttpSession session) {
+        try {
+            User user = getCurrentUser(session);
+            if (user == null) {
+                return ApiResponse.error("请先登录");
+            }
+            
+            String nickname = request.get("nickname");
+            if (nickname == null || nickname.trim().isEmpty()) {
+                return ApiResponse.error("昵称不能为空");
+            }
+            
+            // 更新昵称
+            user.setNickname(nickname.trim());
+            user.setUpdateTime(java.time.LocalDateTime.now());
+            userMapper.update(user);
+            
+            // 更新 session 中的用户信息
+            session.setAttribute("user", user);
+            
+            System.out.println("【LoginController】用户 " + user.getUsername() + " 更新昵称为: " + nickname);
+            return ApiResponse.success("昵称已更新", user);
+        } catch (Exception e) {
+            System.err.println("【LoginController】修改昵称失败: " + e.getMessage());
+            return ApiResponse.error("修改昵称失败: " + e.getMessage());
+        }
     }
 }

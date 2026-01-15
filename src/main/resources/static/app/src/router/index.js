@@ -12,6 +12,7 @@ import Budget from '../views/Budget.vue'
 import Report from '../views/Report.vue'
 import UserProfile from '../views/UserProfile.vue'
 import BillImport from '../views/BillImport.vue'
+import FamilyManagement from '../views/FamilyManagement.vue'
 
 const routes = [
   {
@@ -79,6 +80,12 @@ const routes = [
     name: 'BillImport',
     component: BillImport,
     meta: { requiresAuth: true, title: '账单导入' }
+  },
+  {
+    path: '/family-management',
+    name: 'FamilyManagement',
+    component: FamilyManagement,
+    meta: { requiresAuth: true, title: '家庭组管理' }
   }
 ]
 

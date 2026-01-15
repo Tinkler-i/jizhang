@@ -6,6 +6,7 @@
     <resultMap id="BaseResultMap" type="com.billmanager.jizhang.entity.Budget">
         <id column="id" property="id"/>
         <result column="user_id" property="userId"/>
+        <result column="family_group_id" property="familyGroupId"/>
         <result column="category_id" property="categoryId"/>
         <result column="amount" property="amount"/>
         <result column="budget_month" property="budgetMonth"/>
@@ -68,5 +69,31 @@
     <update id="updateSpent">
         UPDATE budget SET spent = #{spent}, update_time = CURRENT_TIMESTAMP WHERE id = #{id}
     </update>
+
+    <!-- 按家庭组查询 -->
+    <select id="findByFamilyGroupId" resultMap="BaseResultMap">
+        SELECT * FROM budget WHERE family_group_id = #{familyGroupId} ORDER BY `budget_month` DESC, create_time DESC
+    </select>
+
+    <select id="findByFamilyGroupIdAndCategoryIdAndYearMonth" resultMap="BaseResultMap">
+        SELECT * FROM budget 
+        WHERE family_group_id = #{familyGroupId} 
+        AND category_id = #{categoryId}
+        AND `budget_month` = #{yearMonth}
+    </select>
+
+    <select id="findByFamilyGroupIdAndYearMonth" resultMap="BaseResultMap">
+        SELECT * FROM budget 
+        WHERE family_group_id = #{familyGroupId} 
+        AND `budget_month` = #{yearMonth}
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="findByFamilyGroupIdAndCategoryId" resultMap="BaseResultMap">
+        SELECT * FROM budget 
+        WHERE family_group_id = #{familyGroupId} 
+        AND category_id = #{categoryId}
+        ORDER BY `budget_month` DESC
+    </select>
 
 </mapper>

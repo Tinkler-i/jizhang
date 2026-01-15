@@ -1,5 +1,6 @@
 package com.billmanager.jizhang.controller;
 
+import com.billmanager.jizhang.annotation.FamilyPermission;
 import com.billmanager.jizhang.dto.ApiResponse;
 import com.billmanager.jizhang.dto.BudgetRequest;
 import com.billmanager.jizhang.dto.BudgetStatistics;
@@ -10,6 +11,7 @@ import com.billmanager.jizhang.service.BudgetService;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
@@ -18,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@Slf4j
 @Controller
 @RequiredArgsConstructor
 public class BudgetController {
@@ -63,6 +66,7 @@ public class BudgetController {
     
     @GetMapping("/api/budget/month/{budgetMonth}")
     @ResponseBody
+    @FamilyPermission("budget_view")
     public ApiResponse<List<BudgetStatistics>> getBudgetsByMonth(
             @PathVariable String budgetMonth,
             HttpSession session) {
@@ -77,6 +81,7 @@ public class BudgetController {
     
     @PostMapping("/api/budget")
     @ResponseBody
+    @FamilyPermission("budget_create")
     public ApiResponse<Budget> addBudget(
             @Valid @RequestBody BudgetRequest request,
             HttpSession session) {
@@ -95,6 +100,7 @@ public class BudgetController {
     
     @PutMapping("/api/budget/{id}")
     @ResponseBody
+    @FamilyPermission("budget_edit")
     public ApiResponse<Budget> updateBudget(
             @PathVariable Long id,
             @Valid @RequestBody BudgetRequest request,
@@ -114,6 +120,7 @@ public class BudgetController {
     
     @DeleteMapping("/api/budget/{id}")
     @ResponseBody
+    @FamilyPermission("budget_delete")
     public ApiResponse<Void> deleteBudget(
             @PathVariable Long id,
             HttpSession session) {

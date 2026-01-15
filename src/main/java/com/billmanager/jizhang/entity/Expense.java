@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 public class Expense {
     private Long id;
     private Long userId;
+    private Long familyGroupId;   // 家庭组ID
     private Long categoryId;
     private BigDecimal amount;
     private LocalDate transactionDate;

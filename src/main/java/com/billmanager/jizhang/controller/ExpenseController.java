@@ -1,5 +1,6 @@
 package com.billmanager.jizhang.controller;
 
+import com.billmanager.jizhang.annotation.FamilyPermission;
 import com.billmanager.jizhang.dto.ApiResponse;
 import com.billmanager.jizhang.dto.ExpenseRequest;
 import com.billmanager.jizhang.dto.ExpenseStatistics;
@@ -10,6 +11,7 @@ import com.billmanager.jizhang.service.ExpenseService;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -20,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 import java.util.List;
 
+@Slf4j
 @Controller
 @RequiredArgsConstructor
 public class ExpenseController {
@@ -62,6 +65,7 @@ public class ExpenseController {
     
     @PostMapping("/api/expense")
     @ResponseBody
+    @FamilyPermission("expense_create")
     public ApiResponse<Expense> add(@Valid @RequestBody ExpenseRequest request, HttpSession session) {
         User user = getCurrentUser(session);
         if (user == null) {
@@ -74,6 +78,7 @@ public class ExpenseController {
     
     @PutMapping("/api/expense/{id}")
     @ResponseBody
+    @FamilyPermission("expense_edit")
     public ApiResponse<Expense> update(@PathVariable Long id, 
                                         @Valid @RequestBody ExpenseRequest request, 
                                         HttpSession session) {
@@ -88,6 +93,7 @@ public class ExpenseController {
     
     @DeleteMapping("/api/expense/{id}")
     @ResponseBody
+    @FamilyPermission("expense_delete")
     public ApiResponse<Void> delete(@PathVariable Long id, HttpSession session) {
         User user = getCurrentUser(session);
         if (user == null) {
@@ -100,6 +106,7 @@ public class ExpenseController {
     
     @GetMapping("/api/expense/{id}")
     @ResponseBody
+    @FamilyPermission("expense_view")
     public ApiResponse<Expense> get(@PathVariable Long id, HttpSession session) {
         User user = getCurrentUser(session);
         if (user == null) {
@@ -116,6 +123,7 @@ public class ExpenseController {
     
     @GetMapping("/api/expense")
     @ResponseBody
+    @FamilyPermission("expense_view")
     public ApiResponse<List<Expense>> list(HttpSession session,
                                             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
                                             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
