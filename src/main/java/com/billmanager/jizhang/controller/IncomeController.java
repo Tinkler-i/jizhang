@@ -1,5 +1,6 @@
 package com.billmanager.jizhang.controller;
 
+import com.billmanager.jizhang.annotation.FamilyPermission;
 import com.billmanager.jizhang.dto.ApiResponse;
 import com.billmanager.jizhang.dto.IncomeRequest;
 import com.billmanager.jizhang.dto.IncomeStatistics;
@@ -10,6 +11,7 @@ import com.billmanager.jizhang.service.IncomeService;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -20,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 import java.util.List;
 
+@Slf4j
 @Controller
 @RequiredArgsConstructor
 public class IncomeController {
@@ -62,6 +65,7 @@ public class IncomeController {
     
     @PostMapping("/api/income")
     @ResponseBody
+    @FamilyPermission("income_create")
     public ApiResponse<Income> add(@Valid @RequestBody IncomeRequest request, HttpSession session) {
         User user = getCurrentUser(session);
         if (user == null) {
@@ -74,6 +78,7 @@ public class IncomeController {
     
     @PutMapping("/api/income/{id}")
     @ResponseBody
+    @FamilyPermission("income_edit")
     public ApiResponse<Income> update(@PathVariable Long id, 
                                        @Valid @RequestBody IncomeRequest request, 
                                        HttpSession session) {
@@ -88,6 +93,7 @@ public class IncomeController {
     
     @DeleteMapping("/api/income/{id}")
     @ResponseBody
+    @FamilyPermission("income_delete")
     public ApiResponse<Void> delete(@PathVariable Long id, HttpSession session) {
         User user = getCurrentUser(session);
         if (user == null) {
@@ -100,6 +106,7 @@ public class IncomeController {
     
     @GetMapping("/api/income/{id}")
     @ResponseBody
+    @FamilyPermission("income_view")
     public ApiResponse<Income> get(@PathVariable Long id, HttpSession session) {
         User user = getCurrentUser(session);
         if (user == null) {
@@ -116,6 +123,7 @@ public class IncomeController {
     
     @GetMapping("/api/income")
     @ResponseBody
+    @FamilyPermission("income_view")
     public ApiResponse<List<Income>> list(HttpSession session,
                                            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
                                            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,

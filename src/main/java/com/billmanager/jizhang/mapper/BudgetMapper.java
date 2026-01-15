@@ -31,4 +31,17 @@ public interface BudgetMapper {
                                            @Param("categoryId") Long categoryId);
     
     int updateSpent(@Param("id") Long id, @Param("spent") java.math.BigDecimal spent);
+    
+    // 按家庭组查询
+    List<Budget> findByFamilyGroupId(@Param("familyGroupId") Long familyGroupId);
+    
+    Budget findByFamilyGroupIdAndCategoryIdAndYearMonth(@Param("familyGroupId") Long familyGroupId,
+                                                         @Param("categoryId") Long categoryId,
+                                                         @Param("yearMonth") String yearMonth);
+    
+    List<Budget> findByFamilyGroupIdAndYearMonth(@Param("familyGroupId") Long familyGroupId,
+                                                  @Param("yearMonth") String yearMonth);
+    
+    List<Budget> findByFamilyGroupIdAndCategoryId(@Param("familyGroupId") Long familyGroupId,
+                                                   @Param("categoryId") Long categoryId);
 }

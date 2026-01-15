@@ -6,6 +6,7 @@
     <resultMap id="BaseResultMap" type="com.billmanager.jizhang.entity.Expense">
         <id column="id" property="id"/>
         <result column="user_id" property="userId"/>
+        <result column="family_group_id" property="familyGroupId"/>
         <result column="category_id" property="categoryId"/>
         <result column="amount" property="amount"/>
         <result column="transaction_date" property="transactionDate"/>
@@ -15,8 +16,8 @@
     </resultMap>
 
     <insert id="insert" parameterType="com.billmanager.jizhang.entity.Expense" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO expense (user_id, category_id, amount, transaction_date, description)
-        VALUES (#{userId}, #{categoryId}, #{amount}, #{transactionDate}, #{description})
+        INSERT INTO expense (user_id, family_group_id, category_id, amount, transaction_date, description)
+        VALUES (#{userId}, #{familyGroupId}, #{categoryId}, #{amount}, #{transactionDate}, #{description})
     </insert>
 
     <update id="update" parameterType="com.billmanager.jizhang.entity.Expense">
@@ -62,5 +63,54 @@
         WHERE user_id = #{userId} 
         ORDER BY transaction_date DESC
     </select>
+
+    <!-- 按家庭组查询 -->
+    <select id="findByFamilyGroupId" resultMap="BaseResultMap">
+        SELECT * FROM expense WHERE family_group_id = #{familyGroupId}
+    </select>
+
+    <select id="findByFamilyGroupIdOrderByDateDesc" resultMap="BaseResultMap">
+        SELECT * FROM expense 
+        WHERE family_group_id = #{familyGroupId} 
+        ORDER BY transaction_date DESC
+    </select>
+
+    <select id="findByFamilyGroupIdAndDateRange" resultMap="BaseResultMap">
+        SELECT * FROM expense 
+        WHERE family_group_id = #{familyGroupId} 
+        AND transaction_date BETWEEN #{startDate} AND #{endDate}
+        ORDER BY transaction_date DESC
+    </select>
+
+    <select id="findByFamilyGroupIdAndCategoryId" resultMap="BaseResultMap">
+        SELECT * FROM expense 
+        WHERE family_group_id = #{familyGroupId} 
+        AND category_id = #{categoryId}
+        ORDER BY transaction_date DESC
+    </select>
+
+    <!-- 删除指定用户的所有支出记录 -->
+    <delete id="deleteByUserId">
+        DELETE FROM expense WHERE user_id = #{userId}
+    </delete>
+    
+    <!-- 删除指定用户在指定家族组中的支出记录 -->
+    <delete id="deleteByUserIdAndFamilyGroupId">
+        DELETE FROM expense WHERE user_id = #{userId} AND family_group_id = #{familyGroupId}
+    </delete>
+
+    <!-- 更新指定用户的所有支出记录的家庭组ID -->
+    <update id="updateFamilyGroupId">
+        UPDATE expense 
+        SET family_group_id = #{familyGroupId}, update_time = CURRENT_TIMESTAMP
+        WHERE user_id = #{userId}
+    </update>
+    
+    <!-- 将指定用户在指定家族组中的支出记录转换为个人数据 -->
+    <update id="updateFamilyGroupIdToPersonal">
+        UPDATE expense 
+        SET family_group_id = 0, update_time = CURRENT_TIMESTAMP
+        WHERE user_id = #{userId} AND family_group_id = #{familyGroupId}
+    </update>
 
 </mapper>

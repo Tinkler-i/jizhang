@@ -1,12 +1,16 @@
 package com.billmanager.jizhang.service.impl;
 
+import com.billmanager.jizhang.annotation.FamilyPermission;
 import com.billmanager.jizhang.dto.ExpenseRequest;
 import com.billmanager.jizhang.dto.ExpenseStatistics;
 import com.billmanager.jizhang.entity.Expense;
+import com.billmanager.jizhang.entity.FamilyGroup;
 import com.billmanager.jizhang.exception.BusinessException;
 import com.billmanager.jizhang.mapper.ExpenseMapper;
 import com.billmanager.jizhang.service.ExpenseService;
+import com.billmanager.jizhang.service.FamilyGroupService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -15,9 +19,11 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ExpenseServiceImpl implements ExpenseService {
     
     private final ExpenseMapper expenseMapper;
+    private final FamilyGroupService familyGroupService;
     
     @Override
     public Expense add(ExpenseRequest request, Long userId) {
@@ -27,6 +33,19 @@ public class ExpenseServiceImpl implements ExpenseService {
         expense.setAmount(request.getAmount());
         expense.setTransactionDate(request.getTransactionDate());
         expense.setDescription(request.getDescription());
+        
+        // 获取用户的家族组ID，如果没有则设为0（个人数据）
+        try {
+            FamilyGroup familyGroup = familyGroupService.getFamilyGroupByUserId(userId);
+            if (familyGroup != null) {
+                expense.setFamilyGroupId(familyGroup.getId());
+            } else {
+                expense.setFamilyGroupId(0L); // 0 表示个人数据
+            }
+        } catch (Exception e) {
+            log.debug("获取用户的家族组失败，使用个人数据范围", e);
+            expense.setFamilyGroupId(0L); // 默认使用个人数据
+        }
         
         expenseMapper.insert(expense);
         return expense;
@@ -77,27 +96,63 @@ public class ExpenseServiceImpl implements ExpenseService {
     }
     
     @Override
+    @FamilyPermission("expense_view")
     public List<Expense> findByUserId(Long userId) {
-        return expenseMapper.findByUserIdOrderByDateDesc(userId);
-    }
-    
-    @Override
-    public List<Expense> findByUserIdAndDateRange(Long userId, LocalDate startDate, LocalDate endDate) {
-        return expenseMapper.findByUserIdAndDateRange(userId, startDate, endDate);
-    }
-    
-    @Override
-    public List<Expense> findByUserIdAndCategoryId(Long userId, Long categoryId) {
-        return expenseMapper.findByUserIdAndCategoryId(userId, categoryId);
-    }
-    
-    @Override
-    public ExpenseStatistics getStatistics(Long userId, LocalDate startDate, LocalDate endDate) {
-        List<Expense> expenses;
-        if (startDate != null && endDate != null) {
-            expenses = expenseMapper.findByUserIdAndDateRange(userId, startDate, endDate);
+        // 获取用户所属家庭组
+        FamilyGroup familyGroup = familyGroupService.getFamilyGroupByUserId(userId);
+        if (familyGroup != null) {
+            // 用户属于某个家庭组，按familyGroupId查询
+            return expenseMapper.findByFamilyGroupIdOrderByDateDesc(familyGroup.getId());
         } else {
-            expenses = expenseMapper.findByUserIdOrderByDateDesc(userId);
+            // 用户不属于任何家庭组，按userId查询（完全访问权限）
+            log.info("【支出】用户{}不属于任何家庭组，按个人身份查询支出", userId);
+            return expenseMapper.findByUserIdOrderByDateDesc(userId);
+        }
+    }
+    
+    @Override
+    @FamilyPermission("expense_view")
+    public List<Expense> findByUserIdAndDateRange(Long userId, LocalDate startDate, LocalDate endDate) {
+        FamilyGroup familyGroup = familyGroupService.getFamilyGroupByUserId(userId);
+        if (familyGroup != null) {
+            return expenseMapper.findByFamilyGroupIdAndDateRange(familyGroup.getId(), startDate, endDate);
+        } else {
+            // 用户不属于任何家庭组，按userId查询
+            return expenseMapper.findByUserIdAndDateRange(userId, startDate, endDate);
+        }
+    }
+    
+    @Override
+    @FamilyPermission("expense_view")
+    public List<Expense> findByUserIdAndCategoryId(Long userId, Long categoryId) {
+        FamilyGroup familyGroup = familyGroupService.getFamilyGroupByUserId(userId);
+        if (familyGroup != null) {
+            return expenseMapper.findByFamilyGroupIdAndCategoryId(familyGroup.getId(), categoryId);
+        } else {
+            // 用户不属于任何家庭组，按userId查询
+            return expenseMapper.findByUserIdAndCategoryId(userId, categoryId);
+        }
+    }
+    
+    @Override
+    @FamilyPermission("expense_view")
+    public ExpenseStatistics getStatistics(Long userId, LocalDate startDate, LocalDate endDate) {
+        FamilyGroup familyGroup = familyGroupService.getFamilyGroupByUserId(userId);
+        List<Expense> expenses;
+        
+        if (familyGroup != null) {
+            if (startDate != null && endDate != null) {
+                expenses = expenseMapper.findByFamilyGroupIdAndDateRange(familyGroup.getId(), startDate, endDate);
+            } else {
+                expenses = expenseMapper.findByFamilyGroupIdOrderByDateDesc(familyGroup.getId());
+            }
+        } else {
+            // 用户不属于任何家庭组，按userId查询
+            if (startDate != null && endDate != null) {
+                expenses = expenseMapper.findByUserIdAndDateRange(userId, startDate, endDate);
+            } else {
+                expenses = expenseMapper.findByUserIdOrderByDateDesc(userId);
+            }
         }
         
         ExpenseStatistics statistics = new ExpenseStatistics();

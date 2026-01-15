@@ -6,6 +6,7 @@ DROP TABLE IF EXISTS `user`;
 CREATE TABLE `user` (
     `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '用户ID',
     `username` VARCHAR(50) NOT NULL COMMENT '用户名',
+    `nickname` VARCHAR(50) COMMENT '昵称，用于家庭组成员管理中显示',
     `password` VARCHAR(255) NOT NULL COMMENT '密码（BCrypt加密）',
     `phone` VARCHAR(20) COMMENT '手机号',
     `email` VARCHAR(100) COMMENT '邮箱',
