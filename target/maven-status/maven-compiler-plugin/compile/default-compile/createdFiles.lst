@@ -11,6 +11,7 @@ com\billmanager\jizhang\dto\BillImportConfirmResponse$BillImportConfirmResponseB
 com\billmanager\jizhang\entity\FamilyGroup.class
 com\billmanager\jizhang\service\impl\IncomeServiceImpl.class
 com\billmanager\jizhang\dto\BudgetRequest.class
+com\billmanager\jizhang\dto\ExitFamilyGroupRequest.class
 com\billmanager\jizhang\entity\Income.class
 com\billmanager\jizhang\entity\Expense.class
 com\billmanager\jizhang\controller\RegisterController.class
@@ -82,10 +83,14 @@ com\billmanager\jizhang\mapper\BudgetMapper.class
 com\billmanager\jizhang\service\XunfeiApiService.class
 com\billmanager\jizhang\controller\ReportController.class
 com\billmanager\jizhang\dto\FinancialReport$CategoryAmount.class
+com\billmanager\jizhang\dto\JoinFamilyGroupRequest$JoinFamilyGroupRequestBuilder.class
 com\billmanager\jizhang\exception\GlobalExceptionHandler.class
 com\billmanager\jizhang\controller\UserTargetController.class
 com\billmanager\jizhang\dto\LoginRequest.class
+com\billmanager\jizhang\service\impl\FamilyMemberServiceImpl.class
+com\billmanager\jizhang\dto\ExitFamilyGroupRequest$ExitFamilyGroupRequestBuilder.class
 com\billmanager\jizhang\service\PermissionService.class
+com\billmanager\jizhang\dto\JoinFamilyGroupRequest.class
 com\billmanager\jizhang\dto\UserContext.class
 com\billmanager\jizhang\dto\BillImportConfirmRequest$BillImportConfirmRequestBuilder.class
 com\billmanager\jizhang\controller\IncomeCategoryController.class
@@ -100,6 +105,7 @@ com\billmanager\jizhang\dto\BudgetReport$BudgetItem.class
 com\billmanager\jizhang\service\impl\XunfeiApiServiceImpl.class
 com\billmanager\jizhang\config\WebMvcConfig.class
 com\billmanager\jizhang\controller\FamilyGroupController.class
+com\billmanager\jizhang\service\impl\PermissionServiceImpl.class
 com\billmanager\jizhang\dto\BudgetReport.class
 com\billmanager\jizhang\service\impl\XunfeiWebSocketClient$2.class
 com\billmanager\jizhang\entity\ExpenseCategory.class
