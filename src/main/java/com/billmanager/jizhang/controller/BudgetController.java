@@ -1,6 +1,5 @@
 package com.billmanager.jizhang.controller;
 
-import com.billmanager.jizhang.annotation.FamilyPermission;
 import com.billmanager.jizhang.dto.ApiResponse;
 import com.billmanager.jizhang.dto.BudgetRequest;
 import com.billmanager.jizhang.dto.BudgetStatistics;
@@ -66,7 +65,6 @@ public class BudgetController {
     
     @GetMapping("/api/budget/month/{budgetMonth}")
     @ResponseBody
-    @FamilyPermission("budget_view")
     public ApiResponse<List<BudgetStatistics>> getBudgetsByMonth(
             @PathVariable String budgetMonth,
             HttpSession session) {
@@ -81,26 +79,31 @@ public class BudgetController {
     
     @PostMapping("/api/budget")
     @ResponseBody
-    @FamilyPermission("budget_create")
     public ApiResponse<Budget> addBudget(
             @Valid @RequestBody BudgetRequest request,
             HttpSession session) {
+        log.info("【预算创建】收到请求: categoryId={}, amount={}, budgetMonth={}", 
+                request.getCategoryId(), request.getAmount(), request.getBudgetMonth());
+        
         User user = getCurrentUser(session);
         if (user == null) {
+            log.warn("【预算创建】用户未登录");
             return ApiResponse.error("未登录");
         }
+        log.info("【预算创建】当前用户: id={}, username={}", user.getId(), user.getUsername());
         
         try {
             Budget budget = budgetService.add(request, user.getId());
+            log.info("【预算创建】成功: id={}", budget.getId());
             return ApiResponse.success("添加成功", budget);
         } catch (Exception e) {
+            log.error("【预算创建】失败: {}", e.getMessage(), e);
             return ApiResponse.error("添加失败: " + e.getMessage());
         }
     }
     
     @PutMapping("/api/budget/{id}")
     @ResponseBody
-    @FamilyPermission("budget_edit")
     public ApiResponse<Budget> updateBudget(
             @PathVariable Long id,
             @Valid @RequestBody BudgetRequest request,
@@ -120,7 +123,6 @@ public class BudgetController {
     
     @DeleteMapping("/api/budget/{id}")
     @ResponseBody
-    @FamilyPermission("budget_delete")
     public ApiResponse<Void> deleteBudget(
             @PathVariable Long id,
             HttpSession session) {

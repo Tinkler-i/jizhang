@@ -1,5 +1,6 @@
 package com.billmanager.jizhang.controller;
 
+import com.billmanager.jizhang.constant.PermissionConstants;
 import com.billmanager.jizhang.dto.UserContext;
 import com.billmanager.jizhang.entity.FamilyGroup;
 import com.billmanager.jizhang.entity.FamilyMember;
@@ -271,12 +272,8 @@ public class FamilyGroupController {
             creatorMember.setFamilyGroupId(newFamily.getId());
             creatorMember.setUserId(userId);
             creatorMember.setRole("ADMIN");
-            // 管理员拥有所有权限（包括成员管理权限）
-            creatorMember.setPermissions("{\"income\": {\"view\": true, \"create\": true, \"edit\": true, \"delete\": true}, " +
-                    "\"expense\": {\"view\": true, \"create\": true, \"edit\": true, \"delete\": true}, " +
-                    "\"budget\": {\"view\": true, \"create\": true, \"edit\": true, \"delete\": true}, " +
-                    "\"category\": {\"view\": true, \"create\": true, \"edit\": true, \"delete\": true}, " +
-                    "\"member_management\": {\"view\": true, \"invite\": true, \"edit_permission\": true, \"remove_member\": true}}");
+            // 管理员拥有所有权限
+            creatorMember.setPermissions(PermissionConstants.ADMIN_PERMISSIONS);
             creatorMember.setStatus(1);
             
             familyMemberService.saveFamilyMember(creatorMember);

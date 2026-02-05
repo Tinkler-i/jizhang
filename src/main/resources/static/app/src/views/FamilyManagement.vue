@@ -410,7 +410,6 @@ const editForm = ref({
 })
 const isPermissionModalOpen = ref(false)
 const selectedMember = ref(null)
-const selectedPermissionTemplate = ref('')
 const permissionLoading = ref(false)
 const permissionDetails = ref(null)
 const message = ref('')
@@ -780,24 +779,14 @@ const loadPermissionDetails = async (memberId) => {
     throw new Error('无法解析权限数据')
   } catch (error) {
     console.warn('【DEBUG】获取权限详情异常:', error.message)
-    // 使用默认权限详情
+    // 使用默认权限详情（简化的6个权限）
     permissionDetails.value = {
       income_view: true,
-      income_create: false,
       income_edit: false,
-      income_delete: false,
       expense_view: true,
-      expense_create: false,
       expense_edit: false,
-      expense_delete: false,
       budget_view: true,
-      budget_create: false,
-      budget_edit: false,
-      budget_delete: false,
-      category_view: true,
-      category_create: false,
-      category_edit: false,
-      category_delete: false
+      budget_edit: false
     }
   }
 }
@@ -842,46 +831,34 @@ const flattenPermissions = (nestedPerms) => {
 const closePermissionModal = () => {
   isPermissionModalOpen.value = false
   selectedMember.value = null
-  selectedPermissionTemplate.value = ''
   permissionDetails.value = null
 }
 
-// 格式化权限标签
+// 格式化权限标签（简化的6个权限）
 const formatPermissionLabel = (key) => {
   const labels = {
     'income_view': '收入 - 查看',
-    'income_create': '收入 - 创建',
-    'income_edit': '收入 - 编辑',
-    'income_delete': '收入 - 删除',
+    'income_edit': '收入 - 编辑（含创建/删除）',
     'expense_view': '支出 - 查看',
-    'expense_create': '支出 - 创建',
-    'expense_edit': '支出 - 编辑',
-    'expense_delete': '支出 - 删除',
+    'expense_edit': '支出 - 编辑（含创建/删除）',
     'budget_view': '预算 - 查看',
-    'budget_create': '预算 - 创建',
-    'budget_edit': '预算 - 编辑',
-    'budget_delete': '预算 - 删除',
-    'category_view': '分类 - 查看',
-    'category_create': '分类 - 创建',
-    'category_edit': '分类 - 编辑',
-    'category_delete': '分类 - 删除',
-    'member_management_view': '成员管理 - 查看',
-    'member_management_invite': '成员管理 - 邀请',
-    'member_management_edit_permission': '成员管理 - 编辑权限',
-    'member_management_remove_member': '成员管理 - 移除成员'
+    'budget_edit': '预算 - 编辑（含创建/删除）'
   }
   return labels[key] || key
 }
 
-// 过滤权限 - 隐藏成员管理权限
+// 过滤权限 - 只显示简化的6个权限
 const getFilteredPermissions = () => {
   if (!permissionDetails.value) return {}
   
-  // 过滤出非成员管理权限
+  // 只保留6个权限
+  const allowedKeys = ['income_view', 'income_edit', 'expense_view', 'expense_edit', 'budget_view', 'budget_edit']
   const filtered = {}
-  for (const [key, value] of Object.entries(permissionDetails.value)) {
-    if (!key.startsWith('member_management_')) {
-      filtered[key] = value
+  for (const key of allowedKeys) {
+    if (permissionDetails.value.hasOwnProperty(key)) {
+      filtered[key] = permissionDetails.value[key]
+    } else {
+      filtered[key] = false
     }
   }
   return filtered

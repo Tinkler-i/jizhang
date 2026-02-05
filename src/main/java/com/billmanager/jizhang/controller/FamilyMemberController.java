@@ -5,7 +5,6 @@ import com.billmanager.jizhang.dto.FamilyMemberDTO;
 import com.billmanager.jizhang.dto.JoinFamilyGroupRequest;
 import com.billmanager.jizhang.dto.ExitFamilyGroupRequest;
 import com.billmanager.jizhang.entity.FamilyMember;
-import com.billmanager.jizhang.entity.PermissionTemplate;
 import com.billmanager.jizhang.entity.User;
 import com.billmanager.jizhang.exception.BusinessException;
 import com.billmanager.jizhang.mapper.UserMapper;
@@ -166,16 +165,16 @@ public class FamilyMemberController {
     }
     
     /**
-     * 更新成员的权限模板
+     * 更新成员权限
      * 需要是家庭组管理员
      * 
      * 请求体格式:
      * {
      *   "memberId": 2,
-     *   "permissionTemplateName": "记账员"
+     *   "permissions": {"income_view":true,"income_edit":false,...}
      * }
      * 
-     * @param request 包含成员ID和权限模板名称
+     * @param request 包含成员ID和权限JSON
      * @return 更新后的成员信息
      */
     @PutMapping("/permissions")
@@ -206,27 +205,14 @@ public class FamilyMemberController {
                         .body(Map.of("code", 404, "message", "成员不存在"));
             }
             
-            // 将权限对象转换为 JSON 字符串，并移除成员管理权限
+            // 将权限对象转换为 JSON 字符串
             String permissionsJson;
             if (permissionsObj instanceof String) {
                 permissionsJson = (String) permissionsObj;
                 log.debug("【权限更新】权限已是字符串格式");
             } else if (permissionsObj instanceof Map) {
-                // 过滤权限 - 移除成员管理相关权限
-                Map<String, Object> cleanMap = new HashMap<>((Map<String, Object>) permissionsObj);
-                cleanMap.keySet().removeIf(key -> key.startsWith("member_management_"));
-                log.debug("【权限更新】已移除成员管理权限");
-                
-                // 如果是 Map，直接转换
-                try {
-                    permissionsJson = objectMapper.writeValueAsString(cleanMap);
-                    log.debug("【权限更新】权限 Map 已转换为 JSON");
-                } catch (Exception e) {
-                    log.error("【权限更新】转换权限对象失败，使用备用方案", e);
-                    // 备用方案：再次转换
-                    Map<String, Object> retryMap = new HashMap<>(cleanMap);
-                    permissionsJson = objectMapper.writeValueAsString(retryMap);
-                }
+                permissionsJson = objectMapper.writeValueAsString(permissionsObj);
+                log.debug("【权限更新】权限 Map 已转换为 JSON");
             } else {
                 permissionsJson = objectMapper.writeValueAsString(permissionsObj);
                 log.debug("【权限更新】权限对象已转换为 JSON");
@@ -433,31 +419,6 @@ public class FamilyMemberController {
     }
     
     /**
-     * 获取所有可用的权限模板
-     * 
-     * @return 权限模板列表
-     */
-    @GetMapping("/permission-templates")
-    public ResponseEntity<?> getPermissionTemplates() {
-        try {
-            log.info("【权限模板】查询所有权限模板");
-            
-            java.util.List<PermissionTemplate> templates = permissionService.getAllTemplates();
-            
-            Map<String, Object> response = new HashMap<>();
-            response.put("code", 200);
-            response.put("data", templates);
-            response.put("count", templates.size());
-            
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            log.error("【权限模板】查询权限模板失败", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("code", 500, "message", "查询失败：" + e.getMessage()));
-        }
-    }
-    
-    /**
      * 获取家庭组的所有成员（包含用户昵称和其他信息）
      * 
      * 返回格式:
@@ -629,10 +590,10 @@ public class FamilyMemberController {
      * 请求体格式：
      * {
      *   "memberIds": [1, 2, 3],
-     *   "permissionTemplateName": "记账员"
+     *   "permissions": "{\"income_view\":true,\"income_edit\":false,...}"
      * }
      * 
-     * @param request 包含成员ID列表和权限模板名称
+     * @param request 包含成员ID列表和权限JSON
      * @return 更新结果
      */
     @PostMapping("/batch/permissions")
@@ -652,26 +613,32 @@ public class FamilyMemberController {
             
             @SuppressWarnings("unchecked")
             java.util.List<Long> memberIds = (java.util.List<Long>) request.get("memberIds");
-            String templateName = (String) request.get("permissionTemplateName");
+            Object permissionsObj = request.get("permissions");
             
             if (memberIds == null || memberIds.isEmpty()) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                         .body(Map.of("code", 400, "message", "成员ID列表为空"));
             }
             
-            log.info("【批量权限更新】用户{} 批量更新 {} 个成员的权限为: {}", userId, memberIds.size(), templateName);
-            
-            PermissionTemplate template = permissionService.getTemplateByName(templateName);
-            if (template == null) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(Map.of("code", 404, "message", "权限模板不存在"));
+            if (permissionsObj == null) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("code", 400, "message", "缺少权限参数"));
             }
             
-            // 获取当前用户的家庭组ID
-            FamilyMember currentMember = familyMemberService.getFamilyMemberByUserId(userId);
+            // 将权限对象转换为 JSON 字符串
+            String permissionsJson;
+            if (permissionsObj instanceof String) {
+                permissionsJson = (String) permissionsObj;
+            } else if (permissionsObj instanceof Map) {
+                permissionsJson = objectMapper.writeValueAsString(permissionsObj);
+            } else {
+                permissionsJson = objectMapper.writeValueAsString(permissionsObj);
+            }
+            
+            log.info("【批量权限更新】用户{} 批量更新 {} 个成员的权限", userId, memberIds.size());
             
             // 批量更新
-            familyMemberService.batchUpdateMemberPermissions(memberIds, template.getPermissions());
+            familyMemberService.batchUpdateMemberPermissions(memberIds, permissionsJson);
             
             Map<String, Object> response = new HashMap<>();
             response.put("code", 200);

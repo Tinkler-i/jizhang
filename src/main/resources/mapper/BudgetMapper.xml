@@ -17,8 +17,8 @@
     </resultMap>
 
     <insert id="insert" parameterType="com.billmanager.jizhang.entity.Budget" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO budget (user_id, category_id, amount, `budget_month`, spent, remark)
-        VALUES (#{userId}, #{categoryId}, #{amount}, #{budgetMonth}, COALESCE(#{spent}, 0), #{remark})
+        INSERT INTO budget (user_id, family_group_id, category_id, amount, `budget_month`, spent, remark)
+        VALUES (#{userId}, #{familyGroupId}, #{categoryId}, #{amount}, #{budgetMonth}, COALESCE(#{spent}, 0), #{remark})
     </insert>
 
     <update id="update" parameterType="com.billmanager.jizhang.entity.Budget">
@@ -95,5 +95,17 @@
         AND category_id = #{categoryId}
         ORDER BY `budget_month` DESC
     </select>
+
+    <!-- 删除指定用户在指定家族组中的预算 -->
+    <delete id="deleteByUserIdAndFamilyGroupId">
+        DELETE FROM budget WHERE user_id = #{userId} AND family_group_id = #{familyGroupId}
+    </delete>
+
+    <!-- 将指定用户在指定家族组中的预算转换为个人数据 -->
+    <update id="updateFamilyGroupIdToPersonal">
+        UPDATE budget 
+        SET family_group_id = 0, update_time = CURRENT_TIMESTAMP
+        WHERE user_id = #{userId} AND family_group_id = #{familyGroupId}
+    </update>
 
 </mapper>
