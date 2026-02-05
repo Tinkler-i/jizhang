@@ -4,6 +4,7 @@ import com.billmanager.jizhang.dto.ApiResponse;
 import com.billmanager.jizhang.dto.RegisterRequest;
 import com.billmanager.jizhang.dto.SendVerificationCodeRequest;
 import com.billmanager.jizhang.dto.VerifyCodeResponse;
+import com.billmanager.jizhang.service.CaptchaService;
 import com.billmanager.jizhang.service.VerificationCodeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 public class RegisterController {
     
     private final VerificationCodeService verificationCodeService;
+    private final CaptchaService captchaService;
     
     /**
      * 发送验证码
@@ -27,8 +29,24 @@ public class RegisterController {
     public ApiResponse<String> sendVerificationCode(@RequestBody SendVerificationCodeRequest request) {
         try {
             log.info("【API】收到发送验证码请求 - 类型: {}", request.getType());
+            
+            // 验证人机验证 token
+            if (request.getCaptchaToken() == null || request.getCaptchaToken().isEmpty()) {
+                log.warn("【API】发送验证码失败 - captcha token 为空");
+                return ApiResponse.error("请先完成人机验证");
+            }
+            
+            if (!captchaService.isValidCaptchaToken(request.getCaptchaToken())) {
+                log.warn("【API】发送验证码失败 - captcha token 无效或已过期");
+                return ApiResponse.error("人机验证已过期，请重新验证");
+            }
+            
             verificationCodeService.sendVerificationCode(request);
             log.info("【API】验证码发送成功");
+            
+            // 标记 captcha token 为已使用
+            captchaService.useCaptchaToken(request.getCaptchaToken());
+            
             return ApiResponse.success("验证码已发送");
         } catch (Exception e) {
             log.error("【API】发送验证码失败 - 错误: {}", e.getMessage(), e);
