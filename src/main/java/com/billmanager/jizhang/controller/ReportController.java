@@ -22,6 +22,7 @@ import com.billmanager.jizhang.entity.ExpenseCategory;
 import com.billmanager.jizhang.service.ReportService;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -36,6 +37,7 @@ import java.util.List;
  * 报表控制器
  * 处理财务报表、预算报表、现金流分析等请求
  */
+@Slf4j
 @RestController
 @RequestMapping("/api/reports")
 @RequiredArgsConstructor

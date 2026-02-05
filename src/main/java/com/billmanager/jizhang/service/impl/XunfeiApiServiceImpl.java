@@ -2,8 +2,10 @@ package com.billmanager.jizhang.service.impl;
 
 import com.billmanager.jizhang.config.XunfeiApiProperties;
 import com.billmanager.jizhang.dto.BillRecordDTO;
+import com.billmanager.jizhang.entity.FamilyMember;
 import com.billmanager.jizhang.mapper.ExpenseCategoryMapper;
 import com.billmanager.jizhang.mapper.IncomeCategoryMapper;
+import com.billmanager.jizhang.service.PermissionService;
 import com.billmanager.jizhang.service.XunfeiApiService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -32,6 +34,7 @@ public class XunfeiApiServiceImpl implements XunfeiApiService {
     private final ObjectMapper objectMapper;
     private final ExpenseCategoryMapper expenseCategoryMapper;
     private final IncomeCategoryMapper incomeCategoryMapper;
+    private final PermissionService permissionService;
     
     /**
      * 调用讯飞大模型进行图像识别
@@ -319,19 +322,38 @@ public class XunfeiApiServiceImpl implements XunfeiApiService {
      * 构建用于提示词的分类上下文
      * 注意：这里只包括用户自定义分类（is_built_in=0），不包括系统内置分类如'待分类'
      * AI会尽量选择用户分类中最接近的，没有接近的才使用'待分类'作为默认分类
+     * 支持家庭组：如果用户在家庭组中，获取家庭组的分类
      */
     private String buildCategoryContext(Long userId) {
         log.debug("为用户 {} 构建分类上下文...", userId);
         
         try {
+            // 检查是否在家庭组中
+            FamilyMember member = permissionService.getFamilyMember(userId);
+            Long familyGroupId = member != null ? member.getFamilyGroupId() : null;
+            
+            List<com.billmanager.jizhang.entity.ExpenseCategory> expenseCategoryList;
+            List<com.billmanager.jizhang.entity.IncomeCategory> incomeCategoryList;
+            
+            if (familyGroupId != null) {
+                // 家庭组模式：获取家庭组的分类
+                log.debug("用户在家庭组中，获取家庭组 {} 的分类", familyGroupId);
+                expenseCategoryList = expenseCategoryMapper.findByFamilyGroupId(familyGroupId);
+                incomeCategoryList = incomeCategoryMapper.findByFamilyGroupId(familyGroupId);
+            } else {
+                // 个人模式：获取用户的分类
+                expenseCategoryList = expenseCategoryMapper.findByUserId(userId);
+                incomeCategoryList = incomeCategoryMapper.findByUserId(userId);
+            }
+            
             // 获取用户的支出分类（排除内置分类）
-            List<String> expenseCategories = expenseCategoryMapper.findByUserId(userId).stream()
+            List<String> expenseCategories = expenseCategoryList.stream()
                 .filter(cat -> cat.getIsBuiltIn() == null || cat.getIsBuiltIn() == 0)
                 .map(cat -> "- " + cat.getName())
                 .collect(Collectors.toList());
             
             // 获取用户的收入分类（排除内置分类）
-            List<String> incomeCategories = incomeCategoryMapper.findByUserId(userId).stream()
+            List<String> incomeCategories = incomeCategoryList.stream()
                 .filter(cat -> cat.getIsBuiltIn() == null || cat.getIsBuiltIn() == 0)
                 .map(cat -> "- " + cat.getName())
                 .collect(Collectors.toList());
@@ -367,21 +389,32 @@ public class XunfeiApiServiceImpl implements XunfeiApiService {
     /**
      * 根据交易类型和分类名称匹配分类ID
      * 如果匹配不到，返回"待分类"分类的ID
+     * 支持家庭组：如果用户在家庭组中，匹配家庭组的分类
      */
     private Long matchCategoryId(String type, String categoryName, Long userId) {
         try {
+            // 检查是否在家庭组中
+            FamilyMember member = permissionService.getFamilyMember(userId);
+            Long familyGroupId = member != null ? member.getFamilyGroupId() : null;
+            
             if ("EXPENSE".equals(type)) {
+                List<com.billmanager.jizhang.entity.ExpenseCategory> categories;
+                if (familyGroupId != null) {
+                    categories = expenseCategoryMapper.findByFamilyGroupId(familyGroupId);
+                } else {
+                    categories = expenseCategoryMapper.findByUserId(userId);
+                }
+                
                 // 先尝试精确匹配
-                com.billmanager.jizhang.entity.ExpenseCategory category = 
-                    expenseCategoryMapper.findByUserIdAndName(userId, categoryName);
-                if (category != null && (category.getIsBuiltIn() == null || category.getIsBuiltIn() == 0)) {
-                    log.debug("支出分类精确匹配成功: {}", categoryName);
-                    return category.getId();
+                for (com.billmanager.jizhang.entity.ExpenseCategory cat : categories) {
+                    if (cat.getName().equals(categoryName) && 
+                        (cat.getIsBuiltIn() == null || cat.getIsBuiltIn() == 0)) {
+                        log.debug("支出分类精确匹配成功: {}", categoryName);
+                        return cat.getId();
+                    }
                 }
                 
                 // 尝试模糊匹配
-                List<com.billmanager.jizhang.entity.ExpenseCategory> categories = 
-                    expenseCategoryMapper.findByUserId(userId);
                 for (com.billmanager.jizhang.entity.ExpenseCategory cat : categories) {
                     if ((cat.getIsBuiltIn() == null || cat.getIsBuiltIn() == 0) && 
                         isCategoryMatch(categoryName, cat.getName())) {
@@ -391,25 +424,31 @@ public class XunfeiApiServiceImpl implements XunfeiApiService {
                 }
                 
                 // 返回"待分类"分类ID
-                com.billmanager.jizhang.entity.ExpenseCategory unclassified = 
-                    expenseCategoryMapper.findByUserIdAndName(userId, "待分类");
-                if (unclassified != null) {
-                    log.debug("使用待分类分类: {}", categoryName);
-                    return unclassified.getId();
+                for (com.billmanager.jizhang.entity.ExpenseCategory cat : categories) {
+                    if ("待分类".equals(cat.getName())) {
+                        log.debug("使用待分类分类: {}", categoryName);
+                        return cat.getId();
+                    }
                 }
                 
             } else if ("INCOME".equals(type)) {
+                List<com.billmanager.jizhang.entity.IncomeCategory> categories;
+                if (familyGroupId != null) {
+                    categories = incomeCategoryMapper.findByFamilyGroupId(familyGroupId);
+                } else {
+                    categories = incomeCategoryMapper.findByUserId(userId);
+                }
+                
                 // 先尝试精确匹配
-                com.billmanager.jizhang.entity.IncomeCategory category = 
-                    incomeCategoryMapper.findByUserIdAndName(userId, categoryName);
-                if (category != null && (category.getIsBuiltIn() == null || category.getIsBuiltIn() == 0)) {
-                    log.debug("收入分类精确匹配成功: {}", categoryName);
-                    return category.getId();
+                for (com.billmanager.jizhang.entity.IncomeCategory cat : categories) {
+                    if (cat.getName().equals(categoryName) && 
+                        (cat.getIsBuiltIn() == null || cat.getIsBuiltIn() == 0)) {
+                        log.debug("收入分类精确匹配成功: {}", categoryName);
+                        return cat.getId();
+                    }
                 }
                 
                 // 尝试模糊匹配
-                List<com.billmanager.jizhang.entity.IncomeCategory> categories = 
-                    incomeCategoryMapper.findByUserId(userId);
                 for (com.billmanager.jizhang.entity.IncomeCategory cat : categories) {
                     if ((cat.getIsBuiltIn() == null || cat.getIsBuiltIn() == 0) && 
                         isCategoryMatch(categoryName, cat.getName())) {
@@ -419,11 +458,11 @@ public class XunfeiApiServiceImpl implements XunfeiApiService {
                 }
                 
                 // 返回"待分类"分类ID
-                com.billmanager.jizhang.entity.IncomeCategory unclassified = 
-                    incomeCategoryMapper.findByUserIdAndName(userId, "待分类");
-                if (unclassified != null) {
-                    log.debug("使用待分类分类: {}", categoryName);
-                    return unclassified.getId();
+                for (com.billmanager.jizhang.entity.IncomeCategory cat : categories) {
+                    if ("待分类".equals(cat.getName())) {
+                        log.debug("使用待分类分类: {}", categoryName);
+                        return cat.getId();
+                    }
                 }
             }
             

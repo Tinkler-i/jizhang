@@ -105,12 +105,14 @@
 <script setup>
 import { reactive, ref, onMounted, computed } from 'vue'
 import { incomeAPI, incomeCategoryAPI } from '../api'
+import { useUIStore } from '../stores/ui'
 import Card from '../components/Card.vue'
 import Button from '../components/Button.vue'
 import Input from '../components/Input.vue'
 import Select from '../components/Select.vue'
 import Modal from '../components/Modal.vue'
 
+const uiStore = useUIStore()
 const incomes = ref([])
 const categories = ref([])
 const loading = ref(false)
@@ -266,15 +268,15 @@ const editIncome = (item) => {
 const handleSave = async () => {
   // 表单验证
   if (!form.categoryId) {
-    alert('请选择分类')
+    uiStore.showNotification('请选择分类', 'warning')
     return
   }
   if (!form.amount || parseFloat(form.amount) <= 0) {
-    alert('请输入有效的金额')
+    uiStore.showNotification('请输入有效的金额', 'warning')
     return
   }
   if (!form.transactionDate) {
-    alert('请选择日期')
+    uiStore.showNotification('请选择日期', 'warning')
     return
   }
 
@@ -289,23 +291,25 @@ const handleSave = async () => {
 
     if (editingId.value) {
       await incomeAPI.update(editingId.value, data)
-      alert('修改成功')
+      uiStore.showNotification('修改成功', 'success')
     } else {
       await incomeAPI.create(data)
-      alert('添加成功')
+      uiStore.showNotification('添加成功', 'success')
     }
     showModal.value = false
     loadIncomes()
   } catch (error) {
     console.error('Failed to save income:', error)
-    alert('保存失败: ' + (error.response?.data?.message || error.message))
+    uiStore.showNotification('保存失败: ' + (error.response?.data?.message || error.message), 'error')
   }
 }
 
 const deleteIncome = async (id) => {
-  if (confirm('确定删除此记录吗？')) {
+  const confirmed = await uiStore.showConfirm('确定删除此收入记录吗？', '删除确认', 'danger')
+  if (confirmed) {
     try {
       await incomeAPI.delete(id)
+      uiStore.showNotification('删除成功', 'success')
       loadIncomes()
     } catch (error) {
       console.error('Failed to delete income:', error)

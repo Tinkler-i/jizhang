@@ -91,11 +91,13 @@
 <script setup>
 import { reactive, ref, onMounted } from 'vue'
 import { incomeCategoryAPI, incomeAPI } from '../api'
+import { useUIStore } from '../stores/ui'
 import Card from '../components/Card.vue'
 import Button from '../components/Button.vue'
 import Input from '../components/Input.vue'
 import Modal from '../components/Modal.vue'
 
+const uiStore = useUIStore()
 const categories = ref([])
 const incomes = ref([])
 const showModal = ref(false)
@@ -153,11 +155,11 @@ const loadCategories = async () => {
       })
     } else {
       console.warn('分类响应格式不正确:', response)
-      alert('分类加载失败：响应格式错误')
+      uiStore.showNotification('分类加载失败：响应格式错误', 'error')
     }
   } catch (error) {
     console.error('Failed to load categories:', error)
-    alert('加载失败: ' + (error.response?.data?.message || error.message))
+    uiStore.showNotification('加载失败: ' + (error.response?.data?.message || error.message), 'error')
   }
 }
 
@@ -201,9 +203,11 @@ const viewCategoryDetails = (category) => {
 }
 
 const deleteCategory = async (id) => {
-  if (confirm('确定删除此分类吗？')) {
+  const confirmed = await uiStore.showConfirm('确定删除此收入分类吗？', '删除确认', 'danger')
+  if (confirmed) {
     try {
       await incomeCategoryAPI.delete(id)
+      uiStore.showNotification('删除成功', 'success')
       loadCategories()
     } catch (error) {
       console.error('Failed to delete category:', error)

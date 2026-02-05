@@ -1,5 +1,32 @@
 <template>
   <div class="main-layout" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
+    <!-- 全局通知 -->
+    <transition name="notification-fade">
+      <div v-if="notification" class="global-notification" :class="notification.type">
+        <span class="notification-icon">{{ notificationIcon }}</span>
+        <span class="notification-message">{{ notification.message }}</span>
+      </div>
+    </transition>
+
+    <!-- 全局确认对话框 -->
+    <transition name="confirm-fade">
+      <div v-if="confirmDialog" class="confirm-overlay" @click.self="uiStore.handleCancel()">
+        <div class="confirm-dialog" :class="confirmDialog.type">
+          <div class="confirm-header">
+            <span class="confirm-icon">{{ confirmIcon }}</span>
+            <span class="confirm-title">{{ confirmDialog.title }}</span>
+          </div>
+          <div class="confirm-body">
+            {{ confirmDialog.message }}
+          </div>
+          <div class="confirm-footer">
+            <button class="confirm-btn cancel" @click="uiStore.handleCancel()">取消</button>
+            <button class="confirm-btn ok" @click="uiStore.handleConfirm()">确定</button>
+          </div>
+        </div>
+      </div>
+    </transition>
+
     <!-- 顶部导航栏 -->
     <header class="navbar">
       <div class="navbar-content">
@@ -62,12 +89,35 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useUIStore } from '../stores/ui'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const uiStore = useUIStore()
 const sidebarCollapsed = ref(false)
 
 const username = computed(() => localStorage.getItem('username') || '用户')
+const notification = computed(() => uiStore.notification)
+const confirmDialog = computed(() => uiStore.confirmDialog)
+const notificationIcon = computed(() => {
+  if (!notification.value) return ''
+  const icons = {
+    success: '✓',
+    error: '✕',
+    warning: '⚠',
+    info: 'ℹ'
+  }
+  return icons[notification.value.type] || icons.info
+})
+const confirmIcon = computed(() => {
+  if (!confirmDialog.value) return ''
+  const icons = {
+    warning: '⚠',
+    danger: '⚠',
+    info: 'ℹ'
+  }
+  return icons[confirmDialog.value.type] || icons.warning
+})
 
 const menuItems = [
   {
@@ -109,6 +159,11 @@ const menuItems = [
     path: '/bill-import',
     label: '账单导入',
     icon: '📸'
+  },
+  {
+    path: '/family-management',
+    label: '家庭组管理',
+    icon: '👨‍👩‍👧‍👦'
   },
   {
     path: '/profile',
@@ -359,5 +414,226 @@ const handleLogout = () => {
 .sidebar::-webkit-scrollbar-thumb:hover,
 .content::-webkit-scrollbar-thumb:hover {
   background: #555;
+}
+
+/* 全局通知样式 */
+.global-notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 14px 20px;
+  border-radius: 8px;
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  max-width: 400px;
+}
+
+.global-notification.success {
+  background: linear-gradient(135deg, #52c41a 0%, #73d13d 100%);
+}
+
+.global-notification.error {
+  background: linear-gradient(135deg, #ff4d4f 0%, #ff7875 100%);
+}
+
+.global-notification.warning {
+  background: linear-gradient(135deg, #faad14 0%, #ffc53d 100%);
+}
+
+.global-notification.info {
+  background: linear-gradient(135deg, #1890ff 0%, #40a9ff 100%);
+}
+
+.notification-icon {
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.notification-message {
+  flex: 1;
+}
+
+/* 通知动画 */
+.notification-fade-enter-active {
+  animation: notificationSlideIn 0.3s ease;
+}
+
+.notification-fade-leave-active {
+  animation: notificationSlideOut 0.3s ease;
+}
+
+@keyframes notificationSlideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes notificationSlideOut {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+/* 确认对话框样式 */
+.confirm-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  backdrop-filter: blur(2px);
+}
+
+.confirm-dialog {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  min-width: 360px;
+  max-width: 480px;
+  overflow: hidden;
+}
+
+.confirm-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 24px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.confirm-icon {
+  font-size: 24px;
+}
+
+.confirm-dialog.warning .confirm-icon {
+  color: #faad14;
+}
+
+.confirm-dialog.danger .confirm-icon {
+  color: #ff4d4f;
+}
+
+.confirm-dialog.info .confirm-icon {
+  color: #1890ff;
+}
+
+.confirm-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+.confirm-body {
+  padding: 24px;
+  font-size: 15px;
+  color: #666;
+  line-height: 1.6;
+}
+
+.confirm-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 24px;
+  background: #fafafa;
+}
+
+.confirm-btn {
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.confirm-btn.cancel {
+  background: #f0f0f0;
+  color: #666;
+}
+
+.confirm-btn.cancel:hover {
+  background: #e0e0e0;
+}
+
+.confirm-btn.ok {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+}
+
+.confirm-btn.ok:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+/* 确认对话框动画 */
+.confirm-fade-enter-active {
+  animation: confirmFadeIn 0.25s ease;
+}
+
+.confirm-fade-leave-active {
+  animation: confirmFadeOut 0.2s ease;
+}
+
+.confirm-fade-enter-active .confirm-dialog {
+  animation: confirmSlideIn 0.25s ease;
+}
+
+.confirm-fade-leave-active .confirm-dialog {
+  animation: confirmSlideOut 0.2s ease;
+}
+
+@keyframes confirmFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes confirmFadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes confirmSlideIn {
+  from {
+    transform: scale(0.9) translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes confirmSlideOut {
+  from {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: scale(0.9) translateY(-20px);
+    opacity: 0;
+  }
 }
 </style>

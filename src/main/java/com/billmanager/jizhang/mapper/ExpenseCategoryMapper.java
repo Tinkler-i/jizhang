@@ -21,4 +21,25 @@ public interface ExpenseCategoryMapper {
     
     ExpenseCategory findByUserIdAndName(@Param("userId") Long userId, 
                                         @Param("name") String name);
+    
+    // 按家庭组查询
+    List<ExpenseCategory> findByFamilyGroupId(@Param("familyGroupId") Long familyGroupId);
+    
+    ExpenseCategory findByFamilyGroupIdAndName(@Param("familyGroupId") Long familyGroupId,
+                                               @Param("name") String name);
+    
+    // 更新指定用户的所有分类的家庭组ID
+    int updateFamilyGroupId(@Param("userId") Long userId, @Param("familyGroupId") Long familyGroupId);
+    
+    // 删除指定用户的所有分类
+    int deleteByUserId(@Param("userId") Long userId);
+    
+    // 删除指定用户在指定家族组中的分类
+    int deleteByUserIdAndFamilyGroupId(@Param("userId") Long userId, @Param("familyGroupId") Long familyGroupId);
+    
+    // 将指定用户在指定家族组中的分类转换为个人数据，不转换系统内置分类
+    int updateFamilyGroupIdToPersonal(@Param("userId") Long userId, @Param("familyGroupId") Long familyGroupId);
+    
+    // 更新指定用户的所有非系统内置分类的家庭组ID
+    int updateFamilyGroupIdExcludeBuiltIn(@Param("userId") Long userId, @Param("familyGroupId") Long familyGroupId);
 }
