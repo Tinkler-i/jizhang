@@ -2,29 +2,56 @@ package com.billmanager.jizhang.service.impl;
 
 import com.billmanager.jizhang.dto.ExpenseCategoryRequest;
 import com.billmanager.jizhang.entity.ExpenseCategory;
+import com.billmanager.jizhang.entity.FamilyGroup;
 import com.billmanager.jizhang.exception.BusinessException;
+import com.billmanager.jizhang.exception.FamilyPermissionException;
 import com.billmanager.jizhang.mapper.ExpenseCategoryMapper;
 import com.billmanager.jizhang.service.ExpenseCategoryService;
+import com.billmanager.jizhang.service.FamilyGroupService;
+import com.billmanager.jizhang.service.PermissionService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ExpenseCategoryServiceImpl implements ExpenseCategoryService {
     
     private final ExpenseCategoryMapper expenseCategoryMapper;
+    private final FamilyGroupService familyGroupService;
+    private final PermissionService permissionService;
     
     @Override
     public ExpenseCategory add(ExpenseCategoryRequest request, Long userId) {
-        ExpenseCategory existing = expenseCategoryMapper.findByUserIdAndName(userId, request.getName());
+        // 检查编辑权限（支出分类使用支出权限）
+        if (!permissionService.canEdit(userId, "expense")) {
+            throw new FamilyPermissionException("没有创建支出分类的权限");
+        }
+        
+        FamilyGroup familyGroup = familyGroupService.getFamilyGroupByUserId(userId);
+        Long familyGroupId = (familyGroup != null) ? familyGroup.getId() : 0L;
+        
+        // 检查分类名称是否已存在
+        ExpenseCategory existing;
+        if (familyGroup != null) {
+            // 在家庭组中检查重名
+            existing = expenseCategoryMapper.findByFamilyGroupIdAndName(
+                    familyGroup.getId(), request.getName());
+        } else {
+            // 在个人数据中检查重名
+            existing = expenseCategoryMapper.findByUserIdAndName(userId, request.getName());
+        }
+        
         if (existing != null) {
             throw new BusinessException("分类名称已存在");
         }
         
         ExpenseCategory category = new ExpenseCategory();
         category.setUserId(userId);
+        category.setFamilyGroupId(familyGroupId);
         category.setName(request.getName());
         category.setDescription(request.getDescription());
         
@@ -34,6 +61,11 @@ public class ExpenseCategoryServiceImpl implements ExpenseCategoryService {
     
     @Override
     public ExpenseCategory update(Long id, ExpenseCategoryRequest request, Long userId) {
+        // 检查编辑权限
+        if (!permissionService.canEdit(userId, "expense")) {
+            throw new FamilyPermissionException("没有编辑支出分类的权限");
+        }
+        
         ExpenseCategory category = expenseCategoryMapper.findById(id);
         if (category == null) {
             throw new BusinessException("分类不存在");
@@ -42,7 +74,8 @@ public class ExpenseCategoryServiceImpl implements ExpenseCategoryService {
             throw new BusinessException("无权修改此分类");
         }
         
-        ExpenseCategory existing = expenseCategoryMapper.findByUserIdAndName(userId, request.getName());
+        ExpenseCategory existing = expenseCategoryMapper.findByFamilyGroupIdAndName(
+                category.getFamilyGroupId(), request.getName());
         if (existing != null && !existing.getId().equals(id)) {
             throw new BusinessException("分类名称已存在");
         }
@@ -56,6 +89,11 @@ public class ExpenseCategoryServiceImpl implements ExpenseCategoryService {
     
     @Override
     public void delete(Long id, Long userId) {
+        // 检查编辑权限
+        if (!permissionService.canEdit(userId, "expense")) {
+            throw new FamilyPermissionException("没有删除支出分类的权限");
+        }
+        
         ExpenseCategory category = expenseCategoryMapper.findById(id);
         if (category == null) {
             throw new BusinessException("分类不存在");
@@ -64,11 +102,21 @@ public class ExpenseCategoryServiceImpl implements ExpenseCategoryService {
             throw new BusinessException("无权删除此分类");
         }
         
+        // 检查是否是系统内置分类，不允许删除
+        if (category.getIsBuiltIn() != null && category.getIsBuiltIn() == 1) {
+            throw new BusinessException("系统内置分类不能删除");
+        }
+        
         expenseCategoryMapper.deleteById(id);
     }
     
     @Override
     public ExpenseCategory findById(Long id, Long userId) {
+        // 检查查看权限
+        if (!permissionService.canView(userId, "expense")) {
+            throw new FamilyPermissionException("没有查看支出分类的权限");
+        }
+        
         ExpenseCategory category = expenseCategoryMapper.findById(id);
         if (category == null) {
             throw new BusinessException("分类不存在");
@@ -81,6 +129,19 @@ public class ExpenseCategoryServiceImpl implements ExpenseCategoryService {
     
     @Override
     public List<ExpenseCategory> findByUserId(Long userId) {
-        return expenseCategoryMapper.findByUserId(userId);
+        // 检查查看权限
+        if (!permissionService.canView(userId, "expense")) {
+            throw new FamilyPermissionException("没有查看支出分类的权限");
+        }
+        
+        FamilyGroup familyGroup = familyGroupService.getFamilyGroupByUserId(userId);
+        if (familyGroup != null) {
+            // 用户属于某个家庭组，按familyGroupId查询
+            return expenseCategoryMapper.findByFamilyGroupId(familyGroup.getId());
+        } else {
+            // 用户不属于任何家庭组，按userId查询（完全访问权限）
+            log.info("【支出分类】用户{}不属于任何家庭组，按个人身份查询分类", userId);
+            return expenseCategoryMapper.findByUserId(userId);
+        }
     }
 }

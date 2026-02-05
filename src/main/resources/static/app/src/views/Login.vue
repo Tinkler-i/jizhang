@@ -31,7 +31,7 @@
             <input v-model="form.rememberMe" type="checkbox" />
             <span>记住我</span>
           </label>
-          <a href="#" class="forgot-password">忘记密码？</a>
+          <router-link to="/forgot-password" class="forgot-password">忘记密码？</router-link>
         </div>
 
         <Button

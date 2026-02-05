@@ -7,6 +7,7 @@ import com.billmanager.jizhang.mapper.UserMapper;
 import com.billmanager.jizhang.mapper.UserTargetMapper;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
@@ -19,6 +20,7 @@ import java.util.Map;
  * 用户目标控制器
  * 处理用户收入目标相关的请求
  */
+@Slf4j
 @RestController
 @RequestMapping("/api/user-target")
 @RequiredArgsConstructor

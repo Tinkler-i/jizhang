@@ -17,6 +17,13 @@
             disabled
           />
           <Input
+            v-model="profile.nickname"
+            label="昵称"
+            placeholder="请输入昵称（用于家庭组成员管理中显示）"
+            @blur="validateNickname"
+          />
+          <p v-if="nicknameError" class="error-text">{{ nicknameError }}</p>
+          <Input
             v-model="profile.email"
             label="邮箱"
             type="email"
@@ -28,7 +35,16 @@
             placeholder="请输入电话"
           />
           <div class="form-actions">
-            <Button type="primary" @click="handleSaveProfile">保存修改</Button>
+            <Button type="primary" @click="handleSaveProfile" :disabled="!!nicknameError">
+              保存修改
+            </Button>
+            <Button 
+              v-if="nicknameChanged"
+              type="secondary" 
+              @click="handleResetNickname"
+            >
+              重置昵称
+            </Button>
           </div>
         </form>
       </Card>
@@ -136,6 +152,11 @@
         </div>
       </Card>
     </div>
+
+    <!-- 成功/错误提示 -->
+    <div v-if="message" class="message" :class="messageType">
+      {{ message }}
+    </div>
   </div>
 </template>
 
@@ -143,6 +164,7 @@
 import { reactive, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useUIStore } from '../stores/ui'
 import { authAPI } from '../api'
 import Card from '../components/Card.vue'
 import Button from '../components/Button.vue'
@@ -150,12 +172,20 @@ import Input from '../components/Input.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const uiStore = useUIStore()
 
 const profile = reactive({
   username: '',
+  nickname: '',
   email: '',
   phone: ''
 })
+
+const originalNickname = ref('')
+const nicknameError = ref('')
+const nicknameChanged = ref(false)
+const message = ref('')
+const messageType = ref('success')
 
 const passwordForm = reactive({
   oldPassword: '',
@@ -177,6 +207,8 @@ const loadProfile = async () => {
     const response = await authAPI.getProfile()
     if (response.code === 200 && response.data) {
       profile.username = response.data.username || ''
+      profile.nickname = response.data.nickname || response.data.username || ''
+      originalNickname.value = profile.nickname
       profile.email = response.data.email || ''
       profile.phone = response.data.phone || ''
     }
@@ -187,49 +219,106 @@ const loadProfile = async () => {
 
 const handleSaveProfile = async () => {
   try {
-    await authAPI.updateProfile(profile)
-    alert('个人信息已更新')
+    // 如果昵称有变化，调用专门的 API 更新
+    if (profile.nickname !== originalNickname.value) {
+      await updateNickname()
+      showMessage('个人信息已更新', 'success')
+    } else {
+      showMessage('昵称未修改', 'success')
+    }
+    nicknameChanged.value = false
+    originalNickname.value = profile.nickname
   } catch (error) {
     console.error('Failed to save profile:', error)
-    alert('更新失败，请重试')
+    showMessage('更新失败，请重试', 'error')
   }
+}
+
+const updateNickname = async () => {
+  try {
+    const result = await authAPI.updateNickname(profile.nickname)
+    
+    if (result.code === 200 || result.code === 0) {
+      console.log('昵称已更新:', result.data.nickname)
+      // 更新 authStore 中的用户信息
+      if (authStore.user) {
+        authStore.user.nickname = result.data.nickname
+      }
+      return true
+    } else {
+      throw new Error(result.message || '更新昵称失败')
+    }
+  } catch (error) {
+    console.error('Failed to update nickname:', error)
+    throw error
+  }
+}
+
+const validateNickname = () => {
+  nicknameError.value = ''
+  nicknameChanged.value = profile.nickname !== originalNickname.value
+  
+  if (profile.nickname && profile.nickname.trim() === '') {
+    nicknameError.value = '昵称不能只包含空格'
+    return
+  }
+  
+  if (profile.nickname && profile.nickname.length > 50) {
+    nicknameError.value = '昵称不超过 50 个字符'
+    return
+  }
+}
+
+const handleResetNickname = () => {
+  profile.nickname = originalNickname.value
+  nicknameChanged.value = false
+  nicknameError.value = ''
 }
 
 const handleChangePassword = async () => {
   if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-    alert('两次输入的密码不一致')
+    showMessage('两次输入的密码不一致', 'error')
     return
   }
   
   try {
     // 调用修改密码API
-    alert('密码已修改')
+    showMessage('密码已修改', 'success')
     passwordForm.oldPassword = ''
     passwordForm.newPassword = ''
     passwordForm.confirmPassword = ''
   } catch (error) {
     console.error('Failed to change password:', error)
-    alert('修改失败，请重试')
+    showMessage('修改失败，请重试', 'error')
   }
 }
 
 const handleSaveSettings = () => {
-  alert('设置已保存')
+  showMessage('设置已保存', 'success')
 }
 
 const handleExportData = () => {
-  alert('数据导出功能开发中...')
+  showMessage('数据导出功能开发中...', 'success')
 }
 
-const handleDeleteAccount = () => {
-  if (confirm('确定要删除账户吗？此操作不可撤销！')) {
-    alert('账户删除功能开发中...')
+const handleDeleteAccount = async () => {
+  const confirmed = await uiStore.showConfirm('确定要删除账户吗？此操作不可撤销！', '危险操作', 'danger')
+  if (confirmed) {
+    showMessage('账户删除功能开发中...', 'success')
   }
 }
 
 const handleLogout = () => {
   authStore.clearAuth()
   router.push('/login')
+}
+
+const showMessage = (msg, type = 'success') => {
+  message.value = msg
+  messageType.value = type
+  setTimeout(() => {
+    message.value = ''
+  }, 3000)
 }
 
 onMounted(() => {
@@ -273,6 +362,13 @@ onMounted(() => {
   margin-top: 20px;
   display: flex;
   gap: 10px;
+}
+
+.error-text {
+  color: #ff4d4f;
+  font-size: 12px;
+  margin-top: -10px;
+  margin-bottom: 10px;
 }
 
 .settings-option {
@@ -346,6 +442,38 @@ onMounted(() => {
     background: #fafafa;
     margin: 0 -20px;
     padding: 15px 20px;
+  }
+}
+
+/* 消息提示 */
+.message {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 12px 20px;
+  border-radius: 4px;
+  color: white;
+  font-size: 14px;
+  z-index: 2000;
+  animation: slideIn 0.3s ease;
+}
+
+.message.success {
+  background: #52c41a;
+}
+
+.message.error {
+  background: #ff4d4f;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(400px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
   }
 }
 

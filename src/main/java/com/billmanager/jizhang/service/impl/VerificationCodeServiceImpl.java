@@ -3,17 +3,26 @@ package com.billmanager.jizhang.service.impl;
 import com.billmanager.jizhang.dto.RegisterRequest;
 import com.billmanager.jizhang.dto.SendVerificationCodeRequest;
 import com.billmanager.jizhang.dto.VerifyCodeResponse;
+import com.billmanager.jizhang.entity.ExpenseCategory;
+import com.billmanager.jizhang.entity.IncomeCategory;
 import com.billmanager.jizhang.entity.User;
 import com.billmanager.jizhang.entity.VerificationCode;
 import com.billmanager.jizhang.exception.BusinessException;
+import com.billmanager.jizhang.mapper.ExpenseCategoryMapper;
+import com.billmanager.jizhang.mapper.IncomeCategoryMapper;
 import com.billmanager.jizhang.mapper.UserMapper;
 import com.billmanager.jizhang.mapper.VerificationCodeMapper;
 import com.billmanager.jizhang.service.EmailService;
+import com.billmanager.jizhang.service.FamilyGroupService;
+import com.billmanager.jizhang.service.FamilyMemberService;
+import com.billmanager.jizhang.service.PermissionService;
+import com.billmanager.jizhang.service.SmsService;
 import com.billmanager.jizhang.service.VerificationCodeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
@@ -31,6 +40,12 @@ public class VerificationCodeServiceImpl implements VerificationCodeService {
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
+    private final SmsService smsService;
+    private final FamilyGroupService familyGroupService;
+    private final FamilyMemberService familyMemberService;
+    private final PermissionService permissionService;
+    private final IncomeCategoryMapper incomeCategoryMapper;
+    private final ExpenseCategoryMapper expenseCategoryMapper;
     private final Random random = new Random();
     
     // 验证码存活时间：5分钟（300秒）
@@ -167,6 +182,7 @@ public class VerificationCodeServiceImpl implements VerificationCodeService {
     }
     
     @Override
+    @Transactional
     public void registerWithVerificationCode(RegisterRequest request) {
         // 检查基本信息
         if (!StringUtils.hasText(request.getUsername())) {
@@ -235,6 +251,7 @@ public class VerificationCodeServiceImpl implements VerificationCodeService {
         // 创建用户
         User user = new User();
         user.setUsername(request.getUsername());
+        user.setNickname(request.getUsername()); // 昵称默认为用户名
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setEmail(request.getEmail());
         user.setPhone(request.getPhone());
@@ -243,6 +260,13 @@ public class VerificationCodeServiceImpl implements VerificationCodeService {
         user.setUpdateTime(LocalDateTime.now());
         
         userMapper.insert(user);
+        
+        // 【新增】为新用户创建"待分类"系统内置分类
+        log.info("【注册】为新用户ID: {} 创建'待分类'分类", user.getId());
+        createUnclassifiedCategories(user.getId());
+        
+        // 注：家庭组由用户手动创建，不再自动创建
+        log.info("【注册】用户ID: {} 注册完成，可手动创建或加入家庭组", user.getId());
         
         // 标记验证码已使用
         verificationCodeMapper.markAsUsed(verificationCode.getId());
@@ -275,24 +299,62 @@ public class VerificationCodeServiceImpl implements VerificationCodeService {
     }
     
     /**
+     * 为新用户创建"待分类"系统内置分类
+     */
+    private void createUnclassifiedCategories(Long userId) {
+        try {
+            // 创建收入分类 - "待分类"
+            IncomeCategory incomeCategory = new IncomeCategory();
+            incomeCategory.setUserId(userId);
+            incomeCategory.setFamilyGroupId(0L); // 0 表示个人数据，不绑定到任何家族组
+            incomeCategory.setName("待分类");
+            incomeCategory.setDescription("自动导入账单时未匹配分类的默认分类");
+            incomeCategory.setIsBuiltIn(1); // 1 表示系统内置
+            incomeCategory.setCreateTime(LocalDateTime.now());
+            incomeCategory.setUpdateTime(LocalDateTime.now());
+            incomeCategoryMapper.insert(incomeCategory);
+            log.info("【注册】为用户ID: {} 创建收入'待分类'分类成功", userId);
+            
+            // 创建支出分类 - "待分类"
+            ExpenseCategory expenseCategory = new ExpenseCategory();
+            expenseCategory.setUserId(userId);
+            expenseCategory.setFamilyGroupId(0L); // 0 表示个人数据，不绑定到任何家族组
+            expenseCategory.setName("待分类");
+            expenseCategory.setDescription("自动导入账单时未匹配分类的默认分类");
+            expenseCategory.setIsBuiltIn(1); // 1 表示系统内置
+            expenseCategory.setCreateTime(LocalDateTime.now());
+            expenseCategory.setUpdateTime(LocalDateTime.now());
+            expenseCategoryMapper.insert(expenseCategory);
+            log.info("【注册】为用户ID: {} 创建支出'待分类'分类成功", userId);
+        } catch (Exception e) {
+            log.error("【注册】为用户ID: {} 创建'待分类'分类失败", userId, e);
+            throw new BusinessException("注册失败：创建系统分类出错 - " + e.getMessage());
+        }
+    }
+    
+    /**
      * 发送邮件验证码
      */
     private void sendEmailCode(String email, String code) {
         try {
             emailService.sendVerificationCode(email, code);
-            log.info("邮箱验证码已发送: {}", email);
+            log.info("【验证码】邮箱验证码已发送: {}", email);
         } catch (Exception e) {
-            log.error("邮箱验证码发送失败: {}", email, e);
+            log.error("【验证码】邮箱验证码发送失败: {}", email, e);
             // 邮件发送失败不中断流程，用户仍然可以重试
         }
     }
     
     /**
-     * 发送短信验证码（预留接口）
+     * 发送短信验证码
      */
     private void sendSmsCode(String phone, String code) {
-        // TODO: 调用短信服务发送验证码
-        // 示例日志
-        System.out.println("发送短信验证码: " + phone + ", 验证码: " + code);
+        try {
+            smsService.sendVerificationCode(phone, code);
+            log.info("【验证码】短信验证码已发送: {}", phone);
+        } catch (Exception e) {
+            log.error("【验证码】短信验证码发送失败: {}", phone, e);
+            // 短信发送失败不中断流程，用户仍然可以重试
+        }
     }
 }
