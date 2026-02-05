@@ -8,6 +8,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@miitvip/captcha": "^1.0.0",
     "axios": "^1.6.5",
     "chart.js": "^4.4.0",
     "pinia": "^2.1.6",
@@ -20,3 +21,4 @@
     "vite": "^5.0.8"
   }
 }
+

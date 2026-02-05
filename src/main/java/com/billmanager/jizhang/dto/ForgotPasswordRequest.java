@@ -27,4 +27,9 @@ public class ForgotPasswordRequest {
      * 验证码（可选，用于验证验证码时需要）
      */
     private String code;
+    
+    /**
+     * 人机验证 token
+     */
+    private String captchaToken;
 }

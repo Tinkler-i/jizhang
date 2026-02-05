@@ -4,6 +4,7 @@ import com.billmanager.jizhang.dto.ApiResponse;
 import com.billmanager.jizhang.dto.ForgotPasswordRequest;
 import com.billmanager.jizhang.dto.ResetPasswordRequest;
 import com.billmanager.jizhang.dto.VerifyCodeResponse;
+import com.billmanager.jizhang.service.CaptchaService;
 import com.billmanager.jizhang.service.ForgotPasswordService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 public class ForgotPasswordController {
     
     private final ForgotPasswordService forgotPasswordService;
+    private final CaptchaService captchaService;
     
     /**
      * 发送密码重置验证码
@@ -27,8 +29,24 @@ public class ForgotPasswordController {
     public ApiResponse<String> sendResetPasswordCode(@RequestBody ForgotPasswordRequest request) {
         try {
             log.info("【API】收到发送密码重置验证码请求 - 类型: {}", request.getType());
+            
+            // 验证人机验证 token
+            if (request.getCaptchaToken() == null || request.getCaptchaToken().isEmpty()) {
+                log.warn("【API】发送密码重置验证码失败 - captcha token 为空");
+                return ApiResponse.error("请先完成人机验证");
+            }
+            
+            if (!captchaService.isValidCaptchaToken(request.getCaptchaToken())) {
+                log.warn("【API】发送密码重置验证码失败 - captcha token 无效或已过期");
+                return ApiResponse.error("人机验证已过期，请重新验证");
+            }
+            
             forgotPasswordService.sendResetPasswordCode(request);
             log.info("【API】密码重置验证码发送成功");
+            
+            // 标记 captcha token 为已使用
+            captchaService.useCaptchaToken(request.getCaptchaToken());
+            
             return ApiResponse.success("验证码已发送");
         } catch (Exception e) {
             log.error("【API】发送密码重置验证码失败 - 错误: {}", e.getMessage(), e);

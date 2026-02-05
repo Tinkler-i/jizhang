@@ -1,2 +1,3 @@
 src/main/resources/application.yml
-copilot-instructions.md
+target/
+毕业设计.md
