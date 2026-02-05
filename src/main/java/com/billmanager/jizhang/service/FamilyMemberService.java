@@ -1,7 +1,6 @@
 package com.billmanager.jizhang.service;
 
 import com.billmanager.jizhang.entity.FamilyMember;
-import com.billmanager.jizhang.entity.PermissionTemplate;
 import java.util.List;
 
 /**
@@ -19,14 +18,13 @@ public interface FamilyMemberService {
     FamilyMember joinFamilyGroup(Long userId, String code, Boolean bringExistingData);
     
     /**
-     * 创建家庭成员（注册时自动调用，赋予管理员权限）
+     * 创建家庭成员（简化版）
      * @param familyGroupId 家庭组ID
      * @param userId 用户ID
      * @param role 角色（ADMIN/MEMBER）
-     * @param permissionTemplate 权限模板对象
      * @return 创建的家庭成员
      */
-    FamilyMember createFamilyMember(Long familyGroupId, Long userId, String role, PermissionTemplate permissionTemplate);
+    FamilyMember createFamilyMember(Long familyGroupId, Long userId, String role);
     
     /**
      * 根据ID获取家庭成员
@@ -54,13 +52,6 @@ public interface FamilyMemberService {
      * @param permissionJson 权限JSON字符串
      */
     void updateMemberPermissions(Long memberId, String permissionJson);
-    
-    /**
-     * 使用权限模板更新成员权限
-     * @param memberId 成员ID
-     * @param template 权限模板
-     */
-    void updateMemberPermissionsByTemplate(Long memberId, PermissionTemplate template);
     
     /**
      * 更新成员角色

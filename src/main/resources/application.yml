@@ -81,3 +81,23 @@ xunfei:
     image-understanding-url: wss://spark-api.xf-yun.com/v1/private/s9d79457c6/imageunderstanding
     # API调用超时时间（毫秒）
     timeout: 30000
+
+# 阿里云短信配置
+aliyun:
+  sms:
+    # API 主机地址（使用新接口）
+    host: https://dfsns.market.alicloudapi.com
+    # API 路径
+    path: /data/send_sms
+    # AppCode（从阿里云 API 市场获取）
+    appcode: bf40a9a1086b42aba2b3b2db084239f1
+    # 短信模板 ID
+    # 测试模板：CST_ptdie100（仅用于调试，接口返回 "status": "OK" 即表示成功）
+    # 生产模板：需联系客服报备专属签名模板 ID
+    template-id: CST_ptdie100
+    # 短信签名（可选）
+    signature: ""
+    # 请求超时时间（毫秒）
+    timeout: 5000
+    # 是否启用短信功能（默认 false，设置为 true 时启用）
+    enabled: true

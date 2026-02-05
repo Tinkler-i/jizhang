@@ -16,6 +16,7 @@ import com.billmanager.jizhang.service.EmailService;
 import com.billmanager.jizhang.service.FamilyGroupService;
 import com.billmanager.jizhang.service.FamilyMemberService;
 import com.billmanager.jizhang.service.PermissionService;
+import com.billmanager.jizhang.service.SmsService;
 import com.billmanager.jizhang.service.VerificationCodeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -39,6 +40,7 @@ public class VerificationCodeServiceImpl implements VerificationCodeService {
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
+    private final SmsService smsService;
     private final FamilyGroupService familyGroupService;
     private final FamilyMemberService familyMemberService;
     private final PermissionService permissionService;
@@ -263,33 +265,8 @@ public class VerificationCodeServiceImpl implements VerificationCodeService {
         log.info("【注册】为新用户ID: {} 创建'待分类'分类", user.getId());
         createUnclassifiedCategories(user.getId());
         
-        try {
-            // 【新增】自动为新用户创建家庭组
-            log.info("【注册】为新用户ID: {} 创建家庭组", user.getId());
-            com.billmanager.jizhang.entity.FamilyGroup familyGroup = 
-                familyGroupService.createFamilyGroup(user.getId(), "我的家庭");
-            
-            // 【新增】自动为用户创建家庭成员记录（管理员角色）
-            log.info("【注册】为用户ID: {} 创建家庭成员，家庭组ID: {}", user.getId(), familyGroup.getId());
-            com.billmanager.jizhang.entity.PermissionTemplate adminTemplate = 
-                permissionService.getTemplateByName("管理员");
-            
-            if (adminTemplate == null) {
-                log.error("【注册】找不到'管理员'权限模板，使用默认权限");
-                throw new BusinessException("系统配置错误：缺少管理员权限模板");
-            }
-            
-            familyMemberService.createFamilyMember(
-                familyGroup.getId(),
-                user.getId(),
-                "ADMIN",
-                adminTemplate
-            );
-            log.info("【注册】用户ID: {} 家庭组初始化完成，家庭组编号: {}", user.getId(), familyGroup.getCode());
-        } catch (Exception e) {
-            log.error("【注册】为用户创建家庭组失败，用户ID: {}", user.getId(), e);
-            throw new BusinessException("注册失败：创建家庭组出错 - " + e.getMessage());
-        }
+        // 注：家庭组由用户手动创建，不再自动创建
+        log.info("【注册】用户ID: {} 注册完成，可手动创建或加入家庭组", user.getId());
         
         // 标记验证码已使用
         verificationCodeMapper.markAsUsed(verificationCode.getId());
@@ -361,19 +338,23 @@ public class VerificationCodeServiceImpl implements VerificationCodeService {
     private void sendEmailCode(String email, String code) {
         try {
             emailService.sendVerificationCode(email, code);
-            log.info("邮箱验证码已发送: {}", email);
+            log.info("【验证码】邮箱验证码已发送: {}", email);
         } catch (Exception e) {
-            log.error("邮箱验证码发送失败: {}", email, e);
+            log.error("【验证码】邮箱验证码发送失败: {}", email, e);
             // 邮件发送失败不中断流程，用户仍然可以重试
         }
     }
     
     /**
-     * 发送短信验证码（预留接口）
+     * 发送短信验证码
      */
     private void sendSmsCode(String phone, String code) {
-        // TODO: 调用短信服务发送验证码
-        // 示例日志
-        System.out.println("发送短信验证码: " + phone + ", 验证码: " + code);
+        try {
+            smsService.sendVerificationCode(phone, code);
+            log.info("【验证码】短信验证码已发送: {}", phone);
+        } catch (Exception e) {
+            log.error("【验证码】短信验证码发送失败: {}", phone, e);
+            // 短信发送失败不中断流程，用户仍然可以重试
+        }
     }
 }

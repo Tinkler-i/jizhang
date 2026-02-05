@@ -1,14 +1,16 @@
 package com.billmanager.jizhang.service.impl;
 
-import com.billmanager.jizhang.annotation.FamilyPermission;
 import com.billmanager.jizhang.dto.ExpenseRequest;
 import com.billmanager.jizhang.dto.ExpenseStatistics;
 import com.billmanager.jizhang.entity.Expense;
 import com.billmanager.jizhang.entity.FamilyGroup;
+import com.billmanager.jizhang.entity.FamilyMember;
 import com.billmanager.jizhang.exception.BusinessException;
+import com.billmanager.jizhang.exception.FamilyPermissionException;
 import com.billmanager.jizhang.mapper.ExpenseMapper;
 import com.billmanager.jizhang.service.ExpenseService;
 import com.billmanager.jizhang.service.FamilyGroupService;
+import com.billmanager.jizhang.service.PermissionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -17,6 +19,13 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
+/**
+ * 支出服务实现
+ * 
+ * 简化的权限逻辑：
+ * 1. expense_view 权限：可以查看支出数据
+ * 2. expense_edit 权限：可以创建/编辑/删除支出数据
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -24,9 +33,16 @@ public class ExpenseServiceImpl implements ExpenseService {
     
     private final ExpenseMapper expenseMapper;
     private final FamilyGroupService familyGroupService;
+    private final PermissionService permissionService;
     
     @Override
     public Expense add(ExpenseRequest request, Long userId) {
+        log.info("【支出】用户 {} 创建支出记录", userId);
+        
+        if (!permissionService.canEdit(userId, "expense")) {
+            throw new FamilyPermissionException("没有创建支出的权限");
+        }
+        
         Expense expense = new Expense();
         expense.setUserId(userId);
         expense.setCategoryId(request.getCategoryId());
@@ -34,32 +50,37 @@ public class ExpenseServiceImpl implements ExpenseService {
         expense.setTransactionDate(request.getTransactionDate());
         expense.setDescription(request.getDescription());
         
-        // 获取用户的家族组ID，如果没有则设为0（个人数据）
         try {
             FamilyGroup familyGroup = familyGroupService.getFamilyGroupByUserId(userId);
             if (familyGroup != null) {
                 expense.setFamilyGroupId(familyGroup.getId());
             } else {
-                expense.setFamilyGroupId(0L); // 0 表示个人数据
+                expense.setFamilyGroupId(0L);
             }
         } catch (Exception e) {
-            log.debug("获取用户的家族组失败，使用个人数据范围", e);
-            expense.setFamilyGroupId(0L); // 默认使用个人数据
+            log.debug("【支出】获取用户的家族组失败，使用个人数据范围", e);
+            expense.setFamilyGroupId(0L);
         }
         
         expenseMapper.insert(expense);
+        log.info("【支出】用户 {} 成功创建支出记录 ID: {}", userId, expense.getId());
         return expense;
     }
     
     @Override
     public Expense update(Long id, ExpenseRequest request, Long userId) {
+        log.info("【支出】用户 {} 更新支出记录 {}", userId, id);
+        
         Expense expense = expenseMapper.findById(id);
         if (expense == null) {
             throw new BusinessException("支出记录不存在");
         }
-        if (!expense.getUserId().equals(userId)) {
-            throw new BusinessException("无权修改此记录");
+        
+        if (!permissionService.canEdit(userId, "expense")) {
+            throw new FamilyPermissionException("没有编辑支出的权限");
         }
+        
+        checkDataOwnership(userId, expense.getUserId());
         
         expense.setCategoryId(request.getCategoryId());
         expense.setAmount(request.getAmount());
@@ -67,92 +88,107 @@ public class ExpenseServiceImpl implements ExpenseService {
         expense.setDescription(request.getDescription());
         
         expenseMapper.update(expense);
+        log.info("【支出】用户 {} 成功更新支出记录 {}", userId, id);
         return expense;
     }
     
     @Override
     public void delete(Long id, Long userId) {
+        log.info("【支出】用户 {} 删除支出记录 {}", userId, id);
+        
         Expense expense = expenseMapper.findById(id);
         if (expense == null) {
             throw new BusinessException("支出记录不存在");
         }
-        if (!expense.getUserId().equals(userId)) {
-            throw new BusinessException("无权删除此记录");
+        
+        if (!permissionService.canEdit(userId, "expense")) {
+            throw new FamilyPermissionException("没有删除支出的权限");
         }
         
+        checkDataOwnership(userId, expense.getUserId());
+        
         expenseMapper.deleteById(id);
+        log.info("【支出】用户 {} 成功删除支出记录 {}", userId, id);
     }
     
     @Override
     public Expense findById(Long id, Long userId) {
+        log.debug("【支出】用户 {} 查询支出记录 {}", userId, id);
+        
         Expense expense = expenseMapper.findById(id);
         if (expense == null) {
             throw new BusinessException("支出记录不存在");
         }
-        if (!expense.getUserId().equals(userId)) {
-            throw new BusinessException("无权查看此记录");
+        
+        if (!permissionService.canView(userId, "expense")) {
+            throw new FamilyPermissionException("没有查看支出的权限");
         }
+        
+        checkDataOwnership(userId, expense.getUserId());
+        
         return expense;
     }
     
     @Override
-    @FamilyPermission("expense_view")
     public List<Expense> findByUserId(Long userId) {
-        // 获取用户所属家庭组
-        FamilyGroup familyGroup = familyGroupService.getFamilyGroupByUserId(userId);
-        if (familyGroup != null) {
-            // 用户属于某个家庭组，按familyGroupId查询
-            return expenseMapper.findByFamilyGroupIdOrderByDateDesc(familyGroup.getId());
-        } else {
-            // 用户不属于任何家庭组，按userId查询（完全访问权限）
-            log.info("【支出】用户{}不属于任何家庭组，按个人身份查询支出", userId);
+        log.debug("【支出】用户 {} 查询支出列表", userId);
+        
+        if (!permissionService.canView(userId, "expense")) {
+            throw new FamilyPermissionException("没有查看支出的权限");
+        }
+        
+        FamilyMember member = permissionService.getFamilyMember(userId);
+        
+        if (member == null) {
             return expenseMapper.findByUserIdOrderByDateDesc(userId);
         }
+        
+        return expenseMapper.findByFamilyGroupIdOrderByDateDesc(member.getFamilyGroupId());
     }
     
     @Override
-    @FamilyPermission("expense_view")
     public List<Expense> findByUserIdAndDateRange(Long userId, LocalDate startDate, LocalDate endDate) {
-        FamilyGroup familyGroup = familyGroupService.getFamilyGroupByUserId(userId);
-        if (familyGroup != null) {
-            return expenseMapper.findByFamilyGroupIdAndDateRange(familyGroup.getId(), startDate, endDate);
-        } else {
-            // 用户不属于任何家庭组，按userId查询
+        log.debug("【支出】用户 {} 查询日期范围 {} - {} 的支出", userId, startDate, endDate);
+        
+        if (!permissionService.canView(userId, "expense")) {
+            throw new FamilyPermissionException("没有查看支出的权限");
+        }
+        
+        FamilyMember member = permissionService.getFamilyMember(userId);
+        
+        if (member == null) {
             return expenseMapper.findByUserIdAndDateRange(userId, startDate, endDate);
         }
+        
+        return expenseMapper.findByFamilyGroupIdAndDateRange(member.getFamilyGroupId(), startDate, endDate);
     }
     
     @Override
-    @FamilyPermission("expense_view")
     public List<Expense> findByUserIdAndCategoryId(Long userId, Long categoryId) {
-        FamilyGroup familyGroup = familyGroupService.getFamilyGroupByUserId(userId);
-        if (familyGroup != null) {
-            return expenseMapper.findByFamilyGroupIdAndCategoryId(familyGroup.getId(), categoryId);
-        } else {
-            // 用户不属于任何家庭组，按userId查询
+        log.debug("【支出】用户 {} 查询分类 {} 的支出", userId, categoryId);
+        
+        if (!permissionService.canView(userId, "expense")) {
+            throw new FamilyPermissionException("没有查看支出的权限");
+        }
+        
+        FamilyMember member = permissionService.getFamilyMember(userId);
+        
+        if (member == null) {
             return expenseMapper.findByUserIdAndCategoryId(userId, categoryId);
         }
+        
+        return expenseMapper.findByFamilyGroupIdAndCategoryId(member.getFamilyGroupId(), categoryId);
     }
     
     @Override
-    @FamilyPermission("expense_view")
     public ExpenseStatistics getStatistics(Long userId, LocalDate startDate, LocalDate endDate) {
-        FamilyGroup familyGroup = familyGroupService.getFamilyGroupByUserId(userId);
-        List<Expense> expenses;
+        log.debug("【支出】用户 {} 查询统计信息", userId);
         
-        if (familyGroup != null) {
-            if (startDate != null && endDate != null) {
-                expenses = expenseMapper.findByFamilyGroupIdAndDateRange(familyGroup.getId(), startDate, endDate);
-            } else {
-                expenses = expenseMapper.findByFamilyGroupIdOrderByDateDesc(familyGroup.getId());
-            }
+        List<Expense> expenses;
+        if (startDate != null && endDate != null) {
+            expenses = findByUserIdAndDateRange(userId, startDate, endDate);
         } else {
-            // 用户不属于任何家庭组，按userId查询
-            if (startDate != null && endDate != null) {
-                expenses = expenseMapper.findByUserIdAndDateRange(userId, startDate, endDate);
-            } else {
-                expenses = expenseMapper.findByUserIdOrderByDateDesc(userId);
-            }
+            expenses = findByUserId(userId);
         }
         
         ExpenseStatistics statistics = new ExpenseStatistics();
@@ -180,5 +216,22 @@ public class ExpenseServiceImpl implements ExpenseService {
         statistics.setEndDate(endDate);
         
         return statistics;
+    }
+    
+    private void checkDataOwnership(Long currentUserId, Long dataOwnerId) {
+        if (currentUserId.equals(dataOwnerId)) {
+            return;
+        }
+        
+        FamilyMember currentMember = permissionService.getFamilyMember(currentUserId);
+        FamilyMember ownerMember = permissionService.getFamilyMember(dataOwnerId);
+        
+        if (currentMember == null) {
+            throw new FamilyPermissionException("无权访问他人数据");
+        }
+        
+        if (ownerMember == null || !currentMember.getFamilyGroupId().equals(ownerMember.getFamilyGroupId())) {
+            throw new FamilyPermissionException("无权访问该数据");
+        }
     }
 }

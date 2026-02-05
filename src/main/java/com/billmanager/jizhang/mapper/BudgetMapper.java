@@ -44,4 +44,9 @@ public interface BudgetMapper {
     
     List<Budget> findByFamilyGroupIdAndCategoryId(@Param("familyGroupId") Long familyGroupId,
                                                    @Param("categoryId") Long categoryId);
+    
+    // 退出家庭组时的数据处理
+    int deleteByUserIdAndFamilyGroupId(@Param("userId") Long userId, @Param("familyGroupId") Long familyGroupId);
+    
+    int updateFamilyGroupIdToPersonal(@Param("userId") Long userId, @Param("familyGroupId") Long familyGroupId);
 }

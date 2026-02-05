@@ -3,6 +3,7 @@ import { authAPI } from '../api'
 import { useUIStore } from '../stores/ui'
 import Login from '../views/Login.vue'
 import Register from '../views/Register.vue'
+import ForgotPassword from '../views/ForgotPassword.vue'
 import Dashboard from '../views/Dashboard.vue'
 import Income from '../views/Income.vue'
 import IncomeCategory from '../views/IncomeCategory.vue'
@@ -25,6 +26,12 @@ const routes = [
     path: '/register',
     name: 'Register',
     component: Register,
+    meta: { requiresAuth: false }
+  },
+  {
+    path: '/forgot-password',
+    name: 'ForgotPassword',
+    component: ForgotPassword,
     meta: { requiresAuth: false }
   },
   {

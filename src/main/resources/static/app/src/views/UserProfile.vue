@@ -164,6 +164,7 @@
 import { reactive, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useUIStore } from '../stores/ui'
 import { authAPI } from '../api'
 import Card from '../components/Card.vue'
 import Button from '../components/Button.vue'
@@ -171,6 +172,7 @@ import Input from '../components/Input.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const uiStore = useUIStore()
 
 const profile = reactive({
   username: '',
@@ -299,8 +301,9 @@ const handleExportData = () => {
   showMessage('数据导出功能开发中...', 'success')
 }
 
-const handleDeleteAccount = () => {
-  if (confirm('确定要删除账户吗？此操作不可撤销！')) {
+const handleDeleteAccount = async () => {
+  const confirmed = await uiStore.showConfirm('确定要删除账户吗？此操作不可撤销！', '危险操作', 'danger')
+  if (confirmed) {
     showMessage('账户删除功能开发中...', 'success')
   }
 }
