@@ -200,6 +200,68 @@ public class LoginController {
     }
     
     /**
+     * 更新用户个人信息 (邮箱、电话等)
+     * 
+     * 请求体格式:
+     * {
+     *   "nickname": "新昵称",
+     *   "email": "新邮箱",
+     *   "phone": "新电话"
+     * }
+     * 
+     * @param request 包含用户信息的请求
+     * @param session HTTP会话
+     * @return 修改结果
+     */
+    @PutMapping("/api/user/profile")
+    @ResponseBody
+    public ApiResponse<User> updateProfile(
+            @RequestBody Map<String, String> request, 
+            HttpSession session) {
+        try {
+            User user = getCurrentUser(session);
+            if (user == null) {
+                return ApiResponse.error("请先登录");
+            }
+            
+            // 更新邮箱
+            if (request.containsKey("email") && request.get("email") != null) {
+                String email = request.get("email").trim();
+                if (!email.isEmpty()) {
+                    user.setEmail(email);
+                }
+            }
+            
+            // 更新电话
+            if (request.containsKey("phone") && request.get("phone") != null) {
+                String phone = request.get("phone").trim();
+                user.setPhone(phone);
+            }
+            
+            // 更新昵称
+            if (request.containsKey("nickname") && request.get("nickname") != null) {
+                String nickname = request.get("nickname").trim();
+                if (!nickname.isEmpty()) {
+                    user.setNickname(nickname);
+                }
+            }
+            
+            // 保存更新
+            user.setUpdateTime(java.time.LocalDateTime.now());
+            userMapper.update(user);
+            
+            // 更新 session 中的用户信息
+            session.setAttribute("user", user);
+            
+            System.out.println("【LoginController】用户 " + user.getUsername() + " 个人信息已更新");
+            return ApiResponse.success("个人信息已更新", user);
+        } catch (Exception e) {
+            System.err.println("【LoginController】更新个人信息失败: " + e.getMessage());
+            return ApiResponse.error("更新个人信息失败: " + e.getMessage());
+        }
+    }
+    
+    /**
      * 修改用户昵称
      * 
      * 请求体格式:

@@ -5,6 +5,10 @@ import com.billmanager.jizhang.dto.UserContext;
 import com.billmanager.jizhang.entity.FamilyGroup;
 import com.billmanager.jizhang.entity.FamilyMember;
 import com.billmanager.jizhang.exception.BusinessException;
+import com.billmanager.jizhang.mapper.IncomeMapper;
+import com.billmanager.jizhang.mapper.ExpenseMapper;
+import com.billmanager.jizhang.mapper.IncomeCategoryMapper;
+import com.billmanager.jizhang.mapper.ExpenseCategoryMapper;
 import com.billmanager.jizhang.service.FamilyGroupService;
 import com.billmanager.jizhang.service.FamilyMemberService;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +35,10 @@ public class FamilyGroupController {
     private final FamilyGroupService familyGroupService;
     private final FamilyMemberService familyMemberService;
     private final UserContext userContext;
+    private final IncomeMapper incomeMapper;
+    private final ExpenseMapper expenseMapper;
+    private final IncomeCategoryMapper incomeCategoryMapper;
+    private final ExpenseCategoryMapper expenseCategoryMapper;
     
     /**
      * 获取当前用户的家庭组信息
@@ -255,7 +263,12 @@ public class FamilyGroupController {
                         .body(Map.of("code", 400, "message", "家庭组名称不能为空"));
             }
             
-            log.info("【家庭组】用户{} 创建家庭组: {}", userId, familyName);
+            Boolean bringExistingData = (Boolean) familyGroupData.get("bringExistingData");
+            if (bringExistingData == null) {
+                bringExistingData = false;
+            }
+            
+            log.info("【家庭组】用户{} 创建家庭组: {}, 是否带入现有数据: {}", userId, familyName, bringExistingData);
             
             // 检查用户是否已经在一个家庭组中
             FamilyGroup existingGroup = familyGroupService.getFamilyGroupByUserId(userId);
@@ -277,6 +290,22 @@ public class FamilyGroupController {
             creatorMember.setStatus(1);
             
             familyMemberService.saveFamilyMember(creatorMember);
+            
+            // 根据用户选择，决定是否带入现有数据
+            if (bringExistingData) {
+                // 更新用户的所有收入和支出记录的家庭组ID
+                incomeMapper.updateFamilyGroupId(userId, newFamily.getId());
+                expenseMapper.updateFamilyGroupId(userId, newFamily.getId());
+                
+                // 更新用户的所有收入和支出分类的家庭组ID（包括系统内置的"待分类"分类）
+                incomeCategoryMapper.updateAllCategoriesFamilyGroupId(userId, newFamily.getId());
+                expenseCategoryMapper.updateAllCategoriesFamilyGroupId(userId, newFamily.getId());
+                
+                log.info("【家庭组】用户ID: {} 创建家庭组ID: {} 后，将现有数据(收入、支出、分类)转移到家庭组", 
+                        userId, newFamily.getId());
+            } else {
+                log.info("【家庭组】用户ID: {} 创建家庭组ID: {} 后，未带入现有数据", userId, newFamily.getId());
+            }
             
             log.info("【家庭组】为创建者用户ID: {} 创建了管理员身份的成员记录", userId);
             
