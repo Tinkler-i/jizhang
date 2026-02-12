@@ -105,6 +105,8 @@ const showDetailsModal = ref(false)
 const editingId = ref(null)
 const selectedCategory = ref(null)
 const categoryDetails = ref([])
+const allRawCategories = ref([]) // 存储去重前的所有分类数据
+const categoryNameToIds = new Map() // 分类名称 -> [所有ID数组]
 
 const form = reactive({
   name: '',
@@ -112,8 +114,12 @@ const form = reactive({
 })
 
 const getCategoryCount = (categoryId) => {
-  // 统计该分类下的收入数量
-  return incomes.value.filter(item => item.categoryId === categoryId).length
+  // 找到该分类的名称，然后统计所有相同名称分类的收入数量
+  const category = allRawCategories.value.find(c => c.id === categoryId)
+  if (!category) return 0
+  
+  const categoryIds = categoryNameToIds.get(category.name) || [categoryId]
+  return incomes.value.filter(item => categoryIds.includes(item.categoryId)).length
 }
 
 const loadIncomes = async () => {
@@ -140,15 +146,16 @@ const loadCategories = async () => {
     const response = await incomeCategoryAPI.getList()
     console.log('【原始响应】', JSON.stringify(response, null, 2))
     
+    let data = []
     if (response && response.code === 200 && response.data) {
-      categories.value = response.data
+      data = response.data
       console.log('成功加载分类数:', response.data.length)
       response.data.forEach((item, index) => {
         console.log(`【第 ${index + 1} 个分类】:`, JSON.stringify(item, null, 2))
       })
     } else if (response && Array.isArray(response)) {
       // 如果后端直接返回数组
-      categories.value = response
+      data = response
       console.log('直接返回数组，分类数:', response.length)
       response.forEach((item, index) => {
         console.log(`【第 ${index + 1} 个分类】:`, JSON.stringify(item, null, 2))
@@ -156,7 +163,27 @@ const loadCategories = async () => {
     } else {
       console.warn('分类响应格式不正确:', response)
       uiStore.showNotification('分类加载失败：响应格式错误', 'error')
+      return
     }
+    
+    // 保存所有原始分类数据
+    allRawCategories.value = data
+    
+    // 建立分类名称到ID数组的映射
+    categoryNameToIds.clear()
+    for (const category of data) {
+      const categoryIds = categoryNameToIds.get(category.name) || []
+      categoryIds.push(category.id)
+      categoryNameToIds.set(category.name, categoryIds)
+    }
+    
+    // 按分类名称去重（家庭组场景中，相同名称的分类只显示一个）
+    const uniqueCategories = new Map()
+    for (const category of data) {
+      uniqueCategories.set(category.name, category)
+    }
+    categories.value = Array.from(uniqueCategories.values())
+    console.log('去重后分类数:', categories.value.length)
   } catch (error) {
     console.error('Failed to load categories:', error)
     uiStore.showNotification('加载失败: ' + (error.response?.data?.message || error.message), 'error')
@@ -180,7 +207,18 @@ const editCategory = (category) => {
 const handleSave = async () => {
   try {
     if (editingId.value) {
-      await incomeCategoryAPI.update(editingId.value, form)
+      // 获取要编辑的分类名字
+      const categoryToEdit = allRawCategories.value.find(c => c.id === editingId.value)
+      if (categoryToEdit) {
+        // 获取所有相同名字的分类ID
+        const categoryIds = categoryNameToIds.get(categoryToEdit.name) || [editingId.value]
+        // 对所有相同名字的分类一起更新
+        await Promise.all(categoryIds.map(id => incomeCategoryAPI.update(id, form)))
+        console.log(`已更新所有相同名字的分类，共 ${categoryIds.length} 个`)
+      } else {
+        // 如果找不到，就只更新当前分类
+        await incomeCategoryAPI.update(editingId.value, form)
+      }
     } else {
       await incomeCategoryAPI.create(form)
     }
@@ -198,15 +236,30 @@ const formatDate = (date) => {
 
 const viewCategoryDetails = (category) => {
   selectedCategory.value = category
-  categoryDetails.value = incomes.value.filter(item => item.categoryId === category.id)
+  // 获取该分类名下所有相同名称的分类的所有收入数据
+  const categoryIds = categoryNameToIds.get(category.name) || [category.id]
+  categoryDetails.value = incomes.value.filter(item => categoryIds.includes(item.categoryId))
   showDetailsModal.value = true
 }
 
 const deleteCategory = async (id) => {
-  const confirmed = await uiStore.showConfirm('确定删除此收入分类吗？', '删除确认', 'danger')
+  // 找到该分类及所有相同名字的分类
+  const categoryToDelete = allRawCategories.value.find(c => c.id === id)
+  let categoryIds = [id]
+  let warningMsg = '确定删除此收入分类吗？'
+  
+  if (categoryToDelete) {
+    categoryIds = categoryNameToIds.get(categoryToDelete.name) || [id]
+    if (categoryIds.length > 1) {
+      warningMsg = `确定删除此收入分类吗？该分类在家庭组中有 ${categoryIds.length} 个相同名字的分类，将全部删除。`
+    }
+  }
+  
+  const confirmed = await uiStore.showConfirm(warningMsg, '删除确认', 'danger')
   if (confirmed) {
     try {
-      await incomeCategoryAPI.delete(id)
+      // 删除所有相同名字的分类
+      await Promise.all(categoryIds.map(cid => incomeCategoryAPI.delete(cid)))
       uiStore.showNotification('删除成功', 'success')
       loadCategories()
     } catch (error) {

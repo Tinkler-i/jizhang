@@ -88,4 +88,18 @@
         WHERE user_id = #{userId} AND is_built_in = 0
     </update>
 
+    <!-- 更新指定用户的所有分类的家庭组ID，包括待分类 -->
+    <update id="updateAllCategoriesFamilyGroupId">
+        UPDATE income_category 
+        SET family_group_id = #{familyGroupId}, update_time = CURRENT_TIMESTAMP
+        WHERE user_id = #{userId}
+    </update>
+
+    <!-- 查询指定家庭组中所有同名的分类 -->
+    <select id="findAllByFamilyGroupIdAndName" resultMap="BaseResultMap">
+        SELECT * FROM income_category 
+        WHERE family_group_id = #{familyGroupId} 
+        AND name = #{name}
+    </select>
+
 </mapper>

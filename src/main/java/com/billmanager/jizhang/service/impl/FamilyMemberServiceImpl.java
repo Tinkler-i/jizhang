@@ -98,10 +98,9 @@ public class FamilyMemberServiceImpl implements FamilyMemberService {
                 int incomeUpdated = incomeMapper.updateFamilyGroupId(userId, familyGroup.getId());
                 int expenseUpdated = expenseMapper.updateFamilyGroupId(userId, familyGroup.getId());
                 
-                // 更新用户的所有收入和支出分类的家庭组ID（不包括系统内置分类）
-                // 系统内置分类应该始终保持 family_group_id = 0（个人数据）
-                int incomeCategoryUpdated = incomeCategoryMapper.updateFamilyGroupIdExcludeBuiltIn(userId, familyGroup.getId());
-                int expenseCategoryUpdated = expenseCategoryMapper.updateFamilyGroupIdExcludeBuiltIn(userId, familyGroup.getId());
+                // 更新用户的所有收入和支出分类的家庭组ID（包括系统内置的"待分类"分类）
+                int incomeCategoryUpdated = incomeCategoryMapper.updateAllCategoriesFamilyGroupId(userId, familyGroup.getId());
+                int expenseCategoryUpdated = expenseCategoryMapper.updateAllCategoriesFamilyGroupId(userId, familyGroup.getId());
                 
                 log.info("【家庭成员】用户ID: {} 加入家庭组ID: {} 后，更新了 {} 条收入记录、{} 条支出记录、{} 个收入分类和 {} 个支出分类", 
                         userId, familyGroup.getId(), incomeUpdated, expenseUpdated, incomeCategoryUpdated, expenseCategoryUpdated);
@@ -146,6 +145,9 @@ public class FamilyMemberServiceImpl implements FamilyMemberService {
             
             familyMemberMapper.insert(member);
             log.info("【家庭成员】成功创建家庭成员，ID: {}, 用户ID: {}", member.getId(), userId);
+            
+            // 确保用户在家庭组中拥有"待分类"分类（系统内置）
+            ensureUnclassifiedCategories(userId, familyGroupId);
             
             return member;
         } catch (Exception e) {
