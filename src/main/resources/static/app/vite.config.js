@@ -6,6 +6,7 @@ export default defineConfig({
   plugins: [vue()],
   server: {
     port: 5173,
+    host: '0.0.0.0',// 允许外部访问
     proxy: {
       '/jizhang/api': {
         target: 'http://localhost:8080',
