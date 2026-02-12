@@ -378,11 +378,16 @@ public class XunfeiWebSocketClient {
         }
         
         if (!categoryContext.isEmpty()) {
-            basePrompt += "\n用户现有的交易分类:\n" + categoryContext;
+            basePrompt += "\n【用户现有的交易分类】\n";
+            basePrompt += "重要提示：根据下面的分类列表来判断交易类型(type)：\n";
+            basePrompt += "- 支出分类列表中的分类 → type必须是\"EXPENSE\"\n";
+            basePrompt += "- 收入分类列表中的分类 → type必须是\"INCOME\"\n";
+            basePrompt += categoryContext;
         }
         
         basePrompt += "\n返回格式示例:\n" +
-                "[{\"type\": \"INCOME\", \"amount\": 5000.00, \"transactionDate\": \"2026-01-10\", \"categoryName\": \"工资\", \"description\": \"一月工资\"}]";
+                "[{\"type\": \"EXPENSE\", \"amount\": 100.00, \"transactionDate\": \"2026-01-10\", \"categoryName\": \"购物\", \"description\": \"购物消费\"}," +
+                "{\"type\": \"INCOME\", \"amount\": 5000.00, \"transactionDate\": \"2026-01-10\", \"categoryName\": \"工资\", \"description\": \"一月工资\"}]";
         
         return basePrompt;
     }

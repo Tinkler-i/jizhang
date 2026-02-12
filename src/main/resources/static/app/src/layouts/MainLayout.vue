@@ -166,6 +166,11 @@ const menuItems = [
     icon: '👨‍👩‍👧‍👦'
   },
   {
+    path: '/ai-analysis',
+    label: 'AI财务顾问',
+    icon: '🤖'
+  },
+  {
     path: '/profile',
     label: '个人设置',
     icon: '⚙️'

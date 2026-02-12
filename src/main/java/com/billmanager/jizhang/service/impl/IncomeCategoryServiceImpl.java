@@ -70,14 +70,40 @@ public class IncomeCategoryServiceImpl implements IncomeCategoryService {
         if (category == null) {
             throw new BusinessException("分类不存在");
         }
-        if (!category.getUserId().equals(userId)) {
-            throw new BusinessException("无权修改此分类");
+        
+        // 检查用户是否有权限修改这个分类
+        FamilyGroup familyGroup = familyGroupService.getFamilyGroupByUserId(userId);
+        if (familyGroup != null) {
+            // 在家庭组中，用户可以修改家庭组内的任何分类（如果有编辑权限）
+            if (!category.getFamilyGroupId().equals(familyGroup.getId())) {
+                throw new BusinessException("无权修改此分类");
+            }
+        } else {
+            // 个人用户只能修改自己的分类
+            if (!category.getUserId().equals(userId)) {
+                throw new BusinessException("无权修改此分类");
+            }
         }
         
-        IncomeCategory existing = incomeCategoryMapper.findByFamilyGroupIdAndName(
+        // 检查分类名称是否已存在
+        // 获取新名字下所有的分类
+        List<IncomeCategory> existingWithNewName = incomeCategoryMapper.findAllByFamilyGroupIdAndName(
                 category.getFamilyGroupId(), request.getName());
-        if (existing != null && !existing.getId().equals(id)) {
-            throw new BusinessException("分类名称已存在");
+        
+        if (!existingWithNewName.isEmpty()) {
+            // 获取原名字下所有的分类
+            List<IncomeCategory> existingWithOldName = incomeCategoryMapper.findAllByFamilyGroupIdAndName(
+                    category.getFamilyGroupId(), category.getName());
+            
+            // 检查新名字下的分类是否都在原名字的分类列表中
+            boolean allNewNameInOriginal = existingWithNewName.stream()
+                    .allMatch(newNameCat -> existingWithOldName.stream()
+                            .anyMatch(oldNameCat -> oldNameCat.getId().equals(newNameCat.getId())));
+            
+            // 如果新名字的分类中有不在原名字列表中的，说明有冲突
+            if (!allNewNameInOriginal) {
+                throw new BusinessException("分类名称已存在");
+            }
         }
         
         category.setName(request.getName());
@@ -98,8 +124,19 @@ public class IncomeCategoryServiceImpl implements IncomeCategoryService {
         if (category == null) {
             throw new BusinessException("分类不存在");
         }
-        if (!category.getUserId().equals(userId)) {
-            throw new BusinessException("无权删除此分类");
+        
+        // 检查用户是否有权限删除这个分类
+        FamilyGroup familyGroup = familyGroupService.getFamilyGroupByUserId(userId);
+        if (familyGroup != null) {
+            // 在家庭组中，用户可以删除家庭组内的任何分类（如果有编辑权限）
+            if (!category.getFamilyGroupId().equals(familyGroup.getId())) {
+                throw new BusinessException("无权删除此分类");
+            }
+        } else {
+            // 个人用户只能删除自己的分类
+            if (!category.getUserId().equals(userId)) {
+                throw new BusinessException("无权删除此分类");
+            }
         }
         
         // 检查是否是系统内置分类，不允许删除
