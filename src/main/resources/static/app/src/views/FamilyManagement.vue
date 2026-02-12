@@ -88,6 +88,23 @@
                     type="text" 
                     placeholder="例如：王家"
                     @keyup.enter="createFamily">
+                  
+                  <div style="margin-top: 15px; padding: 10px; background: #f5f5f5; border-radius: 4px;">
+                    <label style="display: flex; align-items: center; cursor: pointer; margin: 0;">
+                      <input 
+                        type="checkbox" 
+                        v-model="bringExistingDataCreate"
+                        style="margin-right: 8px; width: 16px; height: 16px; cursor: pointer;">
+                      <span>将现有的收入、支出及分类数据带入家庭组</span>
+                    </label>
+                    <p style="margin: 8px 0 0 24px; font-size: 12px; color: #666;">
+                      ✓ 勾选：您现有的所有数据将转移到家庭组（家人可以查看并编辑）
+                    </p>
+                    <p style="margin: 4px 0 0 24px; font-size: 12px; color: #666;">
+                      ✗ 不勾选：您的数据保持为个人私密数据（家人无法查看）
+                    </p>
+                  </div>
+
                   <div class="action-buttons">
                     <button class="btn-primary" @click="createFamily" :disabled="createLoading">
                       {{ createLoading ? '创建中...' : '创建' }}
@@ -402,6 +419,7 @@ const newFamilyName = ref('')
 const createLoading = ref(false)
 const createError = ref('')
 const showCreateForm = ref(false)
+const bringExistingDataCreate = ref(false)
 const editLoading = ref(false)
 const showEditModal = ref(false)
 const editForm = ref({
@@ -597,13 +615,15 @@ const createFamily = async () => {
   try {
     const response = await apiCall('family-groups/create', 'POST', {
       name: newFamilyName.value.trim(),
-      description: ''
+      description: '',
+      bringExistingData: bringExistingDataCreate.value
     })
 
     if (response && response.code === 200) {
       showMessage('家庭组创建成功！', 'success')
       newFamilyName.value = ''
       showCreateForm.value = false
+      bringExistingDataCreate.value = false
       await loadFamilyGroup()
       await loadMembers()
       activeTab.value = 'info'

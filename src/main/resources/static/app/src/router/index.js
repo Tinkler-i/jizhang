@@ -14,6 +14,7 @@ import Report from '../views/Report.vue'
 import UserProfile from '../views/UserProfile.vue'
 import BillImport from '../views/BillImport.vue'
 import FamilyManagement from '../views/FamilyManagement.vue'
+import AIAnalysis from '../views/AIAnalysis.vue'
 
 const routes = [
   {
@@ -93,6 +94,12 @@ const routes = [
     name: 'FamilyManagement',
     component: FamilyManagement,
     meta: { requiresAuth: true, title: '家庭组管理' }
+  },
+  {
+    path: '/ai-analysis',
+    name: 'AIAnalysis',
+    component: AIAnalysis,
+    meta: { requiresAuth: true, title: 'AI财务顾问' }
   }
 ]
 

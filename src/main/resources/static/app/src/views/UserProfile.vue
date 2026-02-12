@@ -82,7 +82,7 @@
         </form>
       </Card>
 
-      <!-- 通知设置 -->
+      <!-- 通知设置 (暂时不实现)
       <Card class="settings-card">
         <template #header>
           <h2>通知设置</h2>
@@ -112,8 +112,9 @@
           <Button type="primary" @click="handleSaveSettings">保存设置</Button>
         </div>
       </Card>
-
-      <!-- 账户安全 -->
+      -->
+      
+      <!-- 账户安全 (暂时不实现)
       <Card class="settings-card">
         <template #header>
           <h2>账户安全</h2>
@@ -136,6 +137,7 @@
           <Button type="danger" @click="handleLogout">登出所有设备</Button>
         </div>
       </Card>
+      -->
 
       <!-- 数据管理 -->
       <Card class="settings-card">
@@ -182,6 +184,8 @@ const profile = reactive({
 })
 
 const originalNickname = ref('')
+const originalEmail = ref('')
+const originalPhone = ref('')
 const nicknameError = ref('')
 const nicknameChanged = ref(false)
 const message = ref('')
@@ -210,7 +214,9 @@ const loadProfile = async () => {
       profile.nickname = response.data.nickname || response.data.username || ''
       originalNickname.value = profile.nickname
       profile.email = response.data.email || ''
+      originalEmail.value = profile.email
       profile.phone = response.data.phone || ''
+      originalPhone.value = profile.phone
     }
   } catch (error) {
     console.error('Failed to load profile:', error)
@@ -219,15 +225,35 @@ const loadProfile = async () => {
 
 const handleSaveProfile = async () => {
   try {
-    // 如果昵称有变化，调用专门的 API 更新
-    if (profile.nickname !== originalNickname.value) {
-      await updateNickname()
+    // 检查是否有任何字段被修改
+    const hasChanges = 
+      profile.nickname !== originalNickname.value ||
+      profile.email !== originalEmail.value ||
+      profile.phone !== originalPhone.value
+    
+    if (!hasChanges) {
+      showMessage('未修改任何内容', 'success')
+      return
+    }
+    
+    // 调用更新API
+    const result = await authAPI.updateProfile({
+      nickname: profile.nickname,
+      email: profile.email,
+      phone: profile.phone
+    })
+    
+    if (result.code === 200 || result.code === 0) {
+      // 更新成功后，保存原始值
+      originalNickname.value = profile.nickname
+      originalEmail.value = profile.email
+      originalPhone.value = profile.phone
+      nicknameChanged.value = false
+      
       showMessage('个人信息已更新', 'success')
     } else {
-      showMessage('昵称未修改', 'success')
+      showMessage(result.message || '更新失败，请重试', 'error')
     }
-    nicknameChanged.value = false
-    originalNickname.value = profile.nickname
   } catch (error) {
     console.error('Failed to save profile:', error)
     showMessage('更新失败，请重试', 'error')
