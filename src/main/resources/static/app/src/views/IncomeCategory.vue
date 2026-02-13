@@ -404,9 +404,14 @@ onMounted(() => {
 
 @media (max-width: 768px) {
   .page-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 15px;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .page-header h1 {
+    margin-bottom: 0;
   }
 
   .category-grid {

@@ -160,7 +160,7 @@ export const userTargetAPI = {
 
 // Bill Import API - 账单导入
 export const billImportAPI = {
-  recognize: (image, accountType, currentDate) => api.post('/bill-import/recognize', { image, accountType, currentDate }, { timeout: 120000 }),
+  recognize: (image, currentDate) => api.post('/bill-import/recognize', { image, currentDate }, { timeout: 120000 }),
   confirm: (records) => api.post('/bill-import/confirm', { records })
 }
 

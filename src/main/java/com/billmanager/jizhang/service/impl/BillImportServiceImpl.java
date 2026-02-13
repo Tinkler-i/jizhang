@@ -140,7 +140,7 @@ public class BillImportServiceImpl implements BillImportService {
         
         // 获取家庭组成员信息（如果有）
         FamilyMember member = permissionService.getFamilyMember(userId);
-        Long familyGroupId = member != null ? member.getFamilyGroupId() : null;
+        Long familyGroupId = member != null ? member.getFamilyGroupId() : 0L;
         
         if ("INCOME".equals(type)) {
             // 检查权限

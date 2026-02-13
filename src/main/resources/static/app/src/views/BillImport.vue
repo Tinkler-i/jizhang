@@ -65,18 +65,6 @@
               </div>
             </div>
 
-            <div class="upload-options">
-              <label class="form-group">
-                <span class="label-text">账单类型（可选）：</span>
-                <Select v-model="accountType" class="account-type-select">
-                  <option value="">自动识别</option>
-                  <option value="ALIPAY">支付宝</option>
-                  <option value="WECHAT">微信</option>
-                  <option value="BANK">银行卡</option>
-                </Select>
-              </label>
-            </div>
-
             <div class="button-group">
               <button 
                 @click="recognizeBill" 
@@ -354,9 +342,6 @@ const selectedFile = ref(null)
 const previewUrl = ref(null)
 const isDragging = ref(false)
 
-// 账单类型选择
-const accountType = ref('')
-
 // 识别状态
 const isRecognizing = ref(false)
 const isConfirming = ref(false)
@@ -440,7 +425,6 @@ const processFile = (file) => {
 const resetUpload = () => {
   selectedFile.value = null
   previewUrl.value = null
-  accountType.value = ''
   if (fileInput.value) {
     fileInput.value.value = ''
   }
@@ -464,14 +448,13 @@ const recognizeBill = async () => {
         const base64Image = e.target.result.split(',')[1]
         
         console.log('开始识别账单，图片大小:', base64Image.length, '字节')
-        console.log('账单类型:', accountType.value || '未指定')
         
         // 获取当前日期，格式为 YYYY-MM-DD
         const today = new Date()
         const currentDate = today.toISOString().split('T')[0]
         console.log('当前日期:', currentDate)
         
-        const response = await billImportAPI.recognize(base64Image, accountType.value, currentDate)
+        const response = await billImportAPI.recognize(base64Image, currentDate)
         
         console.log('API响应:', response)
 
@@ -707,7 +690,6 @@ const startOver = () => {
   selectedFile.value = null
   previewUrl.value = null
   recognizedRecords.value = []
-  accountType.value = ''
   importResult.value = null
   newRecord.value = {
     type: '',
@@ -936,13 +918,6 @@ const saveDescription = () => {
   word-break: break-all;
 }
 
-.upload-options {
-  margin: 20px 0;
-  padding: 20px;
-  background: #f9f9f9;
-  border-radius: 8px;
-}
-
 .form-group {
   display: flex;
   align-items: center;
@@ -953,25 +928,6 @@ const saveDescription = () => {
   color: #333;
   font-weight: 500;
   min-width: 120px;
-}
-
-.account-type-select {
-  flex: 1;
-  max-width: 200px;
-  height: 36px;
-  padding: 6px 12px;
-  border: none;
-  border-radius: 0;
-  font-size: 14px;
-  line-height: 1.5;
-  cursor: pointer;
-  box-sizing: border-box;
-  background: transparent;
-}
-
-.account-type-select:focus {
-  outline: none;
-  border-bottom: 2px solid #007bff;
 }
 
 /* 确认部分 */
