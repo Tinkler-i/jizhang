@@ -9,6 +9,7 @@ import com.billmanager.jizhang.mapper.IncomeMapper;
 import com.billmanager.jizhang.mapper.ExpenseMapper;
 import com.billmanager.jizhang.mapper.IncomeCategoryMapper;
 import com.billmanager.jizhang.mapper.ExpenseCategoryMapper;
+import com.billmanager.jizhang.mapper.BudgetMapper;
 import com.billmanager.jizhang.service.FamilyGroupService;
 import com.billmanager.jizhang.service.FamilyMemberService;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +40,7 @@ public class FamilyGroupController {
     private final ExpenseMapper expenseMapper;
     private final IncomeCategoryMapper incomeCategoryMapper;
     private final ExpenseCategoryMapper expenseCategoryMapper;
+    private final BudgetMapper budgetMapper;
     
     /**
      * 获取当前用户的家庭组信息
@@ -301,7 +303,10 @@ public class FamilyGroupController {
                 incomeCategoryMapper.updateAllCategoriesFamilyGroupId(userId, newFamily.getId());
                 expenseCategoryMapper.updateAllCategoriesFamilyGroupId(userId, newFamily.getId());
                 
-                log.info("【家庭组】用户ID: {} 创建家庭组ID: {} 后，将现有数据(收入、支出、分类)转移到家庭组", 
+                // 更新用户的所有预算记录的家庭组ID
+                budgetMapper.updateFamilyGroupId(userId, newFamily.getId());
+                
+                log.info("【家庭组】用户ID: {} 创建家庭组ID: {} 后，将现有数据(收入、支出、分类、预算)转移到家庭组", 
                         userId, newFamily.getId());
             } else {
                 log.info("【家庭组】用户ID: {} 创建家庭组ID: {} 后，未带入现有数据", userId, newFamily.getId());

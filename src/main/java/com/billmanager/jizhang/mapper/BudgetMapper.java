@@ -48,5 +48,7 @@ public interface BudgetMapper {
     // 退出家庭组时的数据处理
     int deleteByUserIdAndFamilyGroupId(@Param("userId") Long userId, @Param("familyGroupId") Long familyGroupId);
     
+    int updateFamilyGroupId(@Param("userId") Long userId, @Param("familyGroupId") Long familyGroupId);
+    
     int updateFamilyGroupIdToPersonal(@Param("userId") Long userId, @Param("familyGroupId") Long familyGroupId);
 }
