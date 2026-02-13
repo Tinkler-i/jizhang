@@ -25,7 +25,7 @@ DROP TABLE IF EXISTS `budget`;
 CREATE TABLE `budget` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '预算ID',
   `user_id` bigint NOT NULL COMMENT '用户ID',
-  `family_group_id` bigint NOT NULL COMMENT '家庭组ID',
+  `family_group_id` bigint NOT NULL COMMENT '家庭组ID（个人模式为0）',
   `category_id` bigint NOT NULL COMMENT '分类ID',
   `amount` decimal(10,2) NOT NULL COMMENT '预算金额',
   `budget_month` varchar(7) NOT NULL COMMENT '预算年月（格式：YYYY-MM）',
@@ -52,7 +52,7 @@ DROP TABLE IF EXISTS `expense`;
 CREATE TABLE `expense` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '支出ID',
   `user_id` bigint NOT NULL COMMENT '用户ID',
-  `family_group_id` bigint NOT NULL COMMENT '家庭组ID',
+  `family_group_id` bigint NOT NULL COMMENT '家庭组ID（个人模式为0）',
   `category_id` bigint NOT NULL COMMENT '分类ID',
   `amount` decimal(10,2) NOT NULL COMMENT '支出金额',
   `transaction_date` date NOT NULL COMMENT '交易日期',
@@ -77,7 +77,7 @@ DROP TABLE IF EXISTS `expense_category`;
 CREATE TABLE `expense_category` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '分类ID',
   `user_id` bigint NOT NULL COMMENT '用户ID',
-  `family_group_id` bigint NOT NULL COMMENT '家庭组ID',
+  `family_group_id` bigint NOT NULL COMMENT '家庭组ID（个人模式为0）',
   `name` varchar(50) NOT NULL COMMENT '分类名称',
   `description` varchar(200) DEFAULT NULL COMMENT '分类描述',
   `is_built_in` tinyint DEFAULT '0' COMMENT '是否系统内置分类：0-用户自定义，1-系统内置',
