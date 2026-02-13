@@ -158,8 +158,19 @@ public class IncomeCategoryServiceImpl implements IncomeCategoryService {
         if (category == null) {
             throw new BusinessException("分类不存在");
         }
-        if (!category.getUserId().equals(userId)) {
-            throw new BusinessException("无权查看此分类");
+        
+        // 在个人模式下检查userId匹配；在家庭组中检查familyGroupId匹配
+        FamilyGroup familyGroup = familyGroupService.getFamilyGroupByUserId(userId);
+        if (familyGroup != null) {
+            // 在家庭组中，检查分类是否属于同一家庭组
+            if (!category.getFamilyGroupId().equals(familyGroup.getId())) {
+                throw new BusinessException("无权查看此分类");
+            }
+        } else {
+            // 在个人模式中，检查分类是否属于该用户
+            if (!category.getUserId().equals(userId)) {
+                throw new BusinessException("无权查看此分类");
+            }
         }
         return category;
     }

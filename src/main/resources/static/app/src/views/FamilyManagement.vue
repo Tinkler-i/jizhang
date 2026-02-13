@@ -370,8 +370,8 @@
             <label class="option-label">
               <input 
                 type="radio" 
-                v-model="exitKeepData" 
-                :value="false"
+                v-model.number="exitKeepData" 
+                :value="0"
                 name="keep-data">
               <span>删除数据</span>
               <span class="description">该账户的所有记录将被删除（无法恢复）</span>
@@ -379,8 +379,8 @@
             <label class="option-label">
               <input 
                 type="radio" 
-                v-model="exitKeepData" 
-                :value="true"
+                v-model.number="exitKeepData" 
+                :value="1"
                 name="keep-data">
               <span>保留数据</span>
               <span class="description">数据将被转为个人账户数据，不再与家庭共享</span>
@@ -440,7 +440,7 @@ const pendingJoinCode = ref('')
 
 // 退出家庭对话框相关
 const showExitDialog = ref(false)
-const exitKeepData = ref(true)
+const exitKeepData = ref(1) // 1=保留数据, 0=删除数据
 const pendingExitMemberId = ref(null)
 const isExitingSelf = ref(false)
 const exitMemberName = ref('')
@@ -940,7 +940,7 @@ const removeMember = async (memberId) => {
   pendingExitMemberId.value = memberId
   isExitingSelf.value = isSelf
   exitMemberName.value = member?.nickname || member?.username || '该成员'
-  exitKeepData.value = true // 默认保留数据
+  exitKeepData.value = 1 // 默认保留数据 (1表示保留)
   showExitDialog.value = true
 }
 
@@ -952,7 +952,7 @@ const cancelExit = () => {
 
 const confirmExit = async () => {
   const memberId = pendingExitMemberId.value
-  const keepData = exitKeepData.value
+  const keepData = exitKeepData.value === 1 // 1表示保留，0表示删除
   const isSelf = isExitingSelf.value
   
   joinLoading.value = true
