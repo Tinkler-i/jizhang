@@ -85,7 +85,7 @@ public class AIDataProvider {
             for (Budget budget : budgets) {
                 String categoryName = getCategoryName(budget.getCategoryId(), userId, true);
                 double budgetAmount = budget.getAmount() != null ? budget.getAmount().doubleValue() : 0;
-                double spentAmount = budget.getSpentAmount() != null ? budget.getSpentAmount().doubleValue() : 0;
+                double spentAmount = budget.getSpent() != null ? budget.getSpent().doubleValue() : 0;
                 double percentage = budgetAmount > 0 ? (spentAmount / budgetAmount * 100) : 0;
                 sb.append("- ").append(categoryName).append(": 预算 ¥").append(String.format("%.2f", budgetAmount))
                   .append(", 已用 ¥").append(String.format("%.2f", spentAmount))
