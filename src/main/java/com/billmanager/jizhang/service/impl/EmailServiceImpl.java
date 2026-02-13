@@ -26,7 +26,7 @@ public class EmailServiceImpl implements EmailService {
     @Value("${spring.mail.username}")
     private String fromEmail;
     
-    @Value("${spring.application.name:记账管理系统}")
+    @Value("${spring.application.name:AI记账管家}")
     private String applicationName;
     
     @Override

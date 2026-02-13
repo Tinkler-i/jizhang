@@ -40,7 +40,7 @@
           </button>
           <div class="brand">
             <span class="brand-icon">💰</span>
-            <span class="brand-text">记账系统</span>
+            <span class="brand-text">AI记账管家</span>
           </div>
         </div>
 
@@ -416,7 +416,9 @@ const handleLogout = () => {
   }
 
   .brand-text {
-    display: none;
+    display: block;
+    font-size: 14px;
+    max-width: 100px;
   }
 
   .logout-btn {
@@ -517,6 +519,15 @@ const handleLogout = () => {
 
   .brand-icon {
     font-size: 18px;
+  }
+
+  .brand-text {
+    display: block;
+    font-size: 14px;
+    max-width: 120px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .sidebar {

@@ -86,7 +86,10 @@ export default {
   watch: {
     messages: {
       handler(newMessages) {
-        console.log('【消息更新】共', newMessages.length, '条')
+        // 仅在开发时输出消息数量
+        if (process.env.NODE_ENV === 'development') {
+          console.debug('【消息更新】共', newMessages.length, '条')
+        }
       },
       deep: true
     }
@@ -97,10 +100,9 @@ export default {
       try {
         // 直接用 marked 生成 HTML，不用 DOMPurify（marked 输出已经足够安全）
         const html = marked(content)
-        console.log('【Markdown转HTML】成功，长度=', html?.length, '包含table=', html?.includes('<table'))
         return html
       } catch (e) {
-        console.error('Markdown渲染出错:', e)
+        console.error('【Markdown渲染失败】', e.message)
         return `<p>${content}</p>`
       }
     },
@@ -139,30 +141,23 @@ export default {
 
         const data = await response.json();
         
-        console.log('【AI回复原始数据】', data);
-        
         if (response.ok && data && (data.code === 0 || data.code === 200)) {
           // 添加AI回复
           const aiContent = data.data || data.message || '获得回复'
-          console.log('【AI回复内容】', aiContent);
-          console.log('【AI回复类型】', typeof aiContent);
+          console.log('【用户问题】', userMessage)
+          console.log('【AI回复】', aiContent)
           
           const rendered = this.renderMarkdown(aiContent)
-          console.log('【Markdown渲染后】', rendered);
-          console.log('【渲染结果长度】', rendered ? rendered.length : 0);
-          console.log('【渲染结果是否包含table标签】', rendered && rendered.includes('<table'));
           
           this.messages.push({
             role: 'assistant',
             content: aiContent,
             renderedContent: rendered
           });
-          
-          console.log('【消息已添加】', this.messages[this.messages.length - 1]);
         } else {
           // 添加错误消息
           const errorMsg = '❌ 出错: ' + (data?.message || data?.msg || '未知错误')
-          console.log('【AI错误】', errorMsg);
+          console.error('【AI错误】', errorMsg)
           this.messages.push({
             role: 'assistant',
             content: errorMsg,
@@ -170,7 +165,7 @@ export default {
           });
         }
       } catch (error) {
-        console.error('【请求失败】', error);
+        console.error('【请求失败】', error.message)
         const errorMsg = '❌ 网络错误: ' + error.message
         this.messages.push({
           role: 'assistant',
@@ -188,13 +183,7 @@ export default {
               const refKey = `aiMsg${index}`
               const element = this.$refs[refKey]?.[0]
               if (element) {
-                console.log(`【设置前】消息${index} innerHTML=${element.innerHTML.substring(0, 50)}`)
                 element.innerHTML = msg.renderedContent
-                console.log(`【设置后】消息${index} innerHTML长度=${element.innerHTML.length}, 包含table=${element.innerHTML.includes('<table')}`)
-                console.log(`【设置后】消息${index} childNodes数量=${element.childNodes.length}`)
-                // 验证table是否存在
-                const table = element.querySelector('table')
-                console.log(`【table查询】消息${index} 找到table=${!!table}`)
               }
             }
           })

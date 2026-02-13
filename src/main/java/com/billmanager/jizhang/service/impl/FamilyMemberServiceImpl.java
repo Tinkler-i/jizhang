@@ -209,22 +209,36 @@ public class FamilyMemberServiceImpl implements FamilyMemberService {
             
             FamilyGroup familyGroup = familyGroupMapper.selectById(member.getFamilyGroupId());
             
-            // 如果该成员是家庭组的创建者，直接删除整个家庭组和所有成员
+            // 如果该成员是家庭组的创建者
             if (familyGroup != null && familyGroup.getCreatorId().equals(member.getUserId())) {
-                // 先删除所有家庭成员
-                familyMemberMapper.deleteByFamilyGroupId(member.getFamilyGroupId());
-                // 再删除家庭组
-                familyGroupMapper.delete(familyGroup.getId());
-                // 删除该用户的所有收入和支出记录（在家族组中的数据）
-                incomeMapper.deleteByUserIdAndFamilyGroupId(member.getUserId(), familyGroup.getId());
-                expenseMapper.deleteByUserIdAndFamilyGroupId(member.getUserId(), familyGroup.getId());
-                // 删除该用户的所有收入和支出分类（在家族组中的数据）
-                incomeCategoryMapper.deleteByUserIdAndFamilyGroupId(member.getUserId(), familyGroup.getId());
-                expenseCategoryMapper.deleteByUserIdAndFamilyGroupId(member.getUserId(), familyGroup.getId());
-                // 删除该用户的所有预算（在家族组中的数据）
-                budgetMapper.deleteByUserIdAndFamilyGroupId(member.getUserId(), familyGroup.getId());
-                log.info("【家庭成员】家庭组ID: {} 的创建者 (用户ID: {}) 已离开，该家庭组及其所有成员已被删除，相关的收入支出记录、分类和预算也已删除", 
-                        familyGroup.getId(), member.getUserId());
+                // 先删除该成员
+                familyMemberMapper.deleteById(memberId);
+                
+                // 根据用户选择处理创建者的数据
+                if (deleteData != null && deleteData) {
+                    // 用户选择删除数据
+                    incomeMapper.deleteByUserIdAndFamilyGroupId(member.getUserId(), familyGroup.getId());
+                    expenseMapper.deleteByUserIdAndFamilyGroupId(member.getUserId(), familyGroup.getId());
+                    incomeCategoryMapper.deleteByUserIdAndFamilyGroupId(member.getUserId(), familyGroup.getId());
+                    expenseCategoryMapper.deleteByUserIdAndFamilyGroupId(member.getUserId(), familyGroup.getId());
+                    budgetMapper.deleteByUserIdAndFamilyGroupId(member.getUserId(), familyGroup.getId());
+                    log.info("【家庭成员】创建者 (用户ID: {}) 选择删除数据后退出", member.getUserId());
+                } else {
+                    // 用户选择保留数据，转换为个人数据
+                    incomeMapper.updateFamilyGroupIdToPersonal(member.getUserId(), familyGroup.getId());
+                    expenseMapper.updateFamilyGroupIdToPersonal(member.getUserId(), familyGroup.getId());
+                    incomeCategoryMapper.updateFamilyGroupIdToPersonal(member.getUserId(), familyGroup.getId());
+                    expenseCategoryMapper.updateFamilyGroupIdToPersonal(member.getUserId(), familyGroup.getId());
+                    budgetMapper.updateFamilyGroupIdToPersonal(member.getUserId(), familyGroup.getId());
+                    log.info("【家庭成员】创建者 (用户ID: {}) 选择保留数据后退出", member.getUserId());
+                }
+                
+                // 检查是否还有其他成员，如果没有则删除家庭组
+                int remainingMembers = familyMemberMapper.countByFamilyGroupId(familyGroup.getId());
+                if (remainingMembers == 0) {
+                    familyGroupMapper.delete(familyGroup.getId());
+                    log.info("【家庭成员】家庭组ID: {} 已删除（无剩余成员）", familyGroup.getId());
+                }
             } else {
                 // 普通成员：根据用户选择，决定是删除还是转换为个人数据
                 familyMemberMapper.deleteById(memberId);

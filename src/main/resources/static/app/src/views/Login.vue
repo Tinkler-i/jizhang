@@ -3,7 +3,7 @@
     <div class="login-box">
       <div class="login-header">
         <div class="login-icon">💰</div>
-        <h1>记账管理系统</h1>
+        <h1>AI记账管家</h1>
         <p>欢迎回来，请登录您的账户</p>
       </div>
 
