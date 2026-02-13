@@ -184,92 +184,143 @@ public class VerificationCodeServiceImpl implements VerificationCodeService {
     @Override
     @Transactional
     public void registerWithVerificationCode(RegisterRequest request) {
-        // 检查基本信息
-        if (!StringUtils.hasText(request.getUsername())) {
-            throw new BusinessException("用户名不能为空");
-        }
-        if (!StringUtils.hasText(request.getPassword())) {
-            throw new BusinessException("密码不能为空");
-        }
-        if (!StringUtils.hasText(request.getType())) {
-            throw new BusinessException("验证类型不能为空");
-        }
-        if (!StringUtils.hasText(request.getCode())) {
-            throw new BusinessException("验证码不能为空");
-        }
+        long startTime = System.currentTimeMillis();
+        log.info("【注册服务】========== 开始处理用户注册 ==========");
         
-        // 检查密码确认
-        if (!request.getPassword().equals(request.getConfirmPassword())) {
-            throw new BusinessException("两次输入的密码不一致");
-        }
-        
-        // 检查用户名是否已存在
-        User existByUsername = userMapper.findByUsername(request.getUsername());
-        if (existByUsername != null) {
-            throw new BusinessException("用户名已存在");
-        }
-        
-        String type = request.getType().toUpperCase();
-        VerificationCode verificationCode = null;
-        
-        if ("EMAIL".equals(type)) {
-            String email = request.getEmail();
-            if (!StringUtils.hasText(email)) {
-                throw new BusinessException("邮箱不能为空");
+        try {
+            // 检查基本信息
+            log.debug("【注册服务】步骤1: 验证基本信息...");
+            if (!StringUtils.hasText(request.getUsername())) {
+                throw new BusinessException("用户名不能为空");
             }
-            // 检查邮箱是否已注册
-            User existByEmail = userMapper.findByEmail(email);
-            if (existByEmail != null) {
-                throw new BusinessException("该邮箱已注册");
+            if (!StringUtils.hasText(request.getPassword())) {
+                throw new BusinessException("密码不能为空");
+            }
+            if (!StringUtils.hasText(request.getType())) {
+                throw new BusinessException("验证类型不能为空");
+            }
+            if (!StringUtils.hasText(request.getCode())) {
+                throw new BusinessException("验证码不能为空");
+            }
+            log.debug("【注册服务】✓ 基本信息验证通过");
+            
+            // 检查密码确认
+            if (!request.getPassword().equals(request.getConfirmPassword())) {
+                throw new BusinessException("两次输入的密码不一致");
+            }
+            log.debug("【注册服务】✓ 密码一致性检查通过");
+            
+            // 检查用户名是否已存在
+            log.debug("【注册服务】步骤2: 查询用户名是否已存在...");
+            User existByUsername = userMapper.findByUsername(request.getUsername());
+            if (existByUsername != null) {
+                throw new BusinessException("用户名已存在");
+            }
+            log.debug("【注册服务】✓ 用户名检查通过（不存在）");
+            
+            String type = request.getType().toUpperCase();
+            VerificationCode verificationCode = null;
+            
+            if ("EMAIL".equals(type)) {
+                log.debug("【注册服务】步骤3: 处理邮箱注册流程...");
+                String email = request.getEmail();
+                if (!StringUtils.hasText(email)) {
+                    throw new BusinessException("邮箱不能为空");
+                }
+                log.debug("【注册服务】  - 邮箱: {}", email);
+                
+                // 检查邮箱是否已注册
+                log.debug("【注册服务】  - 查询邮箱是否已注册...");
+                User existByEmail = userMapper.findByEmail(email);
+                if (existByEmail != null) {
+                    throw new BusinessException("该邮箱已注册");
+                }
+                log.debug("【注册服务】  ✓ 邮箱检查通过（未注册）");
+                
+                // 验证验证码
+                log.debug("【注册服务】  - 查询验证码...");
+                verificationCode = verificationCodeMapper.findByEmailAndCode(email, request.getCode());
+                if (verificationCode == null || !isValidCode(verificationCode)) {
+                    throw new BusinessException("验证码错误或已过期");
+                }
+                log.debug("【注册服务】  ✓ 验证码检查通过");
+                
+            } else if ("SMS".equals(type)) {
+                log.debug("【注册服务】步骤3: 处理短信注册流程...");
+                String phone = request.getPhone();
+                if (!StringUtils.hasText(phone)) {
+                    throw new BusinessException("手机号不能为空");
+                }
+                log.debug("【注册服务】  - 手机号: {}", phone);
+                
+                // 检查手机号是否已注册
+                log.debug("【注册服务】  - 查询手机号是否已注册...");
+                User existByPhone = userMapper.findByPhone(phone);
+                if (existByPhone != null) {
+                    throw new BusinessException("该手机号已注册");
+                }
+                log.debug("【注册服务】  ✓ 手机号检查通过（未注册）");
+                
+                // 验证验证码
+                log.debug("【注册服务】  - 查询验证码...");
+                verificationCode = verificationCodeMapper.findByPhoneAndCode(phone, request.getCode());
+                if (verificationCode == null || !isValidCode(verificationCode)) {
+                    throw new BusinessException("验证码错误或已过期");
+                }
+                log.debug("【注册服务】  ✓ 验证码检查通过");
+                
+            } else {
+                throw new BusinessException("不支持的验证类型");
             }
             
-            // 验证验证码
-            verificationCode = verificationCodeMapper.findByEmailAndCode(email, request.getCode());
-            if (verificationCode == null || !isValidCode(verificationCode)) {
-                throw new BusinessException("验证码错误或已过期");
-            }
-        } else if ("SMS".equals(type)) {
-            String phone = request.getPhone();
-            if (!StringUtils.hasText(phone)) {
-                throw new BusinessException("手机号不能为空");
-            }
-            // 检查手机号是否已注册
-            User existByPhone = userMapper.findByPhone(phone);
-            if (existByPhone != null) {
-                throw new BusinessException("该手机号已注册");
+            // 创建用户
+            log.debug("【注册服务】步骤4: 创建用户记录...");
+            User user = new User();
+            user.setUsername(request.getUsername());
+            user.setNickname(request.getUsername());
+            user.setPassword(passwordEncoder.encode(request.getPassword()));
+            // 【重要】将空字符串设置为null，避免触发唯一约束
+            user.setEmail(StringUtils.hasText(request.getEmail()) ? request.getEmail() : null);
+            user.setPhone(StringUtils.hasText(request.getPhone()) ? request.getPhone() : null);
+            user.setStatus(1);
+            user.setCreateTime(LocalDateTime.now());
+            user.setUpdateTime(LocalDateTime.now());
+            
+            log.debug("【注册服务】  - 用户名: {}, 邮箱: {}, 手机: {}", 
+                user.getUsername(), user.getEmail(), user.getPhone());
+            
+            userMapper.insert(user);
+            log.info("【注册服务】✓ 用户记录已创建 - ID: {}, 用户名: {}", user.getId(), user.getUsername());
+            
+            // 【新增】为新用户创建"待分类"系统内置分类
+            log.debug("【注册服务】步骤5: 创建默认分类...");
+            try {
+                createUnclassifiedCategories(user.getId());
+                log.info("【注册服务】✓ 默认分类创建成功");
+            } catch (Exception e) {
+                log.error("【注册服务】✗ 默认分类创建失败（关键操作）- 将回滚整个注册", e);
+                throw e; // 重新抛出异常，导致事务回滚
             }
             
-            // 验证验证码
-            verificationCode = verificationCodeMapper.findByPhoneAndCode(phone, request.getCode());
-            if (verificationCode == null || !isValidCode(verificationCode)) {
-                throw new BusinessException("验证码错误或已过期");
-            }
-        } else {
-            throw new BusinessException("不支持的验证类型");
+            // 标记验证码已使用
+            log.debug("【注册服务】步骤6: 标记验证码已使用...");
+            verificationCodeMapper.markAsUsed(verificationCode.getId());
+            log.debug("【注册服务】✓ 验证码已标记为已使用");
+            
+            long duration = System.currentTimeMillis() - startTime;
+            log.info("【注册服务】✓✓✓ 用户注册完全成功 - 用户名: {}, 用时: {}ms", request.getUsername(), duration);
+            
+        } catch (BusinessException e) {
+            long duration = System.currentTimeMillis() - startTime;
+            log.warn("【注册服务】✗ 注册失败（业务异常）- 用户名: {}, 用时: {}ms, 原因: {}", 
+                request.getUsername(), duration, e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            long duration = System.currentTimeMillis() - startTime;
+            log.error("【注册服务】✗ 注册失败（系统异常）- 用户名: {}, 用时: {}ms, 异常类型: {}", 
+                request.getUsername(), duration, e.getClass().getSimpleName(), e);
+            throw new BusinessException("注册失败: " + e.getMessage());
         }
-        
-        // 创建用户
-        User user = new User();
-        user.setUsername(request.getUsername());
-        user.setNickname(request.getUsername()); // 昵称默认为用户名
-        user.setPassword(passwordEncoder.encode(request.getPassword()));
-        user.setEmail(request.getEmail());
-        user.setPhone(request.getPhone());
-        user.setStatus(1);
-        user.setCreateTime(LocalDateTime.now());
-        user.setUpdateTime(LocalDateTime.now());
-        
-        userMapper.insert(user);
-        
-        // 【新增】为新用户创建"待分类"系统内置分类
-        log.info("【注册】为新用户ID: {} 创建'待分类'分类", user.getId());
-        createUnclassifiedCategories(user.getId());
-        
-        // 注：家庭组由用户手动创建，不再自动创建
-        log.info("【注册】用户ID: {} 注册完成，可手动创建或加入家庭组", user.getId());
-        
-        // 标记验证码已使用
-        verificationCodeMapper.markAsUsed(verificationCode.getId());
     }
     
     @Override
