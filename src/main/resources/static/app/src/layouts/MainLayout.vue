@@ -174,18 +174,18 @@ const menuItems = [
   },
   {
     path: '/bill-import',
-    label: '账单导入',
+    label: 'AI账单导入',
     icon: '📸'
-  },
-  {
-    path: '/family-management',
-    label: '家庭组管理',
-    icon: '👨‍👩‍👧‍👦'
   },
   {
     path: '/ai-analysis',
     label: 'AI财务顾问',
     icon: '🤖'
+  },
+  {
+    path: '/family-management',
+    label: '家庭组管理',
+    icon: '👨‍👩‍👧‍👦'
   },
   {
     path: '/profile',

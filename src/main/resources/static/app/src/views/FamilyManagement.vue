@@ -12,9 +12,16 @@
       <button 
         v-if="!familyGroup"
         class="tab-button" 
+        :class="{ active: activeTab === 'create' }"
+        @click="activeTab = 'create'">
+        创建家庭
+      </button>
+      <button 
+        v-if="!familyGroup"
+        class="tab-button" 
         :class="{ active: activeTab === 'join' }"
         @click="activeTab = 'join'">
-        加入或创建家庭
+        加入家庭
       </button>
       <button 
         v-if="familyGroup"
@@ -67,79 +74,74 @@
         </div>
       </div>
 
-      <!-- 加入或创建家庭 Tab -->
-      <div v-show="activeTab === 'join'" class="tab-pane">
-        <!-- 未加入家庭的情况 - 显示加入/创建选项 -->
+      <!-- 创建家庭 Tab -->
+      <div v-show="activeTab === 'create'" class="tab-pane create-pane">
         <div v-if="!familyGroup" class="join-section">
-          <div class="no-family-container">
-            <h2>👋 欢迎使用记账应用</h2>
-            <p class="subtitle">您还没有加入任何家庭组，请选择以下操作之一</p>
-            
-            <div class="actions-grid">
-              <!-- 创建新家庭选项 -->
-              <div class="action-card">
-                <div class="card-icon">🏠</div>
-                <h3>创建新家庭</h3>
-                <p>创建一个新的家庭组，邀请家人加入</p>
-                <div class="form-group" v-if="showCreateForm">
-                  <label for="family-name">家庭名称：</label>
-                  <input 
-                    id="family-name"
-                    v-model="newFamilyName" 
-                    type="text" 
-                    placeholder="例如：王家"
-                    @keyup.enter="createFamily">
-                  
-                  <div style="margin-top: 15px; padding: 10px; background: #f5f5f5; border-radius: 4px;">
-                    <label style="display: flex; align-items: center; cursor: pointer; margin: 0;">
-                      <input 
-                        type="checkbox" 
-                        v-model="bringExistingDataCreate"
-                        style="margin-right: 8px; width: 16px; height: 16px; cursor: pointer;">
-                      <span>将现有的收入、支出及分类数据带入家庭组</span>
-                    </label>
-                    <p style="margin: 8px 0 0 24px; font-size: 12px; color: #666;">
-                      ✓ 勾选：您现有的所有数据将转移到家庭组（家人可以查看并编辑）
-                    </p>
-                    <p style="margin: 4px 0 0 24px; font-size: 12px; color: #666;">
-                      ✗ 不勾选：您的数据保持为个人私密数据（家人无法查看）
-                    </p>
-                  </div>
-
-                  <div class="action-buttons">
-                    <button class="btn-primary" @click="createFamily" :disabled="createLoading">
-                      {{ createLoading ? '创建中...' : '创建' }}
-                    </button>
-                    <button class="btn-cancel" @click="showCreateForm = false">取消</button>
-                  </div>
-                  <div v-if="createError" class="error-message">{{ createError }}</div>
-                </div>
-                <button v-else class="btn-primary" @click="showCreateForm = true">
-                  开始创建
-                </button>
-              </div>
+          <div class="action-card">
+            <div class="card-icon">🏠</div>
+            <h3>创建新家庭</h3>
+            <p>创建一个新的家庭组，邀请家人加入</p>
+            <div class="form-group" v-if="showCreateForm">
+              <label for="family-name">家庭名称：</label>
+              <input 
+                id="family-name"
+                v-model="newFamilyName" 
+                type="text" 
+                placeholder="例如：王家"
+                @keyup.enter="createFamily">
               
-              <!-- 加入现有家庭选项 -->
-              <div class="action-card">
-                <div class="card-icon">👥</div>
-                <h3>加入现有家庭</h3>
-                <p>输入编号加入已创建的家庭组</p>
-                <div class="form-group">
-                  <label for="code-input">家庭组编号：</label>
+              <div style="margin-top: 20px; padding: 16px; background: #f5f5f5; border-radius: 4px;">
+                <label style="display: flex; align-items: center; cursor: pointer; margin: 0; font-size: 16px;">
                   <input 
-                    id="code-input"
-                    v-model="joinCode" 
-                    type="text" 
-                    placeholder="输入6位编号"
-                    @keyup.enter="joinFamily"
-                    maxlength="6">
-                  <p class="hint">编号由字母和数字组成</p>
-                  <button class="btn-primary" @click="joinFamily" :disabled="joinLoading">
-                    {{ joinLoading ? '加入中...' : '加入家庭' }}
-                  </button>
-                  <div v-if="joinError" class="error-message">{{ joinError }}</div>
-                </div>
+                    type="checkbox" 
+                    v-model="bringExistingDataCreate"
+                    style="margin-right: 10px; width: 18px; height: 18px; cursor: pointer;">
+                  <span>将现有的收入、支出及分类数据带入家庭组</span>
+                </label>
+                <p style="margin: 12px 0 0 28px; font-size: 14px; color: #666;">
+                  ✓ 勾选：您现有的所有数据将转移到家庭组（家人可以查看并编辑）
+                </p>
+                <p style="margin: 8px 0 0 28px; font-size: 14px; color: #666;">
+                  ✗ 不勾选：您的数据保持为个人私密数据（家人无法查看）
+                </p>
               </div>
+
+              <div class="action-buttons">
+                <button class="btn-primary" @click="createFamily" :disabled="createLoading">
+                  {{ createLoading ? '创建中...' : '创建' }}
+                </button>
+                <button class="btn-cancel" @click="showCreateForm = false">取消</button>
+              </div>
+              <div v-if="createError" class="error-message">{{ createError }}</div>
+            </div>
+            <button v-else class="btn-primary" @click="showCreateForm = true">
+              开始创建
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 加入家庭 Tab -->
+      <div v-show="activeTab === 'join'" class="tab-pane join-pane">
+        <div v-if="!familyGroup" class="join-section">
+          <div class="action-card">
+            <div class="card-icon">👥</div>
+            <h3>加入现有家庭</h3>
+            <p>输入编号加入已创建的家庭组</p>
+            <div class="form-group">
+              <label for="code-input">家庭组编号：</label>
+              <input 
+                id="code-input"
+                v-model="joinCode" 
+                type="text" 
+                placeholder="输入6位编号"
+                @keyup.enter="joinFamily"
+                maxlength="6">
+              <p class="hint">编号由字母和数字组成</p>
+              <button class="btn-primary" @click="joinFamily" :disabled="joinLoading">
+                {{ joinLoading ? '加入中...' : '加入家庭' }}
+              </button>
+              <div v-if="joinError" class="error-message">{{ joinError }}</div>
             </div>
           </div>
         </div>
@@ -1065,7 +1067,7 @@ onMounted(async () => {
 .tab-content {
   background: white;
   border-radius: 8px;
-  padding: 20px;
+  padding: 32px;
 }
 
 .tab-pane {
@@ -1139,10 +1141,10 @@ onMounted(async () => {
 }
 
 .hint {
-  margin-top: 8px;
-  font-size: 12px;
+  margin-top: 10px;
+  font-size: 14px;
   color: #999;
-  margin: 8px 0 0 0;
+  margin: 10px 0 0 0;
 }
 
 .edit-btn {
@@ -1168,28 +1170,30 @@ onMounted(async () => {
 
 .join-section p {
   color: #666;
-  margin-bottom: 15px;
+  margin-bottom: 18px;
+  font-size: 15px;
 }
 
 .form-group {
-  margin-bottom: 15px;
+  margin-bottom: 20px;
 }
 
 .form-group label {
   display: block;
   font-weight: 600;
   color: #666;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
+  font-size: 16px;
 }
 
 .form-group input,
 .form-group textarea,
 .form-group select {
   width: 100%;
-  padding: 10px;
+  padding: 12px;
   border: 1px solid #d9d9d9;
   border-radius: 4px;
-  font-size: 14px;
+  font-size: 16px;
   font-family: inherit;
   box-sizing: border-box;
 }
@@ -1232,10 +1236,22 @@ onMounted(async () => {
   background: white;
   border: 1px solid #e8e8e8;
   border-radius: 8px;
-  padding: 24px;
+  padding: 40px 32px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   transition: all 0.3s;
   text-align: center;
+  min-height: 320px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.create-pane .action-card {
+  /* 与加入家庭保持相同宽度 */
+}
+
+.join-pane .action-card {
+  /* 加入家庭部分保持原始宽度 */
 }
 
 .action-card:hover {
@@ -1244,37 +1260,40 @@ onMounted(async () => {
 }
 
 .action-card .card-icon {
-  font-size: 48px;
-  margin-bottom: 16px;
+  font-size: 64px;
+  margin-bottom: 24px;
 }
 
 .action-card h3 {
-  font-size: 18px;
+  font-size: 24px;
   color: #333;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
+  font-weight: 600;
 }
 
 .action-card p {
-  font-size: 14px;
+  font-size: 16px;
   color: #666;
-  margin-bottom: 16px;
+  margin-bottom: 24px;
+  line-height: 1.6;
 }
 
 .action-buttons {
   display: flex;
-  gap: 8px;
+  gap: 12px;
   justify-content: center;
+  margin-top: 16px;
 }
 
 .action-buttons .btn-cancel {
-  padding: 8px 16px;
+  padding: 10px 20px;
   background: #f0f0f0;
   color: #333;
   border: 1px solid #d9d9d9;
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.3s;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .action-buttons .btn-cancel:hover {
@@ -1488,13 +1507,15 @@ onMounted(async () => {
 }
 
 .btn-primary {
-  padding: 8px 20px;
+  padding: 12px 28px;
   background: #1890ff;
   color: white;
   border: none;
   border-radius: 4px;
   cursor: pointer;
   transition: background 0.3s;
+  font-size: 16px;
+  font-weight: 500;
 }
 
 .btn-primary:hover:not(:disabled) {
@@ -1907,25 +1928,32 @@ onMounted(async () => {
   }
 
   .action-card {
-    padding: 16px;
+    padding: 32px 16px;
+    min-height: 280px;
+  }
+
+  .create-pane .action-card {
+    /* 与加入家庭保持相同宽度 */
   }
 
   .action-card .card-icon {
-    font-size: 40px;
+    font-size: 56px;
+    margin-bottom: 16px;
   }
 
   .action-card h3 {
-    font-size: 16px;
+    font-size: 20px;
   }
 
   .action-card p {
-    font-size: 13px;
-    margin-bottom: 12px;
+    font-size: 15px;
+    margin-bottom: 16px;
   }
 
   .action-buttons {
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
+    margin-top: 12px;
   }
 
   .action-buttons .btn-cancel,

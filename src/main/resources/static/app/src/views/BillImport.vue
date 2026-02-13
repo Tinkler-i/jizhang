@@ -1,7 +1,7 @@
 <template>
   <div class="bill-import-container">
     <div class="page-header">
-      <h1>账单导入</h1>
+      <h1>AI账单导入</h1>
       <p class="subtitle">上传账单截图，智能识别交易信息</p>
     </div>
 

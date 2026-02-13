@@ -87,7 +87,7 @@ const routes = [
     path: '/bill-import',
     name: 'BillImport',
     component: BillImport,
-    meta: { requiresAuth: true, title: '账单导入' }
+    meta: { requiresAuth: true, title: 'AI账单导入' }
   },
   {
     path: '/family-management',
