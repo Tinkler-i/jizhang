@@ -1849,4 +1849,216 @@ onMounted(async () => {
   color: #999;
 }
 
+/* 移动端响应式优化 */
+@media (max-width: 768px) {
+  .family-management-container {
+    padding: 16px;
+    border-radius: 0;
+    margin: 0;
+    background: #f5f5f5;
+  }
+
+  .tabs {
+    gap: 8px;
+    margin-bottom: 16px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .tab-button {
+    padding: 8px 16px;
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+
+  .tab-content {
+    padding: 16px;
+    border-radius: 6px;
+  }
+
+  .family-info h3 {
+    font-size: 18px;
+    margin-bottom: 16px;
+  }
+
+  .info-section {
+    margin-bottom: 16px;
+  }
+
+  .info-section label {
+    font-size: 13px;
+    margin-bottom: 6px;
+  }
+
+  .code-display {
+    gap: 8px;
+    padding: 8px;
+    flex-wrap: wrap;
+  }
+
+  .copy-btn {
+    padding: 6px 12px;
+    font-size: 11px;
+  }
+
+  .no-family-container h2 {
+    font-size: 24px;
+    margin-bottom: 8px;
+  }
+
+  .no-family-container .subtitle {
+    font-size: 14px;
+    margin-bottom: 24px;
+  }
+
+  .actions-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .action-card {
+    padding: 16px;
+  }
+
+  .action-card .card-icon {
+    font-size: 40px;
+  }
+
+  .action-card h3 {
+    font-size: 16px;
+  }
+
+  .action-card p {
+    font-size: 13px;
+    margin-bottom: 12px;
+  }
+
+  .action-buttons {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .action-buttons .btn-cancel,
+  .btn-primary,
+  .join-btn {
+    width: 100%;
+    padding: 12px;
+    font-size: 14px;
+    min-height: 44px;
+  }
+
+  .members-section h3 {
+    font-size: 16px;
+    margin-bottom: 16px;
+  }
+
+  .member-item {
+    padding: 12px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .member-actions {
+    width: 100%;
+    margin-top: 10px;
+    justify-content: flex-end;
+  }
+
+  .btn-small {
+    padding: 6px 10px;
+    font-size: 12px;
+    min-height: 32px;
+  }
+
+  .permissions-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .permission-item {
+    padding: 8px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .permission-label {
+    font-size: 12px;
+    margin-bottom: 4px;
+  }
+
+  .permission-status {
+    font-size: 11px;
+    padding: 3px 6px;
+  }
+
+  .modal-content {
+    width: 95%;
+    max-height: 90vh;
+    border-radius: 12px 12px 0 0;
+  }
+
+  .modal-header {
+    padding: 14px;
+  }
+
+  .modal-body {
+    padding: 14px;
+  }
+
+  .modal-footer {
+    padding: 12px;
+    flex-direction: column;
+  }
+
+  .btn-primary,
+  .btn-danger,
+  .btn-cancel {
+    width: 100%;
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 480px) {
+  .family-management-container {
+    padding: 12px;
+  }
+
+  .tab-button {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+
+  .no-family-container h2 {
+    font-size: 20px;
+  }
+
+  .action-card .card-icon {
+    font-size: 36px;
+  }
+
+  .members-list {
+    gap: 8px;
+  }
+
+  .member-item {
+    padding: 10px;
+    border: none;
+  }
+
+  .member-info {
+    gap: 10px;
+  }
+
+  .member-nickname {
+    font-size: 13px;
+  }
+
+  .member-username {
+    font-size: 11px;
+  }
+
+  .member-actions {
+    gap: 4px;
+  }
+}
 </style>

@@ -60,6 +60,15 @@
       </div>
     </header>
 
+    <!-- 移动端侧边栏遮罩 -->
+    <transition name="overlay-fade">
+      <div 
+        v-if="sidebarCollapsed" 
+        class="sidebar-overlay" 
+        @click.stop="sidebarCollapsed = false">
+      </div>
+    </transition>
+
     <div class="main-wrapper">
       <!-- 侧边栏菜单 -->
       <aside class="sidebar">
@@ -70,6 +79,7 @@
             :to="item.path"
             class="nav-item"
             :class="{ active: $route.path === item.path }"
+            @click="closeSidebarOnMobile"
           >
             <span class="nav-icon" v-html="item.icon"></span>
             <span class="nav-text">{{ item.label }}</span>
@@ -95,6 +105,13 @@ const router = useRouter()
 const authStore = useAuthStore()
 const uiStore = useUIStore()
 const sidebarCollapsed = ref(false)
+
+// 监听路由变化，在移动端自动关闭侧边栏
+router.afterEach(() => {
+  if (window.innerWidth <= 768) {
+    sidebarCollapsed.value = false
+  }
+})
 
 const username = computed(() => localStorage.getItem('username') || '用户')
 const notification = computed(() => uiStore.notification)
@@ -179,6 +196,12 @@ const menuItems = [
 
 const toggleSidebar = () => {
   sidebarCollapsed.value = !sidebarCollapsed.value
+}
+
+const closeSidebarOnMobile = () => {
+  if (window.innerWidth <= 768) {
+    sidebarCollapsed.value = false
+  }
 }
 
 const handleLogout = () => {
@@ -366,36 +389,191 @@ const handleLogout = () => {
   background: #f5f7fa;
 }
 
+/* 侧边栏遮罩（移动端） */
+.sidebar-overlay {
+  display: none;
+}
+
 /* 响应式设计 */
+@media (max-width: 1024px) {
+  .content {
+    padding: 25px 20px;
+  }
+}
+
 @media (max-width: 768px) {
   .navbar-content {
-    padding: 0 15px;
-    height: 60px;
+    padding: 0 12px;
+    height: 56px;
+  }
+
+  .navbar-left {
+    gap: 12px;
+  }
+
+  .brand-icon {
+    font-size: 20px;
   }
 
   .brand-text {
     display: none;
   }
 
+  .logout-btn {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+
+  .logout-btn svg {
+    width: 16px;
+    height: 16px;
+  }
+
   .sidebar {
-    position: absolute;
-    left: -250px;
-    height: calc(100vh - 60px);
-    z-index: 999;
+    position: fixed;
+    left: -100%;
+    top: 56px;
+    height: calc(100vh - 56px);
+    width: 40vw;
+    max-width: 280px;
+    z-index: 998;
     transition: left 0.3s ease;
+    box-shadow: 2px 0 12px rgba(0, 0, 0, 0.15);
   }
 
   .main-layout.sidebar-collapsed .sidebar {
     left: 0;
-    width: 250px;
+    width: 40vw;
+    max-width: 280px;
+  }
+
+  /* 侧边栏背景遮罩 */
+  .sidebar-overlay {
+    display: block;
+    position: fixed;
+    top: 56px;
+    left: 0;
+    width: 100vw;
+    height: calc(100vh - 56px);
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 997;
+    cursor: pointer;
+  }
+
+  .sidebar-nav {
+    padding: 8px 0;
+  }
+
+  .nav-item {
+    padding: 8px 14px;
+    gap: 10px;
+    font-size: 14px;
+    white-space: normal;
+    word-break: break-word;
+    display: flex;
+    align-items: center;
+  }
+
+  .nav-icon {
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+
+  .nav-text {
+    white-space: normal;
+    word-break: break-word;
+    display: block;
+    flex: 1;
+    overflow: visible;
+  }
+
+  /* 移动端侧边栏展开时始终显示文字 */
+  .main-layout.sidebar-collapsed .nav-text {
+    display: block !important;
   }
 
   .content {
-    padding: 20px 15px;
+    padding: 16px 12px;
   }
 
   .navbar-right {
+    gap: 8px;
+  }
+
+  .username {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .navbar-content {
+    padding: 0 10px;
+    height: 52px;
+  }
+
+  .navbar-left {
     gap: 10px;
+  }
+
+  .brand-icon {
+    font-size: 18px;
+  }
+
+  .sidebar {
+    top: 52px;
+    height: calc(100vh - 52px);
+    width: 40vw;
+    max-width: 260px;
+  }
+
+  .main-layout.sidebar-collapsed .sidebar {
+    width: 40vw;
+    max-width: 260px;
+  }
+
+  .main-layout.sidebar-collapsed::before {
+    top: 52px;
+  }
+
+  .sidebar-overlay {
+    top: 52px;
+    height: calc(100vh - 52px);
+  }
+
+  .sidebar-nav {
+    padding: 4px 0;
+  }
+
+  .nav-item {
+    padding: 6px 12px;
+    gap: 8px;
+    font-size: 13px;
+    white-space: normal;
+    word-break: break-word;
+    display: flex;
+    align-items: center;
+  }
+
+  .nav-icon {
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  .nav-text {
+    white-space: normal;
+    word-break: break-word;
+    display: block;
+    flex: 1;
+    overflow: visible;
+  }
+
+  /* 移动端侧边栏展开时始终显示文字 */
+  .main-layout.sidebar-collapsed .nav-text {
+    display: block !important;
+  }
+
+  .content {
+    padding: 12px 8px;
   }
 }
 
@@ -640,5 +818,24 @@ const handleLogout = () => {
     transform: scale(0.9) translateY(-20px);
     opacity: 0;
   }
+}
+
+/* 侧边栏遮罩动画 */
+.overlay-fade-enter-active {
+  animation: overlayFadeIn 0.3s ease;
+}
+
+.overlay-fade-leave-active {
+  animation: overlayFadeOut 0.3s ease;
+}
+
+@keyframes overlayFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes overlayFadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
 }
 </style>
