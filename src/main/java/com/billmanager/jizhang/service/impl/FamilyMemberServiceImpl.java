@@ -211,6 +211,14 @@ public class FamilyMemberServiceImpl implements FamilyMemberService {
             
             // 如果该成员是家庭组的创建者
             if (familyGroup != null && familyGroup.getCreatorId().equals(member.getUserId())) {
+                // 检查家庭组中是否还有其他成员（包括创建者自己）
+                int totalMembers = familyMemberMapper.countByFamilyGroupId(familyGroup.getId());
+                if (totalMembers > 1) {
+                    // 还有其他成员，不允许创建者退出
+                    log.warn("【家庭成员】创建者 (用户ID: {}) 尝试退出，但家庭组中还有 {} 个成员", member.getUserId(), totalMembers - 1);
+                    throw new RuntimeException("家庭组中还有其他成员，请先移除所有成员后再退出");
+                }
+                
                 // 先删除该成员
                 familyMemberMapper.deleteById(memberId);
                 

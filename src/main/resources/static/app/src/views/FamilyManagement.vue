@@ -10,10 +10,11 @@
         家庭组信息
       </button>
       <button 
+        v-if="!familyGroup"
         class="tab-button" 
         :class="{ active: activeTab === 'join' }"
         @click="activeTab = 'join'">
-        {{ familyGroup ? '其他家庭' : '加入或创建家庭' }}
+        加入或创建家庭
       </button>
       <button 
         v-if="familyGroup"
@@ -140,26 +141,6 @@
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-
-        <!-- 已加入家庭的情况 - 显示可加入其他家庭的选项 -->
-        <div v-else class="join-section">
-          <h3>加入其他家庭</h3>
-          <p>您已经是 <strong>{{ familyGroup.name }}</strong> 的成员</p>
-          <p class="hint">如需加入其他家庭组，请先从现有家庭中退出</p>
-          
-          <div class="form-group">
-            <label for="code-input-other">家庭组编号：</label>
-            <input 
-              id="code-input-other"
-              v-model="joinCode" 
-              type="text" 
-              placeholder="输入6位编号"
-              @keyup.enter="joinFamily"
-              maxlength="6"
-              disabled>
-            <p class="hint">您需要先退出当前家庭才能加入其他家庭</p>
           </div>
         </div>
       </div>
@@ -935,6 +916,15 @@ const updatePermissions = async () => {
 const removeMember = async (memberId) => {
   const member = members.value.find(m => m.id === memberId)
   const isSelf = member && member.userId === currentUserId.value
+  
+  // 如果是当前用户（自己）退出，检查是否是管理员且还有其他成员
+  if (isSelf && isAdmin.value) {
+    const otherMembers = members.value.filter(m => m.userId !== currentUserId.value)
+    if (otherMembers.length > 0) {
+      showMessage('家庭组中还有其他成员，请先移除所有成员后再退出', 'error')
+      return
+    }
+  }
   
   // 显示对话框，让用户选择是否保留数据
   pendingExitMemberId.value = memberId
