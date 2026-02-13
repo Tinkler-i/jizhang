@@ -1,5 +1,6 @@
 package com.billmanager.jizhang.service;
 
+import com.billmanager.jizhang.entity.Budget;
 import com.billmanager.jizhang.entity.Expense;
 import com.billmanager.jizhang.entity.ExpenseCategory;
 import com.billmanager.jizhang.entity.Income;
@@ -31,6 +32,9 @@ public class AIDataProvider {
     @Autowired
     private IncomeCategoryService incomeCategoryService;
 
+    @Autowired
+    private BudgetService budgetService;
+
     /**
      * 获取用户本月的财务数据文本
      */
@@ -55,17 +59,47 @@ public class AIDataProvider {
         // 查询收入
         List<Income> incomes = incomeService.findByUserIdAndDateRange(userId, startDate, endDate);
         
-        return formatFinancialData(expenses, incomes, userId, year, month);
+        // 查询预算
+        String budgetMonth = String.format("%d-%02d", year, month);
+        List<Budget> budgets = budgetService.findByUserIdAndBudgetMonth(userId, budgetMonth);
+        
+        return formatFinancialData(expenses, incomes, budgets, userId, year, month);
     }
 
     /**
      * 将财务数据格式化为人类可读的文本
      */
     private String formatFinancialData(List<Expense> expenses, List<Income> incomes, 
-                                       Long userId, int year, int month) {
+                                       List<Budget> budgets, Long userId, int year, int month) {
         StringBuilder sb = new StringBuilder();
         
         sb.append("【").append(year).append("年").append(month).append("月账单数据】\n\n");
+        
+        // 预算部分
+        sb.append("【预算信息】\n");
+        if (budgets == null || budgets.isEmpty()) {
+            sb.append("本月无预算\n");
+        } else {
+            double totalBudget = 0;
+            double totalSpent = 0;
+            for (Budget budget : budgets) {
+                String categoryName = getCategoryName(budget.getCategoryId(), userId, true);
+                double budgetAmount = budget.getAmount() != null ? budget.getAmount().doubleValue() : 0;
+                double spentAmount = budget.getSpentAmount() != null ? budget.getSpentAmount().doubleValue() : 0;
+                double percentage = budgetAmount > 0 ? (spentAmount / budgetAmount * 100) : 0;
+                sb.append("- ").append(categoryName).append(": 预算 ¥").append(String.format("%.2f", budgetAmount))
+                  .append(", 已用 ¥").append(String.format("%.2f", spentAmount))
+                  .append(" (").append(String.format("%.1f%%", percentage)).append(")\n");
+                totalBudget += budgetAmount;
+                totalSpent += spentAmount;
+            }
+            double overallPercentage = totalBudget > 0 ? (totalSpent / totalBudget * 100) : 0;
+            sb.append("总预算: ¥").append(String.format("%.2f", totalBudget))
+              .append(", 总已用: ¥").append(String.format("%.2f", totalSpent))
+              .append(" (").append(String.format("%.1f%%", overallPercentage)).append(")\n");
+        }
+        
+        sb.append("\n");
         
         // 支出部分
         sb.append("【支出详情】\n");

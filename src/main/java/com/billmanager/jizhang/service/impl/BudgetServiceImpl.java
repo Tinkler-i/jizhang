@@ -59,11 +59,14 @@ public class BudgetServiceImpl implements BudgetService {
         budget.setSpent(BigDecimal.ZERO);
         budget.setRemark(request.getRemark());
         
-        // 如果用户在家庭组中，设置 familyGroupId
+        // 设置 familyGroupId：如果用户在家庭组中，使用家庭组ID；否则使用0表示个人模式
         FamilyMember member = permissionService.getFamilyMember(userId);
         if (member != null) {
             budget.setFamilyGroupId(member.getFamilyGroupId());
             log.info("【预算创建】用户{}在家庭组{}中，设置familyGroupId", userId, member.getFamilyGroupId());
+        } else {
+            budget.setFamilyGroupId(0L);
+            log.info("【预算创建】用户{}不在家庭组中，设置familyGroupId为0表示个人模式", userId);
         }
         
         budgetMapper.insert(budget);

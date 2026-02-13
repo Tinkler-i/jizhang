@@ -660,18 +660,50 @@ onMounted(() => {
 
 @media (max-width: 768px) {
   .page-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 15px;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    justify-content: space-between;
+  }
+
+  .page-header h1 {
+    font-size: 20px;
+    width: auto;
+    margin-bottom: 0;
+    flex-shrink: 0;
   }
 
   .header-actions {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+    align-items: center;
+    justify-content: space-between;
     width: 100%;
-    flex-direction: column;
+  }
+
+  .header-actions :deep(input) {
+    width: auto;
+    min-width: 140px;
+  }
+
+  .header-actions :deep(.btn) {
+    width: auto;
+    white-space: nowrap;
+    padding: 8px 12px;
   }
 
   .budget-grid {
     grid-template-columns: 1fr;
+  }
+
+  .empty-state {
+    padding: 40px 16px;
+  }
+
+  .empty-state :deep(.btn) {
+    width: 100%;
+    max-width: 200px;
   }
 }
 </style>
