@@ -102,8 +102,11 @@ public class FamilyMemberServiceImpl implements FamilyMemberService {
                 int incomeCategoryUpdated = incomeCategoryMapper.updateAllCategoriesFamilyGroupId(userId, familyGroup.getId());
                 int expenseCategoryUpdated = expenseCategoryMapper.updateAllCategoriesFamilyGroupId(userId, familyGroup.getId());
                 
-                log.info("【家庭成员】用户ID: {} 加入家庭组ID: {} 后，更新了 {} 条收入记录、{} 条支出记录、{} 个收入分类和 {} 个支出分类", 
-                        userId, familyGroup.getId(), incomeUpdated, expenseUpdated, incomeCategoryUpdated, expenseCategoryUpdated);
+                // 更新用户的所有预算记录的家庭组ID
+                int budgetUpdated = budgetMapper.updateFamilyGroupId(userId, familyGroup.getId());
+                
+                log.info("【家庭成员】用户ID: {} 加入家庭组ID: {} 后，更新了 {} 条收入记录、{} 条支出记录、{} 个收入分类、{} 个支出分类和 {} 条预算记录", 
+                        userId, familyGroup.getId(), incomeUpdated, expenseUpdated, incomeCategoryUpdated, expenseCategoryUpdated, budgetUpdated);
             } else {
                 log.info("【家庭成员】用户ID: {} 加入家庭组ID: {} 后，未带入现有数据", userId, familyGroup.getId());
             }

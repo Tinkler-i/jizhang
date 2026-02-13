@@ -2,18 +2,79 @@
   <div class="dashboard">
     <div class="page-header">
       <h1>仪表盘</h1>
-      <p class="page-subtitle">{{ currentMonthDisplay }}</p>
+      <p class="page-subtitle">{{ pageSubtitle }}</p>
+    </div>
+
+    <!-- 模式切换和时间选择 -->
+    <div class="mode-selector">
+      <div class="mode-buttons">
+        <button 
+          :class="['mode-btn', { active: modeType === 'monthly' }]"
+          @click="modeType = 'monthly'">
+          📅 月度模式
+        </button>
+        <button 
+          :class="['mode-btn', { active: modeType === 'yearly' }]"
+          @click="modeType = 'yearly'">
+          📊 年度模式
+        </button>
+      </div>
+      
+      <!-- 月份选择器（仅月度模式显示） -->
+      <div v-if="modeType === 'monthly'" class="month-selector">
+        <input 
+          type="month" 
+          v-model="selectedMonth"
+          @change="handleMonthChange"
+          class="month-input"
+        >
+        <button class="quick-btn" @click="selectCurrentMonth">本月</button>
+      </div>
+
+      <!-- 年份选择器（仅年度模式显示） -->
+      <div v-if="modeType === 'yearly'" ref="yearSelectorRef" class="year-selector">
+        <div class="year-input-group">
+          <input 
+            type="text"
+            :value="`${selectedYear}年`"
+            @click="toggleYearPicker"
+            class="year-input"
+            readonly
+          >
+          <span class="year-icon" @click="toggleYearPicker">📅</span>
+          
+          <!-- 年份选择面板 -->
+          <div v-if="showYearPicker" class="year-picker">
+            <div class="year-picker-header">
+              <button class="year-nav-btn" @click="previousYearRange">❮</button>
+              <span class="year-range-text">{{ yearRangeStart }}-{{ yearRangeEnd }}</span>
+              <button class="year-nav-btn" @click="nextYearRange">❯</button>
+            </div>
+            <div class="year-picker-grid">
+              <button 
+                v-for="year in displayYears" 
+                :key="year"
+                :class="['year-button', { active: year === selectedYear }]"
+                @click="selectYearFromPicker(year)"
+              >
+                {{ year }}
+              </button>
+            </div>
+          </div>
+        </div>
+        <button class="quick-btn" @click="selectCurrentYear">本年</button>
+      </div>
     </div>
 
     <!-- 关键指标卡片区 -->
     <section class="metrics-section">
-      <h2>本月关键指标</h2>
+      <h2>{{ metricsTitle }}</h2>
       <div class="metrics-grid">
         <Card variant="metric">
           <div class="metric-card">
             <div class="metric-icon income">💵</div>
             <div class="metric-content">
-              <p class="metric-label">本月收入</p>
+              <p class="metric-label">{{ incomeLabel }}</p>
               <p class="metric-value">¥ {{ metrics.income || '0.00' }}</p>
             </div>
           </div>
@@ -23,7 +84,7 @@
           <div class="metric-card">
             <div class="metric-icon expense">💸</div>
             <div class="metric-content">
-              <p class="metric-label">本月支出</p>
+              <p class="metric-label">{{ expenseLabel }}</p>
               <p class="metric-value">¥ {{ metrics.expense || '0.00' }}</p>
               <p class="metric-target">预算: ¥ {{ metrics.budgetExpense || '0.00' }}</p>
             </div>
@@ -174,7 +235,7 @@
 </template>
 
 <script setup>
-import { reactive, ref, onMounted, computed } from 'vue'
+import { reactive, ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { analysisAPI, reportAPI, userTargetAPI } from '../api'
 import Card from '../components/Card.vue'
 import Button from '../components/Button.vue'
@@ -201,6 +262,15 @@ const selectedExpenseCategory = ref(null)
 const incomeCategoryTotal = ref(0)
 const expenseCategoryTotal = ref(0)
 
+// 年份选择器ref
+const yearSelectorRef = ref(null)
+
+// 模式相关
+const modeType = ref('monthly') // 'monthly' 或 'yearly'
+const selectedMonth = ref('')
+const selectedYear = ref(new Date().getFullYear())
+const currentYear = new Date().getFullYear()
+
 const metrics = reactive({
   income: '0.00',
   expense: '0.00',
@@ -212,9 +282,29 @@ const metrics = reactive({
   profitRate: '0%'
 })
 
+const pageSubtitle = computed(() => {
+  if (modeType.value === 'monthly') {
+    const date = new Date(selectedMonth.value)
+    return `${date.getFullYear()}年${date.getMonth() + 1}月`
+  } else {
+    return `${selectedYear.value}年度`
+  }
+})
+
+const metricsTitle = computed(() => {
+  return modeType.value === 'monthly' ? '本月关键指标' : '年度关键指标'
+})
+
+const incomeLabel = computed(() => {
+  return modeType.value === 'monthly' ? '本月收入' : '年度收入'
+})
+
+const expenseLabel = computed(() => {
+  return modeType.value === 'monthly' ? '本月支出' : '年度支出'
+})
+
 const currentMonthDisplay = computed(() => {
-  const now = new Date()
-  return `${now.getFullYear()}年${now.getMonth() + 1}月`
+  return pageSubtitle.value
 })
 
 const achievementRate = computed(() => {
@@ -225,10 +315,71 @@ const achievementRate = computed(() => {
   return Math.max(0, rate)
 })
 
+const selectCurrentMonth = () => {
+  const now = new Date()
+  selectedMonth.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  handleMonthChange()
+}
+
+const handleMonthChange = () => {
+  loadDashboardData()
+  setTimeout(() => loadCharts(), 500)
+}
+
+// 年份选择器相关
+const showYearPicker = ref(false)
+const yearPickerStart = ref(new Date().getFullYear() - 6)
+
+const displayYears = computed(() => {
+  const years = []
+  for (let i = 0; i < 12; i++) {
+    years.push(yearPickerStart.value + i)
+  }
+  return years
+})
+
+const yearRangeStart = computed(() => yearPickerStart.value)
+const yearRangeEnd = computed(() => yearPickerStart.value + 11)
+
+const toggleYearPicker = () => {
+  showYearPicker.value = !showYearPicker.value
+}
+
+const previousYearRange = () => {
+  yearPickerStart.value -= 12
+}
+
+const nextYearRange = () => {
+  yearPickerStart.value += 12
+}
+
+const selectYearFromPicker = (year) => {
+  selectedYear.value = year
+  showYearPicker.value = false
+  handleYearChange()
+}
+
+const selectCurrentYear = () => {
+  selectedYear.value = new Date().getFullYear()
+  handleYearChange()
+}
+
+const handleYearChange = () => {
+  loadDashboardData()
+  setTimeout(() => loadCharts(), 500)
+}
+
 const loadDashboardData = async () => {
   try {
-    const month = new Date().toISOString().slice(0, 7)
-    console.log('【仪表盘】加载月份数据，月份:', month)
+    let month
+    if (modeType.value === 'monthly') {
+      month = selectedMonth.value
+    } else {
+      // 年度模式：传递年份，后端返回年度数据
+      month = `${selectedYear.value}`
+    }
+    
+    console.log('【仪表盘】加载数据，模式:', modeType.value, '时间:', month)
     const response = await reportAPI.getSummary({ month })
     console.log('【仪表盘】原始响应:', JSON.stringify(response, null, 2))
     
@@ -258,8 +409,13 @@ const loadDashboardData = async () => {
 
 const loadCharts = async () => {
   try {
-    const month = new Date().toISOString().slice(0, 7)
-    console.log('【图表】加载图表数据，月份:', month)
+    let month
+    if (modeType.value === 'monthly') {
+      month = selectedMonth.value
+    } else {
+      month = `${selectedYear.value}`
+    }
+    console.log('【图表】加载图表数据，时间:', month)
     
     // 加载趋势图数据
     const trendData = await reportAPI.getIncomeChart(month)
@@ -475,14 +631,39 @@ const saveIncomeTarget = async () => {
   }
 }
 
+const handleClickOutside = (event) => {
+  if (yearSelectorRef.value && !yearSelectorRef.value.contains(event.target)) {
+    showYearPicker.value = false
+  }
+}
+
 const openEditTargetModal = () => {
   targetForm.incomeTarget = metrics.targetIncome || '0'
   showEditTargetModal.value = true
 }
 
-onMounted(() => {
+// 监听模式改变，自动加载数据
+watch(modeType, () => {
+  console.log('【仪表盘】模式改变为:', modeType.value)
   loadDashboardData()
   setTimeout(() => loadCharts(), 500)
+})
+
+onMounted(() => {
+  // 初始化月份为当前月份
+  const now = new Date()
+  selectedMonth.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  
+  // 添加点击外部关闭年份选择器的监听
+  document.addEventListener('click', handleClickOutside)
+  
+  loadDashboardData()
+  setTimeout(() => loadCharts(), 500)
+})
+
+onUnmounted(() => {
+  // 移除事件监听
+  document.removeEventListener('click', handleClickOutside)
 })
 </script>
 
@@ -492,7 +673,7 @@ onMounted(() => {
 }
 
 .page-header {
-  margin-bottom: 30px;
+  margin-bottom: 20px;
 }
 
 .page-header h1 {
@@ -504,6 +685,194 @@ onMounted(() => {
 .page-subtitle {
   color: #999;
   font-size: 14px;
+}
+
+/* 模式选择器样式 */
+.mode-selector {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  padding: 16px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e8e8e8;
+}
+
+.mode-buttons {
+  display: flex;
+  gap: 12px;
+}
+
+.mode-btn {
+  padding: 10px 20px;
+  border: 2px solid #e0e0e0;
+  background: white;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  color: #666;
+}
+
+.mode-btn:hover {
+  border-color: #1890ff;
+  color: #1890ff;
+}
+
+.mode-btn.active {
+  background: #1890ff;
+  border-color: #1890ff;
+  color: white;
+}
+
+.month-selector {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.month-input {
+  padding: 8px 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.month-input:focus {
+  outline: none;
+  border-color: #1890ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+.year-selector {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.year-input-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.year-input {
+  padding: 8px 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+  background: white;
+  min-width: 140px;
+}
+
+.year-input:focus {
+  outline: none;
+  border-color: #1890ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+.year-icon {
+  position: absolute;
+  right: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  pointer-events: none;
+}
+
+.year-picker {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: white;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  margin-top: 4px;
+  padding: 12px;
+  z-index: 100;
+  min-width: 280px;
+}
+
+.year-picker-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.year-range-text {
+  font-weight: 600;
+  color: #333;
+  font-size: 14px;
+}
+
+.year-nav-btn {
+  background: none;
+  border: none;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #666;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.year-nav-btn:hover {
+  background: #f0f0f0;
+  color: #1890ff;
+}
+
+.year-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.year-button {
+  padding: 8px 4px;
+  border: 1px solid #d9d9d9;
+  background: white;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s ease;
+  color: #333;
+}
+
+.year-button:hover {
+  border-color: #1890ff;
+  color: #1890ff;
+}
+
+.year-button.active {
+  background: #1890ff;
+  border-color: #1890ff;
+  color: white;
+  font-weight: 600;
+}
+
+.quick-btn {
+  padding: 8px 16px;
+  background: #f0f0f0;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  color: #333;
+}
+
+.quick-btn:hover {
+  background: #e6e6e6;
+  border-color: #999;
 }
 
 .metrics-section {
@@ -577,7 +946,7 @@ onMounted(() => {
 
 .charts-section {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
   gap: 20px;
   margin-bottom: 40px;
 }
@@ -700,6 +1069,49 @@ onMounted(() => {
 }
 
 @media (max-width: 768px) {
+  .mode-selector {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .mode-buttons {
+    width: 100%;
+  }
+
+  .mode-btn {
+    flex: 1;
+  }
+
+  .month-selector {
+    width: 100%;
+  }
+
+  .month-input {
+    flex: 1;
+  }
+
+  .year-selector {
+    width: 100%;
+  }
+
+  .year-input-group {
+    flex: 1;
+  }
+
+  .year-input {
+    width: 100%;
+  }
+
+  .year-picker {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    right: auto;
+    transform: translate(-50%, -50%);
+    min-width: 280px;
+    max-width: 90vw;
+  }
+
   .metrics-grid {
     grid-template-columns: 1fr;
   }

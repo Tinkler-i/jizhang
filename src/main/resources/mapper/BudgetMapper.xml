@@ -101,6 +101,13 @@
         DELETE FROM budget WHERE user_id = #{userId} AND family_group_id = #{familyGroupId}
     </delete>
 
+    <!-- 更新指定用户的所有预算记录的家庭组ID -->
+    <update id="updateFamilyGroupId">
+        UPDATE budget 
+        SET family_group_id = #{familyGroupId}, update_time = CURRENT_TIMESTAMP
+        WHERE user_id = #{userId}
+    </update>
+
     <!-- 将指定用户在指定家族组中的预算转换为个人数据 -->
     <update id="updateFamilyGroupIdToPersonal">
         UPDATE budget 

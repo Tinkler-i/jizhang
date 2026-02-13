@@ -69,6 +69,17 @@ public class BudgetServiceImpl implements BudgetService {
             log.info("【预算创建】用户{}不在家庭组中，设置familyGroupId为0表示个人模式", userId);
         }
         
+        // 检查是否已存在相同的预算
+        Budget existing = budgetMapper.findByFamilyGroupIdAndCategoryIdAndYearMonth(
+                budget.getFamilyGroupId(), 
+                budget.getCategoryId(), 
+                budget.getBudgetMonth());
+        if (existing != null) {
+            log.warn("【预算创建】该预算已存在，用户ID: {}, 分类: {}, 月份: {}", 
+                    userId, budget.getCategoryId(), budget.getBudgetMonth());
+            throw new BusinessException("该分类在 " + budget.getBudgetMonth() + " 的预算已存在，请编辑修改或删除后重试");
+        }
+        
         budgetMapper.insert(budget);
         return budget;
     }
