@@ -506,7 +506,18 @@ const handleRegister = async () => {
   }
 
   registerLoading.value = true
+  const startTime = Date.now()
+  console.log('【注册】开始提交注册请求...')
+  
   try {
+    console.log('【注册】发送请求数据:', {
+      username: form.username,
+      type: verifyType.value,
+      email: form.email,
+      phone: form.phone,
+      code: form.code
+    })
+    
     const response = await authAPI.register({
       type: verifyType.value,
       email: form.email,
@@ -517,17 +528,49 @@ const handleRegister = async () => {
       confirmPassword: form.confirmPassword
     })
 
+    const duration = Date.now() - startTime
+    console.log('【注册】收到响应，用时:', duration, 'ms')
+    console.log('【注册】响应数据:', response)
+
     if (response.code === 200) {
+      console.log('【注册】✓ 注册成功')
       uiStore.showNotification('注册成功，请登录', 'success')
       currentStep.value = 4
       setTimeout(() => {
         goToLogin()
       }, 2000)
     } else {
-      uiStore.showNotification(response.message, 'error')
+      const errorMsg = response.message || '注册失败，请重试'
+      console.log('【注册】✗ 服务器返回错误:', errorMsg)
+      uiStore.showNotification(errorMsg, 'error')
     }
   } catch (error) {
-    uiStore.showNotification('注册失败: ' + error.message, 'error')
+    const duration = Date.now() - startTime
+    console.error('【注册】✗ 注册请求异常 - 用时:', duration, 'ms')
+    console.error('【注册】异常详情:', error)
+    console.error('【注册】错误类型:', error.code)
+    console.error('【注册】错误信息:', error.message)
+    
+    // 更详细的错误提示
+    let errorMessage = '注册失败'
+    if (error.code === 'ECONNABORTED') {
+      errorMessage = '请求超时，服务器响应较慢。请检查网络连接或重试'
+    } else if (error.message && error.message.includes('timeout')) {
+      errorMessage = '请求超时（' + duration + 'ms），请重试或检查网络'
+    } else if (duration > 60000) {
+      errorMessage = '注册耗时过长(' + (duration/1000).toFixed(1) + '秒)，可能是网络问题。请检查连接后重试'
+    } else if (error.response?.status === 500) {
+      errorMessage = '服务器错误 (500)：' + (error.response?.data?.message || '请稍后重试')
+    } else if (error.response?.status === 504) {
+      errorMessage = '服务器网关超时 (504)：请稍后重试'
+    } else if (error.message) {
+      errorMessage = error.message
+    } else {
+      errorMessage = '注册失败: ' + JSON.stringify(error)
+    }
+    
+    console.log('【注册】显示错误提示:', errorMessage)
+    uiStore.showNotification(errorMessage, 'error')
   } finally {
     registerLoading.value = false
   }

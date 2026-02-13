@@ -79,14 +79,27 @@ public class RegisterController {
      */
     @PostMapping("/register")
     public ApiResponse<String> register(@RequestBody RegisterRequest request) {
+        long startTime = System.currentTimeMillis();
         try {
-            log.info("【API】收到注册请求 - 用户名: {}, 类型: {}", request.getUsername(), request.getType());
+            log.info("【注册API】========== 开始处理注册请求 ==========");
+            log.info("【注册API】用户名: {}, 邮箱: {}, 手机: {}, 验证类型: {}", 
+                request.getUsername(), request.getEmail(), request.getPhone(), request.getType());
+            
+            log.debug("【注册API】开始验证验证码...");
             verificationCodeService.registerWithVerificationCode(request);
-            log.info("【API】用户注册成功 - 用户名: {}", request.getUsername());
+            
+            long duration = System.currentTimeMillis() - startTime;
+            log.info("【注册API】✓ 用户注册成功 - 用户名: {} - 用时: {}ms", request.getUsername(), duration);
             return ApiResponse.success("注册成功，请登录");
+            
         } catch (Exception e) {
-            log.error("【API】用户注册失败 - 用户名: {}, 错误: {}", request.getUsername(), e.getMessage(), e);
-            return ApiResponse.error(e.getMessage());
+            long duration = System.currentTimeMillis() - startTime;
+            log.error("【注册API】✗ 用户注册失败 - 用户名: {}, 用时: {}ms, 错误类型: {}, 错误详情: {}", 
+                request.getUsername(), duration, e.getClass().getSimpleName(), e.getMessage(), e);
+            
+            // 返回详细的错误信息给前端
+            String errorMsg = e.getMessage() != null ? e.getMessage() : "注册失败，请重试";
+            return ApiResponse.error(errorMsg);
         }
     }
 }
