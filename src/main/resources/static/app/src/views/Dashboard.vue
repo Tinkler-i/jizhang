@@ -480,7 +480,7 @@ const drawTrendChart = (data) => {
     },
     options: {
       responsive: true,
-      maintainAspectRatio: true,
+      maintainAspectRatio: false,
       plugins: {
         legend: {
           display: true,
@@ -535,7 +535,7 @@ const drawIncomeCategoryChart = (data) => {
     },
     options: {
       responsive: true,
-      maintainAspectRatio: true,
+      maintainAspectRatio: false,
       plugins: {
         legend: {
           position: 'bottom',
@@ -595,7 +595,7 @@ const drawExpenseCategoryChart = (data) => {
     },
     options: {
       responsive: true,
-      maintainAspectRatio: true,
+      maintainAspectRatio: false,
       plugins: {
         legend: {
           position: 'bottom',
@@ -946,23 +946,24 @@ onUnmounted(() => {
 
 .charts-section {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: 20px;
   margin-bottom: 40px;
 }
 
 .chart-container {
   width: 100%;
+  grid-column: 1 / -1;
 }
 
 .chart-placeholder {
   position: relative;
-  height: 300px;
+  height: 400px;
 }
 
 .category-charts-section {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: 20px;
   margin-bottom: 40px;
 }
@@ -1114,6 +1115,14 @@ onUnmounted(() => {
 
   .metrics-grid {
     grid-template-columns: 1fr;
+  }
+
+  .charts-section {
+    grid-template-columns: 1fr;
+  }
+
+  .chart-placeholder {
+    height: 320px;
   }
 
   .category-charts-section {
