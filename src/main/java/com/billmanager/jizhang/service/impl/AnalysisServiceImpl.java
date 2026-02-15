@@ -440,51 +440,112 @@ public class AnalysisServiceImpl implements AnalysisService {
     public List<BudgetVsActual> getBudgetVsActual(Long userId, String yearMonth) {
         List<BudgetVsActual> result = new ArrayList<>();
         
-        // 解析年月
-        YearMonth ym = YearMonth.parse(yearMonth);
-        LocalDate monthStart = ym.atDay(1);
-        LocalDate monthEnd = ym.atEndOfMonth();
+        // 支持两种格式：年份（2025）和年月（2026-01）
+        List<String> monthsToProcess = new ArrayList<>();
+        LocalDate yearStart, yearEnd;
         
-        // 获取该月的所有预算
-        List<com.billmanager.jizhang.entity.Budget> budgets = budgetMapper.findByUserIdAndYearMonth(userId, yearMonth);
-        
-        if (budgets.isEmpty()) {
-            return result;
+        if (yearMonth.length() == 4) {
+            // 年度查询：格式为 "2025"
+            int year = Integer.parseInt(yearMonth);
+            yearStart = LocalDate.of(year, 1, 1);
+            yearEnd = LocalDate.of(year, 12, 31);
+            
+            // 生成全年的月份列表
+            for (int month = 1; month <= 12; month++) {
+                String monthStr = String.format("%04d-%02d", year, month);
+                monthsToProcess.add(monthStr);
+            }
+        } else {
+            // 月度查询：格式为 "2026-01"
+            YearMonth ym = YearMonth.parse(yearMonth);
+            yearStart = ym.atDay(1);
+            yearEnd = ym.atEndOfMonth();
+            monthsToProcess.add(yearMonth);
         }
         
-        // 获取该月的实际支出
-        List<Expense> monthExpenses = expenseMapper.findByUserIdAndDateRange(userId, monthStart, monthEnd);
-        Map<Long, BigDecimal> actualByCategory = monthExpenses.stream()
+        // 获取年度范围内的所有预算和实际支出
+        List<com.billmanager.jizhang.entity.Budget> allBudgets = budgetMapper.findByUserIdAndYearMonth(userId, monthsToProcess.get(0));
+        
+        // 获取年度范围内的实际支出
+        List<Expense> yearExpenses = expenseMapper.findByUserIdAndDateRange(userId, yearStart, yearEnd);
+        Map<Long, BigDecimal> actualByCategory = yearExpenses.stream()
                 .collect(Collectors.groupingBy(
                         Expense::getCategoryId,
                         Collectors.reducing(BigDecimal.ZERO, Expense::getAmount, BigDecimal::add)
                 ));
         
-        // 构建预算与实际对比数据
-        for (com.billmanager.jizhang.entity.Budget budget : budgets) {
-            ExpenseCategory category = expenseCategoryMapper.findById(budget.getCategoryId());
-            if (category == null) {
-                continue;
+        // 如果是年度查询，需要汇总所有月份的预算
+        if (yearMonth.length() == 4) {
+            Map<Long, BigDecimal> budgetByCategory = new HashMap<>();
+            for (String month : monthsToProcess) {
+                List<com.billmanager.jizhang.entity.Budget> monthBudgets = budgetMapper.findByUserIdAndYearMonth(userId, month);
+                for (com.billmanager.jizhang.entity.Budget budget : monthBudgets) {
+                    budgetByCategory.put(
+                            budget.getCategoryId(),
+                            budgetByCategory.getOrDefault(budget.getCategoryId(), BigDecimal.ZERO)
+                                    .add(budget.getAmount())
+                    );
+                }
             }
             
-            BigDecimal actualAmount = actualByCategory.getOrDefault(budget.getCategoryId(), BigDecimal.ZERO);
-            BigDecimal budgetAmount = budget.getAmount();
+            // 构建年度预算与实际对比数据
+            for (Map.Entry<Long, BigDecimal> entry : budgetByCategory.entrySet()) {
+                ExpenseCategory category = expenseCategoryMapper.findById(entry.getKey());
+                if (category == null) {
+                    continue;
+                }
+                
+                BigDecimal budgetAmount = entry.getValue();
+                BigDecimal actualAmount = actualByCategory.getOrDefault(entry.getKey(), BigDecimal.ZERO);
+                
+                BigDecimal percentage = budgetAmount.compareTo(BigDecimal.ZERO) > 0
+                        ? actualAmount.divide(budgetAmount, 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100"))
+                        : BigDecimal.ZERO;
+                
+                BigDecimal remaining = budgetAmount.subtract(actualAmount);
+                
+                BudgetVsActual bva = new BudgetVsActual();
+                bva.setCategoryId(entry.getKey());
+                bva.setCategoryName(category.getName());
+                bva.setBudgetAmount(budgetAmount);
+                bva.setActualAmount(actualAmount);
+                bva.setPercentage(percentage);
+                bva.setRemaining(remaining);
+                
+                result.add(bva);
+            }
+        } else {
+            // 月度查询逻辑（原有逻辑）
+            if (allBudgets.isEmpty()) {
+                return result;
+            }
             
-            BigDecimal percentage = budgetAmount.compareTo(BigDecimal.ZERO) > 0
-                    ? actualAmount.divide(budgetAmount, 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100"))
-                    : BigDecimal.ZERO;
-            
-            BigDecimal remaining = budgetAmount.subtract(actualAmount);
-            
-            BudgetVsActual bva = new BudgetVsActual();
-            bva.setCategoryId(budget.getCategoryId());
-            bva.setCategoryName(category.getName());
-            bva.setBudgetAmount(budgetAmount);
-            bva.setActualAmount(actualAmount);
-            bva.setPercentage(percentage);
-            bva.setRemaining(remaining);
-            
-            result.add(bva);
+            // 构建预算与实际对比数据
+            for (com.billmanager.jizhang.entity.Budget budget : allBudgets) {
+                ExpenseCategory category = expenseCategoryMapper.findById(budget.getCategoryId());
+                if (category == null) {
+                    continue;
+                }
+                
+                BigDecimal actualAmount = actualByCategory.getOrDefault(budget.getCategoryId(), BigDecimal.ZERO);
+                BigDecimal budgetAmount = budget.getAmount();
+                
+                BigDecimal percentage = budgetAmount.compareTo(BigDecimal.ZERO) > 0
+                        ? actualAmount.divide(budgetAmount, 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100"))
+                        : BigDecimal.ZERO;
+                
+                BigDecimal remaining = budgetAmount.subtract(actualAmount);
+                
+                BudgetVsActual bva = new BudgetVsActual();
+                bva.setCategoryId(budget.getCategoryId());
+                bva.setCategoryName(category.getName());
+                bva.setBudgetAmount(budgetAmount);
+                bva.setActualAmount(actualAmount);
+                bva.setPercentage(percentage);
+                bva.setRemaining(remaining);
+                
+                result.add(bva);
+            }
         }
         
         // 按预算金额降序排列
