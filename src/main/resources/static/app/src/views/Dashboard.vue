@@ -130,8 +130,11 @@
           <template #header>
             <h3>收入支出趋势</h3>
           </template>
-          <div class="chart-placeholder">
+          <div v-show="hasTrendData" class="chart-placeholder">
             <canvas ref="trendChart"></canvas>
+          </div>
+          <div v-show="!hasTrendData" class="empty-state-compact">
+            <p>📊 此{{ modeType === 'monthly' ? '月份' : '年份' }}暂时没有财务数据</p>
           </div>
         </Card>
       </div>
@@ -143,9 +146,9 @@
         <Card>
           <template #header>
             <h3>收入分类分布</h3>
-            <span class="chart-total">总计: ¥{{ incomeCategoryTotal.toFixed(2) }}</span>
+            <span v-show="hasIncomeCategoryData" class="chart-total">总计: ¥{{ incomeCategoryTotal.toFixed(2) }}</span>
           </template>
-          <div class="category-content">
+          <div v-show="hasIncomeCategoryData" class="category-content">
             <div class="chart-placeholder">
               <canvas ref="incomeCategoryChart"></canvas>
             </div>
@@ -163,6 +166,9 @@
               </div>
             </div>
           </div>
+          <div v-show="!hasIncomeCategoryData && !incomeCategoryDetails.length" class="empty-state-compact">
+            <p>📊 此{{ modeType === 'monthly' ? '月份' : '年份' }}暂时没有收入数据</p>
+          </div>
         </Card>
       </div>
 
@@ -170,9 +176,9 @@
         <Card>
           <template #header>
             <h3>支出分类分布</h3>
-            <span class="chart-total">总计: ¥{{ expenseCategoryTotal.toFixed(2) }}</span>
+            <span v-show="hasExpenseCategoryData" class="chart-total">总计: ¥{{ expenseCategoryTotal.toFixed(2) }}</span>
           </template>
-          <div class="category-content">
+          <div v-show="hasExpenseCategoryData" class="category-content">
             <div class="chart-placeholder">
               <canvas ref="expenseCategoryChart"></canvas>
             </div>
@@ -189,6 +195,26 @@
                 <div class="category-percentage">{{ item.percentage.toFixed(2) }}%</div>
               </div>
             </div>
+          </div>
+          <div v-show="!hasExpenseCategoryData && !expenseCategoryDetails.length" class="empty-state-compact">
+            <p>📊 此{{ modeType === 'monthly' ? '月份' : '年份' }}暂时没有支出数据</p>
+          </div>
+        </Card>
+      </div>
+    </div>
+
+    <!-- 预算执行情况 -->
+    <div class="analysis-charts-section">
+      <div class="analysis-chart-container">
+        <Card>
+          <template #header>
+            <h3>预算执行情况</h3>
+          </template>
+          <div v-show="hasBudgetData" class="chart-placeholder">
+            <canvas ref="budgetChart"></canvas>
+          </div>
+          <div v-show="!hasBudgetData" class="empty-state-compact">
+            <p>📊 此{{ modeType === 'monthly' ? '月份' : '年份' }}暂时没有预算数据</p>
           </div>
         </Card>
       </div>
@@ -246,9 +272,11 @@ import Chart from 'chart.js/auto'
 const trendChart = ref(null)
 const incomeCategoryChart = ref(null)
 const expenseCategoryChart = ref(null)
+const budgetChart = ref(null)
 let trendChartInstance = null
 let incomeCategoryChartInstance = null
 let expenseCategoryChartInstance = null
+let budgetChartInstance = null
 
 const showEditTargetModal = ref(false)
 const targetForm = reactive({
@@ -261,6 +289,12 @@ const selectedIncomeCategory = ref(null)
 const selectedExpenseCategory = ref(null)
 const incomeCategoryTotal = ref(0)
 const expenseCategoryTotal = ref(0)
+
+// 图表数据状态标志
+const hasTrendData = ref(false)
+const hasIncomeCategoryData = ref(false)
+const hasExpenseCategoryData = ref(false)
+const hasBudgetData = ref(false)
 
 // 年份选择器ref
 const yearSelectorRef = ref(null)
@@ -321,9 +355,10 @@ const selectCurrentMonth = () => {
   handleMonthChange()
 }
 
-const handleMonthChange = () => {
+const handleMonthChange = async () => {
   loadDashboardData()
-  setTimeout(() => loadCharts(), 500)
+  await new Promise(resolve => setTimeout(resolve, 100))
+  await loadCharts()
 }
 
 // 年份选择器相关
@@ -364,9 +399,10 @@ const selectCurrentYear = () => {
   handleYearChange()
 }
 
-const handleYearChange = () => {
+const handleYearChange = async () => {
   loadDashboardData()
-  setTimeout(() => loadCharts(), 500)
+  await new Promise(resolve => setTimeout(resolve, 100))
+  await loadCharts()
 }
 
 const loadDashboardData = async () => {
@@ -417,12 +453,22 @@ const loadCharts = async () => {
     }
     console.log('【图表】加载图表数据，时间:', month)
     
+    // 重置总计值，确保数据更新时显示新数据
+    incomeCategoryTotal.value = 0
+    expenseCategoryTotal.value = 0
+    
+    // 重置数据状态标志
+    hasTrendData.value = false
+    hasIncomeCategoryData.value = false
+    hasExpenseCategoryData.value = false
+    hasBudgetData.value = false
+    
     // 加载趋势图数据
     const trendData = await reportAPI.getIncomeChart(month)
     console.log('【趋势图】原始响应:', JSON.stringify(trendData, null, 2))
     if (trendData && trendData.code === 200 && trendData.data) {
       console.log('【趋势图】绘制数据:', JSON.stringify(trendData.data, null, 2))
-      drawTrendChart(trendData.data)
+      drawTrendChart(trendData.data, modeType.value)
     } else {
       console.warn('【趋势图】数据格式错误:', trendData)
     }
@@ -446,94 +492,374 @@ const loadCharts = async () => {
     } else {
       console.warn('【支出分类图】数据格式错误:', expenseCategoryData)
     }
+
+    // 加载预算执行情况
+    try {
+      const budgetData = await analysisAPI.getBudgetVsActual(month)
+      console.log('【预算图】原始响应:', JSON.stringify(budgetData, null, 2))
+      if (budgetData && budgetData.code === 200 && budgetData.data) {
+        console.log('【预算图】绘制数据:', JSON.stringify(budgetData.data, null, 2))
+        drawBudgetChart(budgetData.data)
+      } else {
+        console.warn('【预算图】数据格式错误:', budgetData)
+      }
+    } catch (error) {
+      console.error('【预算图】加载失败:', error)
+    }
   } catch (error) {
     console.error('【图表】加载失败:', error)
   }
 }
 
-const drawTrendChart = (data) => {
-  if (trendChartInstance) trendChartInstance.destroy()
-  
-  const ctx = trendChart.value
-  if (!ctx) return
+const drawTrendChart = (data, mode) => {
+  try {
+    if (trendChartInstance) trendChartInstance.destroy()
+    
+    const ctx = trendChart.value
+    if (!ctx) {
+      console.warn('【趋势图】canvas 上下文不存在')
+      hasTrendData.value = false
+      return
+    }
 
-  trendChartInstance = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: data.labels || [],
-      datasets: [
-        {
-          label: '收入',
-          data: data.income || [],
-          borderColor: '#27ae60',
-          backgroundColor: 'rgba(39, 174, 96, 0.1)',
-          tension: 0.3
+    // 数据已经是按日期聚合的格式
+    const labels = data.labels || []
+    const incomeValues = data.income || []
+    const expenseValues = data.expense || []
+    
+    console.log('【趋势图】准备绘制，数据:', { labelsCount: labels.length })
+    
+    // 只有当真的有标签时才绘制
+    if (!labels || labels.length === 0) {
+      console.warn('【趋势图】没有数据：labels 为空')
+      hasTrendData.value = false
+      return
+    }
+    
+    // 检查是否有有效的数据（至少有一个非零的收入或支出）
+    const hasValidData = incomeValues.some(v => v !== 0) || expenseValues.some(v => v !== 0)
+    if (!hasValidData) {
+      console.warn('【趋势图】没有有效数据：所有收入和支出都是0')
+      hasTrendData.value = false
+      return
+    }
+    
+    // 计算每日盈余
+    const surplusValues = labels.map((_, index) => {
+      return (incomeValues[index] || 0) - (expenseValues[index] || 0)
+    })
+
+    trendChartInstance = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: '收入',
+            data: incomeValues,
+            borderColor: '#27ae60',
+            backgroundColor: 'rgba(39, 174, 96, 0.1)',
+            borderWidth: 2,
+            tension: 0.3,
+            type: 'line',
+            order: 1
+          },
+          {
+            label: '支出',
+            data: expenseValues,
+            borderColor: '#e74c3c',
+            backgroundColor: 'rgba(231, 76, 60, 0.1)',
+            borderWidth: 2,
+            tension: 0.3,
+            type: 'line',
+            order: 1
+          },
+          {
+            label: '盈余',
+            data: surplusValues,
+            backgroundColor: surplusValues.map(v => v >= 0 ? '#3498db' : '#f39c12'),
+            borderColor: surplusValues.map(v => v >= 0 ? '#2980b9' : '#e67e22'),
+            borderWidth: 1,
+            borderRadius: 2,
+            type: 'bar',
+            order: 2,
+            hidden: mode === 'monthly'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: true,
+            position: 'top'
+          },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                let value = context.parsed.y
+                return context.dataset.label + ': ¥' + value.toFixed(2)
+              }
+            }
+          }
         },
-        {
-          label: '支出',
-          data: data.expense || [],
-          borderColor: '#e74c3c',
-          backgroundColor: 'rgba(231, 76, 60, 0.1)',
-          tension: 0.3
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          display: true,
-          position: 'top'
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              callback: function(value) {
+                return '¥' + value.toFixed(0)
+              }
+            }
+          }
         }
       }
-    }
-  })
+    })
+    
+    hasTrendData.value = true
+    console.log('【趋势图】绘制完成')
+  } catch (error) {
+    console.error('【趋势图】绘制出错:', error)
+    hasTrendData.value = false
+  }
 }
 
 const drawIncomeCategoryChart = (data) => {
-  if (incomeCategoryChartInstance) incomeCategoryChartInstance.destroy()
+  try {
+    if (incomeCategoryChartInstance) incomeCategoryChartInstance.destroy()
+    
+    const ctx = incomeCategoryChart.value
+    if (!ctx) {
+      console.warn('【收入分类图】canvas 上下文不存在')
+      hasIncomeCategoryData.value = false
+      return
+    }
+
+    // 检查是否有有效的数据
+    console.log('【收入分类图】检查数据:', { labels: data.labels?.length, values: data.values?.length })
+    
+    // 只要有 labels 就可以尝试绘制
+    if (!data.labels || !data.labels.length) {
+      console.warn('【收入分类图】无有效数据：labels 为空')
+      hasIncomeCategoryData.value = false
+      incomeCategoryDetails.value = []
+      incomeCategoryTotal.value = 0
+      return
+    }
+    
+    console.log('【收入分类图】开始绘制')
+
+    // 存储详细数据用于交互
+    if (data.details) {
+      incomeCategoryDetails.value = data.details.map(d => ({
+        ...d,
+        amount: Number(d.amount),
+        percentage: Number(d.percentage)
+      }))
+    }
+    if (data.total) {
+      incomeCategoryTotal.value = Number(data.total)
+    }
+
+    incomeCategoryChartInstance = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: data.labels || [],
+        datasets: [
+          {
+            data: data.values || [],
+            backgroundColor: [
+              '#667eea',
+              '#764ba2',
+              '#f093fb',
+              '#4facfe',
+              '#00f2fe',
+              '#43e97b',
+              '#fa709a',
+              '#fee140',
+              '#34c759',
+              '#ff3b30'
+            ],
+            borderWidth: 2,
+            borderColor: '#fff'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              padding: 15,
+              font: {
+                size: 12
+              }
+            }
+          }
+        }
+      }
+    })
+    
+    hasIncomeCategoryData.value = true
+    console.log('【收入分类图】绘制完成')
+  } catch (error) {
+    console.error('【收入分类图】绘制出错:', error)
+    hasIncomeCategoryData.value = false
+  }
+}
+
+const drawExpenseCategoryChart = (data) => {
+  try {
+    if (expenseCategoryChartInstance) expenseCategoryChartInstance.destroy()
+    
+    const ctx = expenseCategoryChart.value
+    if (!ctx) {
+      console.warn('【支出分类图】canvas 上下文不存在')
+      hasExpenseCategoryData.value = false
+      return
+    }
+
+    // 检查是否有有效的数据
+    console.log('【支出分类图】检查数据:', { labels: data.labels?.length, values: data.values?.length })
+    
+    // 只要有 labels 就可以尝试绘制
+    if (!data.labels || !data.labels.length) {
+      console.warn('【支出分类图】无有效数据：labels 为空')
+      hasExpenseCategoryData.value = false
+      expenseCategoryDetails.value = []
+      expenseCategoryTotal.value = 0
+      return
+    }
+    
+    console.log('【支出分类图】开始绘制')
+
+    // 存储详细数据用于交互
+    if (data.details) {
+      expenseCategoryDetails.value = data.details.map(d => ({
+        ...d,
+        amount: Number(d.amount),
+        percentage: Number(d.percentage)
+      }))
+    }
+    if (data.total) {
+      expenseCategoryTotal.value = Number(data.total)
+    }
+
+    expenseCategoryChartInstance = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: data.labels || [],
+        datasets: [
+          {
+            data: data.values || [],
+            backgroundColor: [
+              '#667eea',
+              '#764ba2',
+              '#f093fb',
+              '#4facfe',
+              '#00f2fe',
+              '#43e97b',
+              '#fa709a',
+              '#fee140',
+              '#34c759',
+              '#ff3b30'
+            ],
+            borderWidth: 2,
+            borderColor: '#fff'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              padding: 15,
+              font: {
+                size: 12
+              }
+            }
+          }
+        }
+      }
+    })
+    
+    hasExpenseCategoryData.value = true
+    console.log('【支出分类图】绘制完成')
+  } catch (error) {
+    console.error('【支出分类图】绘制出错:', error)
+    hasExpenseCategoryData.value = false
+  }
+}
+
+const drawBudgetChart = (data) => {
+  if (budgetChartInstance) budgetChartInstance.destroy()
   
-  const ctx = incomeCategoryChart.value
-  if (!ctx) return
-
-  // 存储详细数据用于交互
-  if (data.details) {
-    incomeCategoryDetails.value = data.details.map(d => ({
-      ...d,
-      amount: Number(d.amount),
-      percentage: Number(d.percentage)
-    }))
-  }
-  if (data.total) {
-    incomeCategoryTotal.value = Number(data.total)
+  const ctx = budgetChart.value
+  if (!ctx) {
+    console.warn('【预算图】canvas 上下文不存在')
+    hasBudgetData.value = false
+    return
   }
 
-  incomeCategoryChartInstance = new Chart(ctx, {
-    type: 'doughnut',
+  // 处理数据格式：如果data是数组对象，提取categories, actual, budget
+  let categories, actualValues, budgetValues
+  
+  if (Array.isArray(data)) {
+    // 如果是数组格式（来自API的原始格式）
+    categories = data.map(item => item.categoryName)
+    actualValues = data.map(item => item.actualAmount)
+    budgetValues = data.map(item => item.budgetAmount)
+  } else {
+    // 如果是预处理的格式
+    categories = data.categories || []
+    actualValues = data.actualValues || []
+    budgetValues = data.budgetValues || []
+  }
+  
+  // 检查是否有有效的数据
+  console.log('【预算图】检查数据:', { categories: categories?.length })
+  
+  // 只要有 categories 就可以尝试绘制
+  if (!categories || !categories.length) {
+    console.warn('【预算图】无有效数据：categories 为空')
+    hasBudgetData.value = false
+    return
+  }
+  
+  console.log('【预算图】开始绘制')
+  hasBudgetData.value = true
+
+  budgetChartInstance = new Chart(ctx, {
+    type: 'bar',
     data: {
-      labels: data.labels || [],
+      labels: categories,
       datasets: [
         {
-          data: data.values || [],
-          backgroundColor: [
-            '#667eea',
-            '#764ba2',
-            '#f093fb',
-            '#4facfe',
-            '#00f2fe',
-            '#43e97b',
-            '#fa709a',
-            '#fee140',
-            '#34c759',
-            '#ff3b30'
-          ],
-          borderWidth: 2,
-          borderColor: '#fff'
+          label: '实际消费',
+          data: actualValues,
+          backgroundColor: '#e74c3c',
+          borderColor: '#c0392b',
+          borderWidth: 1,
+          borderRadius: 4
+        },
+        {
+          label: '预算',
+          data: budgetValues,
+          backgroundColor: '#27ae60',
+          borderColor: '#229954',
+          borderWidth: 1,
+          borderRadius: 4
         }
       ]
     },
     options: {
+      indexAxis: 'y',
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
@@ -545,64 +871,20 @@ const drawIncomeCategoryChart = (data) => {
               size: 12
             }
           }
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              return context.dataset.label + ': ¥' + context.parsed.x.toFixed(2)
+            }
+          }
         }
-      }
-    }
-  })
-}
-
-const drawExpenseCategoryChart = (data) => {
-  if (expenseCategoryChartInstance) expenseCategoryChartInstance.destroy()
-  
-  const ctx = expenseCategoryChart.value
-  if (!ctx) return
-
-  // 存储详细数据用于交互
-  if (data.details) {
-    expenseCategoryDetails.value = data.details.map(d => ({
-      ...d,
-      amount: Number(d.amount),
-      percentage: Number(d.percentage)
-    }))
-  }
-  if (data.total) {
-    expenseCategoryTotal.value = Number(data.total)
-  }
-
-  expenseCategoryChartInstance = new Chart(ctx, {
-    type: 'doughnut',
-    data: {
-      labels: data.labels || [],
-      datasets: [
-        {
-          data: data.values || [],
-          backgroundColor: [
-            '#667eea',
-            '#764ba2',
-            '#f093fb',
-            '#4facfe',
-            '#00f2fe',
-            '#43e97b',
-            '#fa709a',
-            '#fee140',
-            '#34c759',
-            '#ff3b30'
-          ],
-          borderWidth: 2,
-          borderColor: '#fff'
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          position: 'bottom',
-          labels: {
-            padding: 15,
-            font: {
-              size: 12
+      },
+      scales: {
+        x: {
+          ticks: {
+            callback: function(value) {
+              return '¥' + value.toFixed(0)
             }
           }
         }
@@ -649,7 +931,7 @@ watch(modeType, () => {
   setTimeout(() => loadCharts(), 500)
 })
 
-onMounted(() => {
+onMounted(async () => {
   // 初始化月份为当前月份
   const now = new Date()
   selectedMonth.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
@@ -658,7 +940,8 @@ onMounted(() => {
   document.addEventListener('click', handleClickOutside)
   
   loadDashboardData()
-  setTimeout(() => loadCharts(), 500)
+  await new Promise(resolve => setTimeout(resolve, 100))
+  await loadCharts()
 })
 
 onUnmounted(() => {
@@ -961,6 +1244,40 @@ onUnmounted(() => {
   height: 400px;
 }
 
+.empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 400px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  border-radius: 8px;
+  margin: 0 auto;
+}
+
+.empty-state p {
+  font-size: 16px;
+  color: #666;
+  text-align: center;
+  margin: 0;
+}
+
+.empty-state-compact {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 120px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  border-radius: 8px;
+  margin: 0 auto;
+}
+
+.empty-state-compact p {
+  font-size: 14px;
+  color: #666;
+  text-align: center;
+  margin: 0;
+}
+
 .category-charts-section {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -969,6 +1286,17 @@ onUnmounted(() => {
 }
 
 .category-chart-container {
+  width: 100%;
+}
+
+.analysis-charts-section {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+  margin-bottom: 40px;
+}
+
+.analysis-chart-container {
   width: 100%;
 }
 
@@ -1125,7 +1453,15 @@ onUnmounted(() => {
     height: 320px;
   }
 
+  .empty-state {
+    height: 320px;
+  }
+
   .category-charts-section {
+    grid-template-columns: 1fr;
+  }
+
+  .analysis-charts-section {
     grid-template-columns: 1fr;
   }
 
