@@ -3,6 +3,8 @@ package com.billmanager.jizhang.mapper;
 import com.billmanager.jizhang.entity.UserTarget;
 import org.apache.ibatis.annotations.*;
 
+import java.util.List;
+
 /**
  * 用户收入目标 Mapper
  */
@@ -39,4 +41,19 @@ public interface UserTargetMapper {
      */
     @Delete("DELETE FROM user_target WHERE id = #{id}")
     int delete(Long id);
+    
+    /**
+     * 查询用户的所有目标
+     */
+    @Select("SELECT * FROM user_target WHERE user_id = #{userId} ORDER BY target_month DESC")
+    List<UserTarget> findByUserId(Long userId);
+    
+    /**
+     * 查询用户在某个月份范围内的目标
+     */
+    @Select("SELECT * FROM user_target WHERE user_id = #{userId} AND target_month >= #{startMonth} AND target_month <= #{endMonth} ORDER BY target_month DESC")
+    List<UserTarget> findByUserIdAndMonthRange(
+            @Param("userId") Long userId, 
+            @Param("startMonth") String startMonth, 
+            @Param("endMonth") String endMonth);
 }

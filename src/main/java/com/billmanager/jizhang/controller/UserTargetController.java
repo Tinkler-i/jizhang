@@ -3,8 +3,9 @@ package com.billmanager.jizhang.controller;
 import com.billmanager.jizhang.dto.ApiResponse;
 import com.billmanager.jizhang.entity.User;
 import com.billmanager.jizhang.entity.UserTarget;
+import com.billmanager.jizhang.exception.BusinessException;
 import com.billmanager.jizhang.mapper.UserMapper;
-import com.billmanager.jizhang.mapper.UserTargetMapper;
+import com.billmanager.jizhang.service.UserTargetService;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -26,7 +28,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class UserTargetController {
     
-    private final UserTargetMapper userTargetMapper;
+    private final UserTargetService userTargetService;
     private final UserMapper userMapper;
     
     /**
@@ -66,7 +68,7 @@ public class UserTargetController {
         }
         
         try {
-            UserTarget target = userTargetMapper.findByUserIdAndMonth(user.getId(), month);
+            UserTarget target = userTargetService.findByUserIdAndMonth(user.getId(), month);
             
             if (target == null) {
                 // 如果没有目标，返回默认值
@@ -84,6 +86,54 @@ public class UserTargetController {
             
             return ApiResponse.success("获取成功", data);
         } catch (Exception e) {
+            log.error("获取目标失败", e);
+            return ApiResponse.error("获取失败: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 获取用户的所有目标
+     */
+    @GetMapping
+    public ApiResponse<?> getAllTargets(HttpSession session) {
+        User user = getCurrentUser(session);
+        if (user == null) {
+            return ApiResponse.error("请先登录");
+        }
+        
+        try {
+            List<UserTarget> targets = userTargetService.findByUserId(user.getId());
+            return ApiResponse.success("获取成功", targets);
+        } catch (Exception e) {
+            log.error("获取目标列表失败", e);
+            return ApiResponse.error("获取失败: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 获取用户在某个月份范围内的目标
+     * @param startMonth 起始年月（格式：YYYY-MM）
+     * @param endMonth 结束年月（格式：YYYY-MM）
+     */
+    @GetMapping("/range")
+    public ApiResponse<?> getTargetsByRange(
+            @RequestParam String startMonth,
+            @RequestParam String endMonth,
+            HttpSession session) {
+        
+        User user = getCurrentUser(session);
+        if (user == null) {
+            return ApiResponse.error("请先登录");
+        }
+        
+        try {
+            List<UserTarget> targets = userTargetService.findByUserIdAndMonthRange(
+                    user.getId(), startMonth, endMonth);
+            return ApiResponse.success("获取成功", targets);
+        } catch (BusinessException e) {
+            return ApiResponse.error(e.getMessage());
+        } catch (Exception e) {
+            log.error("获取目标范围失败", e);
             return ApiResponse.error("获取失败: " + e.getMessage());
         }
     }
@@ -106,24 +156,12 @@ public class UserTargetController {
         
         try {
             BigDecimal incomeTarget = new BigDecimal(request.get("incomeTarget").toString());
-            
-            UserTarget existing = userTargetMapper.findByUserIdAndMonth(user.getId(), month);
-            
-            if (existing == null) {
-                // 新增
-                UserTarget newTarget = new UserTarget();
-                newTarget.setUserId(user.getId());
-                newTarget.setTargetMonth(month);
-                newTarget.setIncomeTarget(incomeTarget);
-                userTargetMapper.insert(newTarget);
-                return ApiResponse.success("新增成功", newTarget);
-            } else {
-                // 更新
-                existing.setIncomeTarget(incomeTarget);
-                userTargetMapper.update(existing);
-                return ApiResponse.success("更新成功", existing);
-            }
+            UserTarget target = userTargetService.createOrUpdate(user.getId(), month, incomeTarget);
+            return ApiResponse.success("保存成功", target);
+        } catch (BusinessException e) {
+            return ApiResponse.error(e.getMessage());
         } catch (Exception e) {
+            log.error("保存目标失败", e);
             return ApiResponse.error("保存失败: " + e.getMessage());
         }
     }
@@ -146,21 +184,43 @@ public class UserTargetController {
             String targetMonth = request.get("targetMonth").toString();
             BigDecimal incomeTarget = new BigDecimal(request.get("incomeTarget").toString());
             
-            // 检查是否已存在
-            UserTarget existing = userTargetMapper.findByUserIdAndMonth(user.getId(), targetMonth);
-            if (existing != null) {
-                return ApiResponse.error("该月份目标已存在，请使用更新接口");
-            }
-            
             UserTarget target = new UserTarget();
             target.setUserId(user.getId());
             target.setTargetMonth(targetMonth);
             target.setIncomeTarget(incomeTarget);
-            userTargetMapper.insert(target);
+            target = userTargetService.create(target);
             
             return ApiResponse.success("新增成功", target);
+        } catch (BusinessException e) {
+            return ApiResponse.error(e.getMessage());
         } catch (Exception e) {
+            log.error("新增目标失败", e);
             return ApiResponse.error("新增失败: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 删除目标
+     * @param id 目标ID
+     */
+    @DeleteMapping("/{id}")
+    public ApiResponse<?> deleteTarget(
+            @PathVariable Long id,
+            HttpSession session) {
+        
+        User user = getCurrentUser(session);
+        if (user == null) {
+            return ApiResponse.error("请先登录");
+        }
+        
+        try {
+            userTargetService.delete(id, user.getId());
+            return ApiResponse.success("删除成功");
+        } catch (BusinessException e) {
+            return ApiResponse.error(e.getMessage());
+        } catch (Exception e) {
+            log.error("删除目标失败", e);
+            return ApiResponse.error("删除失败: " + e.getMessage());
         }
     }
 }

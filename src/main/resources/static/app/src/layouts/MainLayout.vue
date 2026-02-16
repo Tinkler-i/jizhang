@@ -168,6 +168,11 @@ const menuItems = [
     icon: '💹'
   },
   {
+    path: '/target',
+    label: '目标管理',
+    icon: '🎯'
+  },
+  {
     path: '/report',
     label: '报表分析',
     icon: '📈'
