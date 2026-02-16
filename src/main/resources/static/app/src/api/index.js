@@ -154,8 +154,13 @@ export const analysisAPI = {
 // User Target API - 用户收入目标
 export const userTargetAPI = {
   getByMonth: (month) => api.get(`/user-target/${month}`),
+  getAll: () => api.get('/user-target'),
+  getByRange: (startMonth, endMonth) => api.get('/user-target/range', { 
+    params: { startMonth, endMonth } 
+  }),
   update: (month, incomeTarget) => api.put(`/user-target/${month}`, { incomeTarget }),
-  create: (targetMonth, incomeTarget) => api.post('/user-target', { targetMonth, incomeTarget })
+  create: (targetMonth, incomeTarget) => api.post('/user-target', { targetMonth, incomeTarget }),
+  delete: (id) => api.delete(`/user-target/${id}`)
 }
 
 // Bill Import API - 账单导入

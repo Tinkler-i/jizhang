@@ -100,7 +100,7 @@
                 ¥ {{ metrics.balance || '0.00' }}
               </p>
               <p class="metric-target">
-                目标达成度: <span :class="{ 'text-success': achievementRate >= 100, 'text-danger': achievementRate < 50 }">{{ achievementRate }}%</span> (¥{{ metrics.targetIncome || '0.00' }})
+                达成度: <span :class="{ 'text-success': achievementRate >= 100, 'text-danger': achievementRate < 50 }">{{ achievementRate }}%</span> (¥{{ metrics.targetIncome || '0.00' }})
                 <button class="edit-btn" @click="openEditTargetModal" title="编辑目标">✏️</button>
               </p>
             </div>
@@ -220,6 +220,28 @@
       </div>
     </div>
 
+
+    <!-- 年度模式信息 -->
+    <div v-if="modeType === 'yearly'" class="yearly-mode-info">
+      <Card>
+        <div class="info-content">
+          <div class="info-icon">📊</div>
+          <div class="info-text">
+            <h3>年度目标设置与进度分析</h3>
+            <p>在"目标管理"中设置年度目标，在"报表分析"中查看详细的月度目标进度和完成情况。</p>
+          </div>
+          <div class="info-actions">
+            <Button type="primary" @click="$router.push('/target')">
+              ⚙️ 管理目标
+            </Button>
+            <Button type="secondary" @click="$router.push('/report')">
+              📈 查看详情
+            </Button>
+          </div>
+        </div>
+      </Card>
+    </div>
+
     <!-- 快速操作 -->
     <section class="quick-actions">
       <h2>快速操作</h2>
@@ -242,15 +264,18 @@
     <!-- 编辑目标模态框 -->
     <Modal
       v-model="showEditTargetModal"
-      title="编辑本月攒下的目标"
+      :title="modeType === 'monthly' ? '编辑本月攒下的目标' : '编辑年度攒下的目标'"
     >
       <div class="form-group">
-        <label>本月攒下的目标（¥）</label>
+        <label>{{ modeType === 'monthly' ? '本月' : '年度' }}攒下的目标（¥）</label>
         <Input
           v-model="targetForm.incomeTarget"
           type="number"
-          placeholder="请输入本月攒下的目标"
+          :placeholder="modeType === 'monthly' ? '请输入本月攒下的目标' : '请输入年度攒下的目标'"
         />
+        <p v-if="modeType === 'yearly'" class="target-tip">
+          💡 提示：该目标金额将被平均分配到全年 12 个月。例如输入 120,000 时，每个月的目标将为 10,000。
+        </p>
       </div>
       <template #footer>
         <Button type="secondary" @click="showEditTargetModal = false">取消</Button>
@@ -297,6 +322,9 @@ const hasTrendData = ref(false)
 const hasIncomeCategoryData = ref(false)
 const hasExpenseCategoryData = ref(false)
 const hasBudgetData = ref(false)
+
+// 年度目标进度数据（用于报表模块）
+// const yearlyTargetsData = ref([])
 
 // 年份选择器ref
 const yearSelectorRef = ref(null)
@@ -350,6 +378,23 @@ const achievementRate = computed(() => {
   const rate = Math.round((balance / target) * 100)
   return Math.max(0, rate)
 })
+
+// 年度目标相关计算属性 - 已移至Report.vue
+// const yearlyTotalTarget = computed(() => {
+//   return yearlyTargetsData.value.reduce((sum, item) => sum + item.target, 0)
+// })
+
+// const yearlyTotalSavings = computed(() => {
+//   return yearlyTargetsData.value.reduce((sum, item) => sum + item.savings, 0)
+// })
+
+// const yearlyAchievementRate = computed(() => {
+//   const total = yearlyTotalTarget.value
+//   const actual = yearlyTotalSavings.value
+//   if (total <= 0) return 0
+//   const rate = Math.round((actual / total) * 100)
+//   return Math.max(0, rate)
+// })
 
 const selectCurrentMonth = () => {
   const now = new Date()
@@ -923,7 +968,26 @@ const drawBudgetChart = (data) => {
 
 const saveIncomeTarget = async () => {
   try {
-    const month = new Date().toISOString().slice(0, 7)
+    let month
+    if (modeType.value === 'monthly') {
+      month = selectedMonth.value
+    } else {
+      // 年度模式：保存每个月份的目标为年度目标 / 12
+      const yearlyTarget = parseFloat(targetForm.incomeTarget) / 12
+      const promises = []
+      for (let i = 1; i <= 12; i++) {
+        const monthStr = `${selectedYear.value}-${String(i).padStart(2, '0')}`
+        promises.push(userTargetAPI.update(monthStr, yearlyTarget.toFixed(2)))
+      }
+      const responses = await Promise.all(promises)
+      console.log('【仪表盘】年度目标已保存到所有月份')
+      
+      metrics.targetIncome = parseFloat(targetForm.incomeTarget).toFixed(2)
+      showEditTargetModal.value = false
+      console.log('【仪表盘】保存成功')
+      return
+    }
+    
     console.log('【仪表盘】保存收入目标，月份:', month, '目标:', targetForm.incomeTarget)
     
     const response = await userTargetAPI.update(month, targetForm.incomeTarget)
@@ -948,7 +1012,13 @@ const handleClickOutside = (event) => {
 }
 
 const openEditTargetModal = () => {
-  targetForm.incomeTarget = metrics.targetIncome || '0'
+  if (modeType.value === 'monthly') {
+    // 月度模式：直接显示当月的目标
+    targetForm.incomeTarget = metrics.targetIncome || '0'
+  } else {
+    // 年度模式：显示年度目标（即当前的 targetIncome 是年度汇总）
+    targetForm.incomeTarget = metrics.targetIncome || '0'
+  }
   showEditTargetModal.value = true
 }
 
@@ -1435,6 +1505,45 @@ onUnmounted(() => {
   font-weight: normal;
 }
 
+.yearly-mode-info {
+  margin-bottom: 30px;
+}
+
+.yearly-mode-info .info-content {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 20px;
+}
+
+.yearly-mode-info .info-icon {
+  font-size: 40px;
+  flex-shrink: 0;
+}
+
+.yearly-mode-info .info-text {
+  flex: 1;
+}
+
+.yearly-mode-info .info-text h3 {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  color: #333;
+}
+
+.yearly-mode-info .info-text p {
+  margin: 0;
+  font-size: 13px;
+  color: #666;
+  line-height: 1.5;
+}
+
+.yearly-mode-info .info-actions {
+  display: flex;
+  gap: 15px;
+  flex-shrink: 0;
+}
+
 .quick-actions {
   margin-bottom: 20px;
 }
@@ -1471,6 +1580,19 @@ onUnmounted(() => {
   font-size: 14px;
 }
 
+.target-tip {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: #e6f7ff;
+  border-left: 3px solid #1890ff;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #0050b3;
+  line-height: 1.6;
+  margin-bottom: 0;
+}
+
+/* 年度目标进度表样式 */
 @media (max-width: 768px) {
   .mode-selector {
     flex-direction: column;
@@ -1545,6 +1667,21 @@ onUnmounted(() => {
 
   .action-buttons {
     flex-direction: column;
+  }
+
+  .yearly-mode-info .info-content {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .yearly-mode-info .info-actions {
+    width: 100%;
+    gap: 10px;
+  }
+
+  .yearly-mode-info .info-actions button {
+    width: 100%;
   }
 }
 </style>

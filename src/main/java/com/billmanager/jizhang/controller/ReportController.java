@@ -123,9 +123,15 @@ public class ReportController {
                     budgetExpense = budgetExpense.add(monthBudget);
                 }
                 
-                // 获取年度目标 (使用第一条或最新的全年目标)
-                UserTarget target = userTargetMapper.findByUserIdAndMonth(user.getId(), month);
-                BigDecimal targetIncome = target != null ? target.getIncomeTarget() : BigDecimal.ZERO;
+                // 获取年度目标 (聚合全年12个月的目标)
+                BigDecimal targetIncome = BigDecimal.ZERO;
+                for (int m = 1; m <= 12; m++) {
+                    String monthStr = String.format("%d-%02d", year, m);
+                    UserTarget target = userTargetMapper.findByUserIdAndMonth(user.getId(), monthStr);
+                    if (target != null) {
+                        targetIncome = targetIncome.add(target.getIncomeTarget());
+                    }
+                }
                 
                 // 计算预算使用率
                 BigDecimal budgetUsage = budgetExpense.compareTo(BigDecimal.ZERO) > 0

@@ -10,6 +10,7 @@ import IncomeCategory from '../views/IncomeCategory.vue'
 import Expense from '../views/Expense.vue'
 import ExpenseCategory from '../views/ExpenseCategory.vue'
 import Budget from '../views/Budget.vue'
+import Target from '../views/Target.vue'
 import Report from '../views/Report.vue'
 import UserProfile from '../views/UserProfile.vue'
 import BillImport from '../views/BillImport.vue'
@@ -70,6 +71,12 @@ const routes = [
     name: 'Budget',
     component: Budget,
     meta: { requiresAuth: true, title: '预算管理' }
+  },
+  {
+    path: '/target',
+    name: 'Target',
+    component: Target,
+    meta: { requiresAuth: true, title: '目标管理' }
   },
   {
     path: '/report',
