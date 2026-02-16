@@ -321,7 +321,7 @@ public class ForgotPasswordServiceImpl implements ForgotPasswordService {
      */
     private void sendResetPasswordEmail(String email, String code) {
         try {
-            emailService.sendVerificationCode(email, code);
+            emailService.sendResetPasswordCode(email, code);
             log.info("【密码重置】密码重置邮件已发送: {}", email);
         } catch (Exception e) {
             log.error("【密码重置】密码重置邮件发送失败: {}", email, e);

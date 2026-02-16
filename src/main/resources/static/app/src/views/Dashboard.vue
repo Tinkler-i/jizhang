@@ -157,7 +157,7 @@
                 v-for="item in incomeCategoryDetails"
                 :key="item.categoryId"
                 class="category-item"
-                @click="selectedIncomeCategory = item"
+                @click="selectedIncomeCategory = selectedIncomeCategory?.categoryId === item.categoryId ? null : item"
                 :class="{ active: selectedIncomeCategory?.categoryId === item.categoryId }"
               >
                 <div class="category-name">{{ item.categoryName }}</div>
@@ -187,7 +187,7 @@
                 v-for="item in expenseCategoryDetails"
                 :key="item.categoryId"
                 class="category-item"
-                @click="selectedExpenseCategory = item"
+                @click="selectedExpenseCategory = selectedExpenseCategory?.categoryId === item.categoryId ? null : item"
                 :class="{ active: selectedExpenseCategory?.categoryId === item.categoryId }"
               >
                 <div class="category-name">{{ item.categoryName }}</div>
@@ -289,6 +289,8 @@ const selectedIncomeCategory = ref(null)
 const selectedExpenseCategory = ref(null)
 const incomeCategoryTotal = ref(0)
 const expenseCategoryTotal = ref(0)
+const incomeCategoryRawData = ref(null)
+const expenseCategoryRawData = ref(null)
 
 // 图表数据状态标志
 const hasTrendData = ref(false)
@@ -356,6 +358,8 @@ const selectCurrentMonth = () => {
 }
 
 const handleMonthChange = async () => {
+  selectedIncomeCategory.value = null
+  selectedExpenseCategory.value = null
   loadDashboardData()
   await new Promise(resolve => setTimeout(resolve, 100))
   await loadCharts()
@@ -400,6 +404,8 @@ const selectCurrentYear = () => {
 }
 
 const handleYearChange = async () => {
+  selectedIncomeCategory.value = null
+  selectedExpenseCategory.value = null
   loadDashboardData()
   await new Promise(resolve => setTimeout(resolve, 100))
   await loadCharts()
@@ -650,6 +656,9 @@ const drawIncomeCategoryChart = (data) => {
     
     console.log('【收入分类图】开始绘制')
 
+    // 存储原始数据
+    incomeCategoryRawData.value = JSON.parse(JSON.stringify(data))
+
     // 存储详细数据用于交互
     if (data.details) {
       incomeCategoryDetails.value = data.details.map(d => ({
@@ -662,27 +671,35 @@ const drawIncomeCategoryChart = (data) => {
       incomeCategoryTotal.value = Number(data.total)
     }
 
+    const labels = data.labels || []
+    const values = data.values || []
+    const bgColors = [
+      '#667eea',
+      '#764ba2',
+      '#f093fb',
+      '#4facfe',
+      '#00f2fe',
+      '#43e97b',
+      '#fa709a',
+      '#fee140',
+      '#34c759',
+      '#ff3b30'
+    ]
+
+    // 初始的offset全为0，通过watch来动态修改
+    const offset = values.map(() => 0)
+
     incomeCategoryChartInstance = new Chart(ctx, {
       type: 'doughnut',
       data: {
-        labels: data.labels || [],
+        labels: labels,
         datasets: [
           {
-            data: data.values || [],
-            backgroundColor: [
-              '#667eea',
-              '#764ba2',
-              '#f093fb',
-              '#4facfe',
-              '#00f2fe',
-              '#43e97b',
-              '#fa709a',
-              '#fee140',
-              '#34c759',
-              '#ff3b30'
-            ],
+            data: values,
+            backgroundColor: bgColors,
             borderWidth: 2,
-            borderColor: '#fff'
+            borderColor: '#fff',
+            offset: offset
           }
         ]
       },
@@ -736,6 +753,9 @@ const drawExpenseCategoryChart = (data) => {
     
     console.log('【支出分类图】开始绘制')
 
+    // 存储原始数据
+    expenseCategoryRawData.value = JSON.parse(JSON.stringify(data))
+
     // 存储详细数据用于交互
     if (data.details) {
       expenseCategoryDetails.value = data.details.map(d => ({
@@ -748,27 +768,35 @@ const drawExpenseCategoryChart = (data) => {
       expenseCategoryTotal.value = Number(data.total)
     }
 
+    const labels = data.labels || []
+    const values = data.values || []
+    const bgColors = [
+      '#667eea',
+      '#764ba2',
+      '#f093fb',
+      '#4facfe',
+      '#00f2fe',
+      '#43e97b',
+      '#fa709a',
+      '#fee140',
+      '#34c759',
+      '#ff3b30'
+    ]
+
+    // 初始的offset全为0，通过watch来动态修改
+    const offset = values.map(() => 0)
+
     expenseCategoryChartInstance = new Chart(ctx, {
       type: 'doughnut',
       data: {
-        labels: data.labels || [],
+        labels: labels,
         datasets: [
           {
-            data: data.values || [],
-            backgroundColor: [
-              '#667eea',
-              '#764ba2',
-              '#f093fb',
-              '#4facfe',
-              '#00f2fe',
-              '#43e97b',
-              '#fa709a',
-              '#fee140',
-              '#34c759',
-              '#ff3b30'
-            ],
+            data: values,
+            backgroundColor: bgColors,
             borderWidth: 2,
-            borderColor: '#fff'
+            borderColor: '#fff',
+            offset: offset
           }
         ]
       },
@@ -927,8 +955,54 @@ const openEditTargetModal = () => {
 // 监听模式改变，自动加载数据
 watch(modeType, () => {
   console.log('【仪表盘】模式改变为:', modeType.value)
+  selectedIncomeCategory.value = null
+  selectedExpenseCategory.value = null
   loadDashboardData()
   setTimeout(() => loadCharts(), 500)
+})
+
+// 监听收入分类选择变化
+watch(selectedIncomeCategory, () => {
+  console.log('【收入分类】选择变化:', selectedIncomeCategory.value)
+  if (incomeCategoryRawData.value && incomeCategoryChartInstance) {
+    try {
+      const data = incomeCategoryRawData.value
+      const offset = (data.values || []).map((_, index) => {
+        if (selectedIncomeCategory.value && data.details) {
+          const selectedIndex = data.details.findIndex(d => d.categoryId === selectedIncomeCategory.value.categoryId)
+          return index === selectedIndex ? 30 : 0
+        }
+        return 0
+      })
+      incomeCategoryChartInstance.data.datasets[0].offset = offset
+      incomeCategoryChartInstance.update('none')
+      console.log('【收入分类】已更新偏移量')
+    } catch (error) {
+      console.error('【收入分类】更新失败:', error)
+    }
+  }
+})
+
+// 监听支出分类选择变化
+watch(selectedExpenseCategory, () => {
+  console.log('【支出分类】选择变化:', selectedExpenseCategory.value)
+  if (expenseCategoryRawData.value && expenseCategoryChartInstance) {
+    try {
+      const data = expenseCategoryRawData.value
+      const offset = (data.values || []).map((_, index) => {
+        if (selectedExpenseCategory.value && data.details) {
+          const selectedIndex = data.details.findIndex(d => d.categoryId === selectedExpenseCategory.value.categoryId)
+          return index === selectedIndex ? 30 : 0
+        }
+        return 0
+      })
+      expenseCategoryChartInstance.data.datasets[0].offset = offset
+      expenseCategoryChartInstance.update('none')
+      console.log('【支出分类】已更新偏移量')
+    } catch (error) {
+      console.error('【支出分类】更新失败:', error)
+    }
+  }
 })
 
 onMounted(async () => {
