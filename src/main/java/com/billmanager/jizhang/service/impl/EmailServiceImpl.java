@@ -40,7 +40,7 @@ public class EmailServiceImpl implements EmailService {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
             
-            helper.setFrom(fromEmail);
+            helper.setFrom(fromEmail, applicationName);
             helper.setTo(to);
             helper.setSubject(applicationName + " - 邮箱验证码");
             
@@ -69,7 +69,7 @@ public class EmailServiceImpl implements EmailService {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
             
-            helper.setFrom(fromEmail);
+            helper.setFrom(fromEmail, applicationName);
             helper.setTo(to);
             helper.setSubject(applicationName + " - 密码重置验证码");
             
