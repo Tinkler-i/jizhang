@@ -622,10 +622,29 @@ const createFamily = async () => {
 }
 
 // 复制编号
-const copyCode = () => {
+const copyCode = async () => {
   if (familyGroup.value && familyGroup.value.code) {
-    navigator.clipboard.writeText(familyGroup.value.code)
-    showMessage('编号已复制到剪贴板', 'success')
+    try {
+      await navigator.clipboard.writeText(familyGroup.value.code)
+      showMessage('编号已复制到剪贴板', 'success')
+    } catch (error) {
+      console.error('【复制编号】复制失败:', error)
+      showMessage('复制失败，请重试', 'error')
+      
+      // 降级方案：使用传统的复制方法
+      try {
+        const textarea = document.createElement('textarea')
+        textarea.value = familyGroup.value.code
+        document.body.appendChild(textarea)
+        textarea.select()
+        document.execCommand('copy')
+        document.body.removeChild(textarea)
+        showMessage('编号已复制到剪贴板', 'success')
+      } catch (fallbackError) {
+        console.error('【复制编号】降级方案也失败:', fallbackError)
+        showMessage('复制失败，请手动复制编号', 'error')
+      }
+    }
   }
 }
 

@@ -159,23 +159,22 @@ public class ExpenseController {
         log.debug("【API】用户 {} 查询支出列表", user.getId());
         log.debug("【筛选条件】分类ID: {}, 开始日期: {}, 结束日期: {}, 关键字: {}", categoryId, startDate, endDate, keyword);
         
-        // 先获取基础数据
-        List<Expense> expenses = expenseService.findByUserId(user.getId());
+        // 在数据库层面进行日期范围过滤，避免加载全部数据
+        List<Expense> expenses;
+        if (startDate != null && endDate != null) {
+            expenses = expenseService.findByUserIdAndDateRange(user.getId(), startDate, endDate);
+            log.debug("【数据库查询】日期范围过滤: {} - {}, 支出数: {}", startDate, endDate, expenses.size());
+        } else {
+            expenses = expenseService.findByUserId(user.getId());
+            log.debug("【数据库查询】加载全部支出，数量: {}", expenses.size());
+        }
         
-        // 按分类过滤
+        // 按分类过滤（内存级别）
         if (categoryId != null) {
             expenses = expenses.stream()
                     .filter(e -> e.getCategoryId() != null && e.getCategoryId().equals(categoryId))
                     .collect(java.util.stream.Collectors.toList());
             log.debug("【分类过滤后】支出数: {}", expenses.size());
-        }
-        
-        // 按日期范围过滤
-        if (startDate != null && endDate != null) {
-            expenses = expenses.stream()
-                    .filter(e -> e.getTransactionDate() != null && !e.getTransactionDate().isBefore(startDate) && !e.getTransactionDate().isAfter(endDate))
-                    .collect(java.util.stream.Collectors.toList());
-            log.debug("【日期范围过滤后】支出数: {} (范围: {} - {})", expenses.size(), startDate, endDate);
         }
         
         // 按关键字过滤描述

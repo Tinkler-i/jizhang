@@ -4,6 +4,8 @@ import com.billmanager.jizhang.dto.*;
 import com.billmanager.jizhang.entity.*;
 import com.billmanager.jizhang.mapper.*;
 import com.billmanager.jizhang.service.ReportService;
+import com.billmanager.jizhang.service.IncomeService;
+import com.billmanager.jizhang.service.ExpenseService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -18,6 +20,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ReportServiceImpl implements ReportService {
     
+    private final IncomeService incomeService;
+    private final ExpenseService expenseService;
     private final ExpenseMapper expenseMapper;
     private final IncomeMapper incomeMapper;
     private final BudgetMapper budgetMapper;
@@ -32,8 +36,8 @@ public class ReportServiceImpl implements ReportService {
         report.setPeriodType("CUSTOM");
         
         // 获取时间范围内的收支数据
-        List<Income> incomes = incomeMapper.findByUserIdAndDateRange(userId, startDate, endDate);
-        List<Expense> expenses = expenseMapper.findByUserIdAndDateRange(userId, startDate, endDate);
+        List<Income> incomes = incomeService.findByUserIdAndDateRange(userId, startDate, endDate);
+        List<Expense> expenses = expenseService.findByUserIdAndDateRange(userId, startDate, endDate);
         
         // 计算基本统计
         BigDecimal totalIncome = incomes.stream()
@@ -86,7 +90,7 @@ public class ReportServiceImpl implements ReportService {
         // 获取该月的实际支出
         LocalDate startOfMonth = LocalDate.parse(budgetMonth + "-01");
         LocalDate endOfMonth = startOfMonth.plusMonths(1).minusDays(1);
-        List<Expense> monthlyExpenses = expenseMapper.findByUserIdAndDateRange(userId, startOfMonth, endOfMonth);
+        List<Expense> monthlyExpenses = expenseService.findByUserIdAndDateRange(userId, startOfMonth, endOfMonth);
         
         // 按分类统计支出
         Map<Long, BigDecimal> expenseByCategory = monthlyExpenses.stream()
@@ -160,8 +164,8 @@ public class ReportServiceImpl implements ReportService {
         analysis.setEndDate(endDate);
         
         // 获取时间范围内的收支数据
-        List<Income> incomes = incomeMapper.findByUserIdAndDateRange(userId, startDate, endDate);
-        List<Expense> expenses = expenseMapper.findByUserIdAndDateRange(userId, startDate, endDate);
+        List<Income> incomes = incomeService.findByUserIdAndDateRange(userId, startDate, endDate);
+        List<Expense> expenses = expenseService.findByUserIdAndDateRange(userId, startDate, endDate);
         
         // 计算汇总数据
         BigDecimal totalIncome = incomes.stream()
@@ -271,8 +275,8 @@ public class ReportServiceImpl implements ReportService {
             LocalDate startOfMonth = yearMonth.atDay(1);
             LocalDate endOfMonth = yearMonth.atEndOfMonth();
             
-            List<Income> monthIncomes = incomeMapper.findByUserIdAndDateRange(userId, startOfMonth, endOfMonth);
-            List<Expense> monthExpenses = expenseMapper.findByUserIdAndDateRange(userId, startOfMonth, endOfMonth);
+            List<Income> monthIncomes = incomeService.findByUserIdAndDateRange(userId, startOfMonth, endOfMonth);
+            List<Expense> monthExpenses = expenseService.findByUserIdAndDateRange(userId, startOfMonth, endOfMonth);
             
             BigDecimal monthIncome = monthIncomes.stream()
                     .map(Income::getAmount)

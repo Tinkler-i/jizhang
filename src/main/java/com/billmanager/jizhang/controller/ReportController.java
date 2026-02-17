@@ -20,6 +20,8 @@ import com.billmanager.jizhang.mapper.ExpenseCategoryMapper;
 import com.billmanager.jizhang.entity.IncomeCategory;
 import com.billmanager.jizhang.entity.ExpenseCategory;
 import com.billmanager.jizhang.service.ReportService;
+import com.billmanager.jizhang.service.IncomeService;
+import com.billmanager.jizhang.service.ExpenseService;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,6 +46,8 @@ import java.util.List;
 public class ReportController {
     
     private final ReportService reportService;
+    private final IncomeService incomeService;
+    private final ExpenseService expenseService;
     private final UserMapper userMapper;
     private final UserTargetMapper userTargetMapper;
     private final IncomeMapper incomeMapper;
@@ -101,13 +105,13 @@ public class ReportController {
                 System.out.println("【ReportController】年度查询，年份: " + year);
                 
                 // 获取全年收入
-                List<Income> yearIncomes = incomeMapper.findByUserIdAndDateRange(user.getId(), yearStart, yearEnd);
+                List<Income> yearIncomes = incomeService.findByUserIdAndDateRange(user.getId(), yearStart, yearEnd);
                 BigDecimal totalIncome = yearIncomes.stream()
                         .map(Income::getAmount)
                         .reduce(BigDecimal.ZERO, BigDecimal::add);
                 
                 // 获取全年支出
-                List<Expense> yearExpenses = expenseMapper.findByUserIdAndDateRange(user.getId(), yearStart, yearEnd);
+                List<Expense> yearExpenses = expenseService.findByUserIdAndDateRange(user.getId(), yearStart, yearEnd);
                 BigDecimal totalExpense = yearExpenses.stream()
                         .map(Expense::getAmount)
                         .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -161,13 +165,13 @@ public class ReportController {
                 System.out.println("【ReportController】月度查询，月份: " + month);
                 
                 // 获取本月收入
-                List<Income> monthIncomes = incomeMapper.findByUserIdAndDateRange(user.getId(), monthStart, monthEnd);
+                List<Income> monthIncomes = incomeService.findByUserIdAndDateRange(user.getId(), monthStart, monthEnd);
                 BigDecimal totalIncome = monthIncomes.stream()
                         .map(Income::getAmount)
                         .reduce(BigDecimal.ZERO, BigDecimal::add);
                 
                 // 获取本月支出
-                List<Expense> monthExpenses = expenseMapper.findByUserIdAndDateRange(user.getId(), monthStart, monthEnd);
+                List<Expense> monthExpenses = expenseService.findByUserIdAndDateRange(user.getId(), monthStart, monthEnd);
                 BigDecimal totalExpense = monthExpenses.stream()
                         .map(Expense::getAmount)
                         .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -250,14 +254,14 @@ public class ReportController {
                 LocalDate yearEnd = LocalDate.of(year, 12, 31);
                 
                 // 获取全年收入并按月汇总
-                List<Income> yearIncomes = incomeMapper.findByUserIdAndDateRange(user.getId(), yearStart, yearEnd);
+                List<Income> yearIncomes = incomeService.findByUserIdAndDateRange(user.getId(), yearStart, yearEnd);
                 for (Income income : yearIncomes) {
                     int month_num = income.getTransactionDate().getMonthValue();
                     monthlyIncome.put(month_num, monthlyIncome.get(month_num).add(income.getAmount()));
                 }
                 
                 // 获取全年支出并按月汇总
-                List<Expense> yearExpenses = expenseMapper.findByUserIdAndDateRange(user.getId(), yearStart, yearEnd);
+                List<Expense> yearExpenses = expenseService.findByUserIdAndDateRange(user.getId(), yearStart, yearEnd);
                 for (Expense expense : yearExpenses) {
                     int month_num = expense.getTransactionDate().getMonthValue();
                     monthlyExpense.put(month_num, monthlyExpense.get(month_num).add(expense.getAmount()));
@@ -292,14 +296,14 @@ public class ReportController {
                 }
                 
                 // 获取本月收入并按日期汇总
-                List<Income> monthIncomes = incomeMapper.findByUserIdAndDateRange(user.getId(), monthStart, monthEnd);
+                List<Income> monthIncomes = incomeService.findByUserIdAndDateRange(user.getId(), monthStart, monthEnd);
                 for (Income income : monthIncomes) {
                     int day = income.getTransactionDate().getDayOfMonth();
                     dailyIncome.put(day, dailyIncome.get(day).add(income.getAmount()));
                 }
                 
                 // 获取本月支出并按日期汇总
-                List<Expense> monthExpenses = expenseMapper.findByUserIdAndDateRange(user.getId(), monthStart, monthEnd);
+                List<Expense> monthExpenses = expenseService.findByUserIdAndDateRange(user.getId(), monthStart, monthEnd);
                 for (Expense expense : monthExpenses) {
                     int day = expense.getTransactionDate().getDayOfMonth();
                     dailyExpense.put(day, dailyExpense.get(day).add(expense.getAmount()));
@@ -349,13 +353,13 @@ public class ReportController {
                 int year = Integer.parseInt(month);
                 LocalDate yearStart = LocalDate.of(year, 1, 1);
                 LocalDate yearEnd = LocalDate.of(year, 12, 31);
-                incomes = incomeMapper.findByUserIdAndDateRange(user.getId(), yearStart, yearEnd);
+                incomes = incomeService.findByUserIdAndDateRange(user.getId(), yearStart, yearEnd);
             } else {
                 // 月度查询
                 YearMonth ym = YearMonth.parse(month);
                 LocalDate monthStart = ym.atDay(1);
                 LocalDate monthEnd = ym.atEndOfMonth();
-                incomes = incomeMapper.findByUserIdAndDateRange(user.getId(), monthStart, monthEnd);
+                incomes = incomeService.findByUserIdAndDateRange(user.getId(), monthStart, monthEnd);
             }
             
             // 按分类汇总
@@ -433,13 +437,13 @@ public class ReportController {
                 int year = Integer.parseInt(month);
                 LocalDate yearStart = LocalDate.of(year, 1, 1);
                 LocalDate yearEnd = LocalDate.of(year, 12, 31);
-                expenses = expenseMapper.findByUserIdAndDateRange(user.getId(), yearStart, yearEnd);
+                expenses = expenseService.findByUserIdAndDateRange(user.getId(), yearStart, yearEnd);
             } else {
                 // 月度查询
                 YearMonth ym = YearMonth.parse(month);
                 LocalDate monthStart = ym.atDay(1);
                 LocalDate monthEnd = ym.atEndOfMonth();
-                expenses = expenseMapper.findByUserIdAndDateRange(user.getId(), monthStart, monthEnd);
+                expenses = expenseService.findByUserIdAndDateRange(user.getId(), monthStart, monthEnd);
             }
             
             // 按分类汇总

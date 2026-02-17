@@ -159,23 +159,22 @@ public class IncomeController {
         log.debug("【API】用户 {} 查询收入列表", user.getId());
         log.debug("【筛选条件】分类ID: {}, 开始日期: {}, 结束日期: {}, 关键字: {}", categoryId, startDate, endDate, keyword);
         
-        // 先获取基础数据
-        List<Income> incomes = incomeService.findByUserId(user.getId());
+        // 在数据库层面进行日期范围过滤，避免加载全部数据
+        List<Income> incomes;
+        if (startDate != null && endDate != null) {
+            incomes = incomeService.findByUserIdAndDateRange(user.getId(), startDate, endDate);
+            log.debug("【数据库查询】日期范围过滤: {} - {}, 收入数: {}", startDate, endDate, incomes.size());
+        } else {
+            incomes = incomeService.findByUserId(user.getId());
+            log.debug("【数据库查询】加载全部收入，数量: {}", incomes.size());
+        }
         
-        // 按分类过滤
+        // 按分类过滤（内存级别）
         if (categoryId != null) {
             incomes = incomes.stream()
                     .filter(i -> i.getCategoryId() != null && i.getCategoryId().equals(categoryId))
                     .collect(java.util.stream.Collectors.toList());
             log.debug("【分类过滤后】收入数: {}", incomes.size());
-        }
-        
-        // 按日期范围过滤
-        if (startDate != null && endDate != null) {
-            incomes = incomes.stream()
-                    .filter(i -> i.getTransactionDate() != null && !i.getTransactionDate().isBefore(startDate) && !i.getTransactionDate().isAfter(endDate))
-                    .collect(java.util.stream.Collectors.toList());
-            log.debug("【日期范围过滤后】收入数: {} (范围: {} - {})", incomes.size(), startDate, endDate);
         }
         
         // 按关键字过滤描述

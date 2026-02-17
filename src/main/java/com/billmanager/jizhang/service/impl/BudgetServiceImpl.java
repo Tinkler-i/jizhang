@@ -13,6 +13,7 @@ import com.billmanager.jizhang.mapper.BudgetMapper;
 import com.billmanager.jizhang.mapper.ExpenseCategoryMapper;
 import com.billmanager.jizhang.mapper.ExpenseMapper;
 import com.billmanager.jizhang.service.BudgetService;
+import com.billmanager.jizhang.service.ExpenseService;
 import com.billmanager.jizhang.service.FamilyGroupService;
 import com.billmanager.jizhang.service.PermissionService;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +42,7 @@ public class BudgetServiceImpl implements BudgetService {
     private final BudgetMapper budgetMapper;
     private final ExpenseCategoryMapper expenseCategoryMapper;
     private final ExpenseMapper expenseMapper;
+    private final ExpenseService expenseService;
     private final FamilyGroupService familyGroupService;
     private final PermissionService permissionService;
     
@@ -230,7 +232,7 @@ public class BudgetServiceImpl implements BudgetService {
             FamilyMember member = permissionService.getFamilyMember(userId);
             if (member == null) {
                 // 不在家庭组，计算个人支出
-                List<Expense> expenses = expenseMapper.findByUserIdAndDateRange(userId, startDate, endDate);
+                List<Expense> expenses = expenseService.findByUserIdAndDateRange(userId, startDate, endDate);
                 return expenses.stream()
                         .filter(e -> e.getCategoryId().equals(categoryId))
                         .map(Expense::getAmount)

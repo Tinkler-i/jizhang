@@ -9,6 +9,8 @@ import com.billmanager.jizhang.entity.Income;
 import com.billmanager.jizhang.entity.IncomeCategory;
 import com.billmanager.jizhang.mapper.*;
 import com.billmanager.jizhang.service.AnalysisService;
+import com.billmanager.jizhang.service.IncomeService;
+import com.billmanager.jizhang.service.ExpenseService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -23,6 +25,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AnalysisServiceImpl implements AnalysisService {
     
+    private final IncomeService incomeService;
+    private final ExpenseService expenseService;
     private final ExpenseMapper expenseMapper;
     private final IncomeMapper incomeMapper;
     private final BudgetMapper budgetMapper;
@@ -38,8 +42,8 @@ public class AnalysisServiceImpl implements AnalysisService {
         LocalDate monthStart = now.atDay(1);
         LocalDate monthEnd = now.atEndOfMonth();
         
-        List<Income> monthIncomes = incomeMapper.findByUserIdAndDateRange(userId, monthStart, monthEnd);
-        List<Expense> monthExpenses = expenseMapper.findByUserIdAndDateRange(userId, monthStart, monthEnd);
+        List<Income> monthIncomes = incomeService.findByUserIdAndDateRange(userId, monthStart, monthEnd);
+        List<Expense> monthExpenses = expenseService.findByUserIdAndDateRange(userId, monthStart, monthEnd);
         
         BigDecimal thisMonthIncome = monthIncomes.stream()
                 .map(Income::getAmount)
@@ -61,8 +65,8 @@ public class AnalysisServiceImpl implements AnalysisService {
         LocalDate last30DaysStart = LocalDate.now().minusDays(30);
         LocalDate last30DaysEnd = LocalDate.now();
         
-        List<Income> last30DaysIncomes = incomeMapper.findByUserIdAndDateRange(userId, last30DaysStart, last30DaysEnd);
-        List<Expense> last30DaysExpenses = expenseMapper.findByUserIdAndDateRange(userId, last30DaysStart, last30DaysEnd);
+        List<Income> last30DaysIncomes = incomeService.findByUserIdAndDateRange(userId, last30DaysStart, last30DaysEnd);
+        List<Expense> last30DaysExpenses = expenseService.findByUserIdAndDateRange(userId, last30DaysStart, last30DaysEnd);
         
         BigDecimal last30DaysIncome = last30DaysIncomes.stream()
                 .map(Income::getAmount)
@@ -80,8 +84,8 @@ public class AnalysisServiceImpl implements AnalysisService {
         LocalDate yearStart = LocalDate.of(LocalDate.now().getYear(), 1, 1);
         LocalDate yearEnd = LocalDate.now();
         
-        List<Income> yearIncomes = incomeMapper.findByUserIdAndDateRange(userId, yearStart, yearEnd);
-        List<Expense> yearExpenses = expenseMapper.findByUserIdAndDateRange(userId, yearStart, yearEnd);
+        List<Income> yearIncomes = incomeService.findByUserIdAndDateRange(userId, yearStart, yearEnd);
+        List<Expense> yearExpenses = expenseService.findByUserIdAndDateRange(userId, yearStart, yearEnd);
         
         BigDecimal yearToDateIncome = yearIncomes.stream()
                 .map(Income::getAmount)
@@ -135,8 +139,8 @@ public class AnalysisServiceImpl implements AnalysisService {
         LocalDate monthStart = now.atDay(1);
         LocalDate monthEnd = now.atEndOfMonth();
         
-        List<Income> monthIncomes = incomeMapper.findByUserIdAndDateRange(userId, monthStart, monthEnd);
-        List<Expense> monthExpenses = expenseMapper.findByUserIdAndDateRange(userId, monthStart, monthEnd);
+        List<Income> monthIncomes = incomeService.findByUserIdAndDateRange(userId, monthStart, monthEnd);
+        List<Expense> monthExpenses = expenseService.findByUserIdAndDateRange(userId, monthStart, monthEnd);
         
         BigDecimal monthIncome = monthIncomes.stream()
                 .map(Income::getAmount)
@@ -169,7 +173,7 @@ public class AnalysisServiceImpl implements AnalysisService {
         
         // 检查最近30天是否有收入
         LocalDate last30DaysStart = LocalDate.now().minusDays(30);
-        List<Income> last30DaysIncomes = incomeMapper.findByUserIdAndDateRange(userId, last30DaysStart, LocalDate.now());
+        List<Income> last30DaysIncomes = incomeService.findByUserIdAndDateRange(userId, last30DaysStart, LocalDate.now());
         if (!last30DaysIncomes.isEmpty()) {
             score += 5;
         }
@@ -186,8 +190,8 @@ public class AnalysisServiceImpl implements AnalysisService {
         LocalDate monthStart = now.atDay(1);
         LocalDate monthEnd = now.atEndOfMonth();
         
-        List<Income> monthIncomes = incomeMapper.findByUserIdAndDateRange(userId, monthStart, monthEnd);
-        List<Expense> monthExpenses = expenseMapper.findByUserIdAndDateRange(userId, monthStart, monthEnd);
+        List<Income> monthIncomes = incomeService.findByUserIdAndDateRange(userId, monthStart, monthEnd);
+        List<Expense> monthExpenses = expenseService.findByUserIdAndDateRange(userId, monthStart, monthEnd);
         
         BigDecimal monthIncome = monthIncomes.stream()
                 .map(Income::getAmount)
@@ -267,8 +271,8 @@ public class AnalysisServiceImpl implements AnalysisService {
         LocalDate endDate = LocalDate.now();
         LocalDate startDate = endDate.minusDays(29);
         
-        List<Income> allIncomes = incomeMapper.findByUserIdAndDateRange(userId, startDate, endDate);
-        List<Expense> allExpenses = expenseMapper.findByUserIdAndDateRange(userId, startDate, endDate);
+        List<Income> allIncomes = incomeService.findByUserIdAndDateRange(userId, startDate, endDate);
+        List<Expense> allExpenses = expenseService.findByUserIdAndDateRange(userId, startDate, endDate);
         
         // 按日期聚合
         Map<LocalDate, BigDecimal> dailyIncome = new TreeMap<>();
@@ -304,7 +308,7 @@ public class AnalysisServiceImpl implements AnalysisService {
         LocalDate monthStart = now.atDay(1);
         LocalDate monthEnd = now.atEndOfMonth();
         
-        List<Income> monthIncomes = incomeMapper.findByUserIdAndDateRange(userId, monthStart, monthEnd);
+        List<Income> monthIncomes = incomeService.findByUserIdAndDateRange(userId, monthStart, monthEnd);
         BigDecimal totalMonthIncome = monthIncomes.stream()
                 .map(Income::getAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -329,7 +333,7 @@ public class AnalysisServiceImpl implements AnalysisService {
         
         // 支出分类饼图
         List<DashboardData.CategoryData> expenseCategoryData = new ArrayList<>();
-        List<Expense> monthExpenses = expenseMapper.findByUserIdAndDateRange(userId, monthStart, monthEnd);
+        List<Expense> monthExpenses = expenseService.findByUserIdAndDateRange(userId, monthStart, monthEnd);
         BigDecimal totalMonthExpense = monthExpenses.stream()
                 .map(Expense::getAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -388,7 +392,7 @@ public class AnalysisServiceImpl implements AnalysisService {
         LocalDate monthEnd = ym.atEndOfMonth();
         
         // 获取该月的所有支出
-        List<Expense> monthExpenses = expenseMapper.findByUserIdAndDateRange(userId, monthStart, monthEnd);
+        List<Expense> monthExpenses = expenseService.findByUserIdAndDateRange(userId, monthStart, monthEnd);
         
         if (monthExpenses.isEmpty()) {
             return result;
@@ -467,7 +471,7 @@ public class AnalysisServiceImpl implements AnalysisService {
         List<com.billmanager.jizhang.entity.Budget> allBudgets = budgetMapper.findByUserIdAndYearMonth(userId, monthsToProcess.get(0));
         
         // 获取年度范围内的实际支出
-        List<Expense> yearExpenses = expenseMapper.findByUserIdAndDateRange(userId, yearStart, yearEnd);
+        List<Expense> yearExpenses = expenseService.findByUserIdAndDateRange(userId, yearStart, yearEnd);
         Map<Long, BigDecimal> actualByCategory = yearExpenses.stream()
                 .collect(Collectors.groupingBy(
                         Expense::getCategoryId,
