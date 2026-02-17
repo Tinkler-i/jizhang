@@ -22,13 +22,14 @@
       </div>
     </div>
     
-        <!-- 触发验证按钮 -->
-        <button 
-          class="captcha-trigger-btn"
-          @click="openCaptcha"
-        >
-          🔐 开始验证
-        </button>
+    <!-- 触发验证按钮 - 根据 showTriggerButton 属性显示 -->
+    <button 
+      v-if="showTriggerButton"
+      class="captcha-trigger-btn"
+      @click="openCaptcha"
+    >
+      🔐 开始验证
+    </button>
   </div>
 </template>
 

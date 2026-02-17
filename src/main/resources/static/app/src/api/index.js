@@ -72,8 +72,14 @@ api.interceptors.response.use(
 
 // Auth API
 export const authAPI = {
-  login: (username, password) =>
-    api.post('/auth/login', { username, password }),
+  login: (username, password, captchaToken = null) => {
+    const params = {};
+    if (captchaToken) {
+      params.captchaToken = captchaToken;
+    }
+    const config = Object.keys(params).length > 0 ? { params } : {};
+    return api.post('/auth/login', { username, password }, config);
+  },
   logout: () => api.post('/auth/logout'),
   getProfile: () => api.get('/user/profile'),
   updateProfile: (data) => api.put('/user/profile', data),
