@@ -12,6 +12,17 @@ import org.springframework.web.bind.annotation.*;
 
 /**
  * 忘记密码相关 API 控制器
+ * 
+ * 【重要】此控制器处理密码重置流程，与登录防护系统完全隔离。
+ * 即使用户的浏览器由于多次登录失败而被标记为需要人机验证，
+ * 忘记密码流程仍应正常可用。密码重置使用独立的验证码系统（邮箱/短信）
+ * 和独立的人机验证码（与登录页面共享同一验证码库，但不受登录防护影响）。
+ * 
+ * 流程：
+ * 1. 用户完成人机验证，获取 captchaToken
+ * 2. 调用 /send-reset-password-code 发送邮箱/短信验证码（需要 captchaToken）
+ * 3. 用户输入验证码，调用 /verify-reset-password-code 进行验证
+ * 4. 验证成功后，调用 /reset-password 完成密码重置
  */
 @Slf4j
 @RestController

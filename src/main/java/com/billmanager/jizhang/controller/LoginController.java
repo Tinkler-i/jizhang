@@ -39,6 +39,24 @@ public class LoginController {
     private final LoginAttemptService loginAttemptService;
     private final CaptchaService captchaService;
     
+    /**
+     * 【重要】登录防护说明
+     * 
+     * 此控制器使用 LoginAttemptService 和 browserFingerprint（IP + User-Agent）来实现
+     * 登录防暴力破解保护。这个机制【仅影响登录相关端点】(/api/login 和 /api/auth/login)。
+     * 
+     * 注意事项：
+     * 1. browserFingerprint 仅在 login() 和 authLogin() 方法中使用
+     * 2. 注册、忘记密码等其他流程有独立的验证系统，不受登录防护限制
+     * 3. 当用户被要求人机验证（code=428）时，他们应仍可在其他页面进行操作
+     * 4. 如果浏览器被完全锁定，用户需要等待或换浏览器/IP
+     * 
+     * 防护层次：
+     * - 第 1 层（1-3 次失败）：无限制
+     * - 第 2 层（3-6 次失败）：需要人机验证
+     * - 第 3 层（6+ 次失败）：完全锁定（5分钟起步，后续失败将延长锁定时间）
+     */
+    
     private User getCurrentUser(HttpSession session) {
         User user = (User) session.getAttribute("user");
         if (user != null) {
