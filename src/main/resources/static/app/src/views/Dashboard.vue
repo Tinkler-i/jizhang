@@ -221,23 +221,17 @@
     </div>
 
 
-    <!-- 年度模式信息 -->
-    <div v-if="modeType === 'yearly'" class="yearly-mode-info">
+    <!-- 年度模式目标进度图表 -->
+    <div v-if="modeType === 'yearly'" class="yearly-targets-chart-section">
       <Card>
-        <div class="info-content">
-          <div class="info-icon">📊</div>
-          <div class="info-text">
-            <h3>年度目标设置与进度分析</h3>
-            <p>在"目标管理"中设置年度目标，在"报表分析"中查看详细的月度目标进度和完成情况。</p>
-          </div>
-          <div class="info-actions">
-            <Button type="primary" @click="$router.push('/target')">
-              ⚙️ 管理目标
-            </Button>
-            <Button type="secondary" @click="$router.push('/report')">
-              📈 查看详情
-            </Button>
-          </div>
+        <template #header>
+          <h3>{{ selectedYear }} 年目标进度对比</h3>
+        </template>
+        <div v-if="yearlyTargetsData.length > 0" class="chart-placeholder">
+          <canvas ref="yearlyTargetsChart"></canvas>
+        </div>
+        <div v-else class="empty-state-compact">
+          <p>📊 暂无年度目标数据，请先在目标管理中设置目标</p>
         </div>
       </Card>
     </div>
@@ -287,7 +281,7 @@
 
 <script setup>
 import { reactive, ref, onMounted, onUnmounted, computed, watch } from 'vue'
-import { analysisAPI, reportAPI, userTargetAPI } from '../api'
+import { analysisAPI, reportAPI, userTargetAPI, incomeAPI, expenseAPI } from '../api'
 import Card from '../components/Card.vue'
 import Button from '../components/Button.vue'
 import Modal from '../components/Modal.vue'
@@ -298,10 +292,12 @@ const trendChart = ref(null)
 const incomeCategoryChart = ref(null)
 const expenseCategoryChart = ref(null)
 const budgetChart = ref(null)
+const yearlyTargetsChart = ref(null)
 let trendChartInstance = null
 let incomeCategoryChartInstance = null
 let expenseCategoryChartInstance = null
 let budgetChartInstance = null
+let yearlyTargetsChartInstance = null
 
 const showEditTargetModal = ref(false)
 const targetForm = reactive({
@@ -323,8 +319,8 @@ const hasIncomeCategoryData = ref(false)
 const hasExpenseCategoryData = ref(false)
 const hasBudgetData = ref(false)
 
-// 年度目标进度数据（用于报表模块）
-// const yearlyTargetsData = ref([])
+// 年度目标进度数据
+const yearlyTargetsData = ref([])
 
 // 年份选择器ref
 const yearSelectorRef = ref(null)
@@ -454,6 +450,12 @@ const handleYearChange = async () => {
   loadDashboardData()
   await new Promise(resolve => setTimeout(resolve, 100))
   await loadCharts()
+  // 年度模式下加载并绘制年度目标图表
+  if (modeType.value === 'yearly') {
+    await loadYearlyTargetsProgress()
+    await new Promise(resolve => setTimeout(resolve, 100))
+    drawYearlyTargetsChart()
+  }
 }
 
 const loadDashboardData = async () => {
@@ -966,6 +968,178 @@ const drawBudgetChart = (data) => {
   })
 }
 
+// 加载年度目标进度数据
+const loadYearlyTargetsProgress = async () => {
+  try {
+    console.log('【仪表盘】加载年度目标进度，年份:', selectedYear.value)
+    
+    // 获取该年份所有目标
+    const targetsResponse = await userTargetAPI.getAll()
+    const allTargets = (targetsResponse?.code === 200 || targetsResponse?.code === 0) ? (targetsResponse.data || []) : []
+    
+    const year = selectedYear.value.toString()
+    const yearTargets = allTargets.filter(t => t.targetMonth.startsWith(year))
+    
+    console.log(`【仪表盘】该年份的目标数: ${yearTargets.length}`, yearTargets)
+    
+    // 为每个月份组织数据
+    const tableData = []
+    
+    for (const target of yearTargets) {
+      const month = parseInt(target.targetMonth.substring(5))
+      const monthStr = target.targetMonth
+      
+      try {
+        // 获取该月的日期范围
+        const [year, monthNum] = monthStr.split('-')
+        const startDate = `${year}-${monthNum}-01`
+        const lastDay = new Date(year, monthNum, 0).getDate()
+        const endDate = `${year}-${monthNum}-${lastDay}`
+        
+        // 并行加载收入和支出
+        const [incomeRes, expenseRes] = await Promise.all([
+          incomeAPI.getList({ startDate, endDate }),
+          expenseAPI.getList({ startDate, endDate })
+        ])
+        
+        // 计算总收入
+        let totalIncome = 0
+        if (incomeRes?.code === 200 && incomeRes?.data && Array.isArray(incomeRes.data)) {
+          totalIncome = incomeRes.data.reduce((sum, item) => sum + (item.amount || 0), 0)
+        } else if (Array.isArray(incomeRes)) {
+          totalIncome = incomeRes.reduce((sum, item) => sum + (item.amount || 0), 0)
+        }
+        
+        // 计算总支出
+        let totalExpense = 0
+        if (expenseRes?.code === 200 && expenseRes?.data && Array.isArray(expenseRes.data)) {
+          totalExpense = expenseRes.data.reduce((sum, item) => sum + (item.amount || 0), 0)
+        } else if (Array.isArray(expenseRes)) {
+          totalExpense = expenseRes.reduce((sum, item) => sum + (item.amount || 0), 0)
+        }
+        
+        // 计算攒下金额
+        const savings = totalIncome - totalExpense
+        const percentage = target.incomeTarget > 0 ? Math.min(Math.round((savings / target.incomeTarget) * 100), 100) : 0
+        const achieved = savings >= target.incomeTarget
+        
+        tableData.push({
+          month,
+          target: target.incomeTarget,
+          savings,
+          percentage: Math.max(0, percentage),
+          achieved
+        })
+        
+        console.log(`【仪表盘】${monthStr}: 目标=¥${target.incomeTarget}, 攒下=¥${savings}, 进度=${percentage}%`)
+      } catch (error) {
+        console.error(`【仪表盘】加载 ${monthStr} 数据失败:`, error)
+        tableData.push({
+          month,
+          target: target.incomeTarget,
+          savings: 0,
+          percentage: 0,
+          achieved: false
+        })
+      }
+    }
+    
+    // 按月份排序
+    tableData.sort((a, b) => a.month - b.month)
+    yearlyTargetsData.value = tableData
+    
+    console.log('【仪表盘】年度目标进度表:', yearlyTargetsData.value)
+  } catch (error) {
+    console.error('【仪表盘】加载年度目标进度失败:', error)
+    yearlyTargetsData.value = []
+  }
+}
+
+// 绘制年度目标进度图表
+const drawYearlyTargetsChart = () => {
+  try {
+    if (!yearlyTargetsData.value || yearlyTargetsData.value.length === 0) {
+      console.warn('【年度目标图表】无数据')
+      return
+    }
+
+    if (yearlyTargetsChartInstance) yearlyTargetsChartInstance.destroy()
+    
+    const ctx = yearlyTargetsChart.value
+    if (!ctx) {
+      console.warn('【年度目标图表】canvas 上下文不存在')
+      return
+    }
+
+    // 准备数据
+    const months = yearlyTargetsData.value.map(item => item.month + '月')
+    const targets = yearlyTargetsData.value.map(item => item.target)
+    const savings = yearlyTargetsData.value.map(item => item.savings)
+    const achieved = yearlyTargetsData.value.map(item => item.achieved)
+
+    yearlyTargetsChartInstance = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: months,
+        datasets: [
+          {
+            label: '目标金额',
+            data: targets,
+            backgroundColor: 'rgba(24, 144, 255, 0.6)',
+            borderColor: 'rgba(24, 144, 255, 1)',
+            borderWidth: 1,
+            borderRadius: 4
+          },
+          {
+            label: '实际攒下',
+            data: savings,
+            backgroundColor: savings.map((s, i) => achieved[i] ? 'rgba(82, 196, 26, 0.6)' : 'rgba(255, 193, 7, 0.6)'),
+            borderColor: savings.map((s, i) => achieved[i] ? 'rgba(82, 196, 26, 1)' : 'rgba(255, 193, 7, 1)'),
+            borderWidth: 1,
+            borderRadius: 4
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              padding: 15,
+              font: {
+                size: 12
+              }
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                return context.dataset.label + ': ¥' + context.parsed.y.toFixed(2)
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              callback: function(value) {
+                return '¥' + value.toFixed(0)
+              }
+            }
+          }
+        }
+      }
+    })
+
+    console.log('【年度目标图表】绘制完成')
+  } catch (error) {
+    console.error('【年度目标图表】绘制出错:', error)
+  }
+}
+
 const saveIncomeTarget = async () => {
   try {
     let month
@@ -1023,12 +1197,20 @@ const openEditTargetModal = () => {
 }
 
 // 监听模式改变，自动加载数据
-watch(modeType, () => {
+watch(modeType, async () => {
   console.log('【仪表盘】模式改变为:', modeType.value)
   selectedIncomeCategory.value = null
   selectedExpenseCategory.value = null
   loadDashboardData()
-  setTimeout(() => loadCharts(), 500)
+  setTimeout(async () => {
+    await loadCharts()
+    // 如果切换到年度模式，加载并绘制年度目标图表
+    if (modeType.value === 'yearly') {
+      await loadYearlyTargetsProgress()
+      await new Promise(resolve => setTimeout(resolve, 100))
+      drawYearlyTargetsChart()
+    }
+  }, 500)
 })
 
 // 监听收入分类选择变化
@@ -1091,6 +1273,13 @@ onMounted(async () => {
 onUnmounted(() => {
   // 移除事件监听
   document.removeEventListener('click', handleClickOutside)
+  
+  // 销毁所有图表实例
+  if (trendChartInstance) trendChartInstance.destroy()
+  if (incomeCategoryChartInstance) incomeCategoryChartInstance.destroy()
+  if (expenseCategoryChartInstance) expenseCategoryChartInstance.destroy()
+  if (budgetChartInstance) budgetChartInstance.destroy()
+  if (yearlyTargetsChartInstance) yearlyTargetsChartInstance.destroy()
 })
 </script>
 
@@ -1505,43 +1694,23 @@ onUnmounted(() => {
   font-weight: normal;
 }
 
-.yearly-mode-info {
+.yearly-targets-chart-section {
   margin-bottom: 30px;
 }
 
-.yearly-mode-info .info-content {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  padding: 20px;
-}
-
-.yearly-mode-info .info-icon {
-  font-size: 40px;
-  flex-shrink: 0;
-}
-
-.yearly-mode-info .info-text {
-  flex: 1;
-}
-
-.yearly-mode-info .info-text h3 {
-  margin: 0 0 8px 0;
+.yearly-targets-chart-section h3 {
+  margin: 0;
   font-size: 16px;
   color: #333;
 }
 
-.yearly-mode-info .info-text p {
-  margin: 0;
-  font-size: 13px;
-  color: #666;
-  line-height: 1.5;
+.yearly-targets-chart-section .chart-placeholder {
+  position: relative;
+  height: 360px;
 }
 
-.yearly-mode-info .info-actions {
-  display: flex;
-  gap: 15px;
-  flex-shrink: 0;
+.yearly-targets-chart-section canvas {
+  max-height: 360px;
 }
 
 .quick-actions {
@@ -1669,19 +1838,8 @@ onUnmounted(() => {
     flex-direction: column;
   }
 
-  .yearly-mode-info .info-content {
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-  }
-
-  .yearly-mode-info .info-actions {
-    width: 100%;
-    gap: 10px;
-  }
-
-  .yearly-mode-info .info-actions button {
-    width: 100%;
+  .yearly-targets-chart-section .chart-placeholder {
+    height: 280px;
   }
 }
 </style>

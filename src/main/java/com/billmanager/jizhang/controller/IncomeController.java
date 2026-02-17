@@ -157,14 +157,25 @@ public class IncomeController {
         }
         
         log.debug("【API】用户 {} 查询收入列表", user.getId());
+        log.debug("【筛选条件】分类ID: {}, 开始日期: {}, 结束日期: {}, 关键字: {}", categoryId, startDate, endDate, keyword);
         
-        List<Income> incomes;
+        // 先获取基础数据
+        List<Income> incomes = incomeService.findByUserId(user.getId());
+        
+        // 按分类过滤
         if (categoryId != null) {
-            incomes = incomeService.findByUserIdAndCategoryId(user.getId(), categoryId);
-        } else if (startDate != null && endDate != null) {
-            incomes = incomeService.findByUserIdAndDateRange(user.getId(), startDate, endDate);
-        } else {
-            incomes = incomeService.findByUserId(user.getId());
+            incomes = incomes.stream()
+                    .filter(i -> i.getCategoryId() != null && i.getCategoryId().equals(categoryId))
+                    .collect(java.util.stream.Collectors.toList());
+            log.debug("【分类过滤后】收入数: {}", incomes.size());
+        }
+        
+        // 按日期范围过滤
+        if (startDate != null && endDate != null) {
+            incomes = incomes.stream()
+                    .filter(i -> i.getTransactionDate() != null && !i.getTransactionDate().isBefore(startDate) && !i.getTransactionDate().isAfter(endDate))
+                    .collect(java.util.stream.Collectors.toList());
+            log.debug("【日期范围过滤后】收入数: {} (范围: {} - {})", incomes.size(), startDate, endDate);
         }
         
         // 按关键字过滤描述
@@ -173,8 +184,10 @@ public class IncomeController {
             incomes = incomes.stream()
                     .filter(i -> i.getDescription() != null && i.getDescription().toLowerCase().contains(key))
                     .collect(java.util.stream.Collectors.toList());
+            log.debug("【关键字过滤后】收入数: {}", incomes.size());
         }
         
+        log.debug("【查询结果】最终收入数: {}", incomes.size());
         return ApiResponse.success("查询成功", incomes);
     }
     
