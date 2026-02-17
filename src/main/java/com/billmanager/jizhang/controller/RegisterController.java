@@ -12,6 +12,17 @@ import org.springframework.web.bind.annotation.*;
 
 /**
  * 注册相关 API 控制器
+ * 
+ * 【重要】此控制器处理用户注册流程，与登录防护系统完全隔离。
+ * 即使用户的浏览器由于多次登录失败而被标记为需要人机验证，
+ * 注册流程仍应正常可用。注册使用独立的验证码系统（邮箱/短信）
+ * 和独立的人机验证码（与登录页面共享同一验证码库，但不受登录防护影响）。
+ * 
+ * 流程：
+ * 1. 用户完成人机验证，获取 captchaToken
+ * 2. 调用 /send-verification-code 发送邮箱/短信验证码（需要 captchaToken）
+ * 3. 用户输入验证码，调用 /verify-code 进行验证
+ * 4. 验证成功后，调用 /register 完成注册
  */
 @Slf4j
 @RestController

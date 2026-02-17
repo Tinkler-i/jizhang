@@ -53,15 +53,25 @@
         <!-- 人机验证组件 -->
         <div class="input-group">
           <label>人机验证</label>
-          <div class="captcha-container">
-            <Captcha
-              ref="captchaRef"
-              :before-open="handleValidateBeforeCaptcha"
-              @success="handleCaptchaSuccess"
-              @close="handleCaptchaClose"
-            />
+          <div v-if="!captchaToken" class="captcha-button-group">
+            <Button
+              type="primary"
+              block
+              @click="openCaptcha"
+            >
+              🔐 开始验证
+            </Button>
+          </div>
+          <div v-if="captchaToken" class="captcha-success-tip">
+            ✓ 人机验证已通过，正在为您发送验证码...
           </div>
           <div v-if="errors.captcha" class="error-message">{{ errors.captcha }}</div>
+          <Captcha
+            ref="captchaRef"
+            :before-open="handleValidateBeforeCaptcha"
+            @success="handleCaptchaSuccess"
+            @close="handleCaptchaClose"
+          />
         </div>
 
         <div class="step-indicator">
@@ -258,6 +268,12 @@ const validateEmail = (email) => {
 const validatePhone = (phone) => {
   const phoneRegex = /^1[3-9]\d{9}$/
   return phoneRegex.test(phone)
+}
+
+// 打开人机验证码
+const openCaptcha = () => {
+  console.log('【ForgotPassword】打开人机验证码')
+  captchaRef.value?.openCaptcha()
 }
 
 // 验证是否可以开启人机验证（返回 true 表示可以，返回错误信息字符串表示验证失败）

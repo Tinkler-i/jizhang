@@ -219,13 +219,15 @@ DROP TABLE IF EXISTS `user_target`;
 CREATE TABLE `user_target` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '目标ID',
   `user_id` bigint NOT NULL COMMENT '用户ID',
+  `family_group_id` bigint NOT NULL DEFAULT '0' COMMENT '家庭组ID（0表示个人目标，>0表示家庭目标）',
   `target_month` varchar(7) NOT NULL COMMENT '目标年月（格式：YYYY-MM）',
   `income_target` decimal(10,2) NOT NULL COMMENT '收入目标',
   `create_time` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `update_time` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_user_month` (`user_id`,`target_month`),
+  UNIQUE KEY `uk_user_month` (`user_id`,`target_month`,`family_group_id`),
   KEY `idx_user_id` (`user_id`),
+  KEY `idx_family_group_id` (`family_group_id`),
   KEY `idx_target_month` (`target_month`)
 ) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='用户收入目标表';
 /*!40101 SET character_set_client = @saved_cs_client */;

@@ -27,6 +27,11 @@ public class UserTarget {
     private Long userId;
     
     /**
+     * 家庭组ID（0表示个人目标，>0表示家庭目标）
+     */
+    private Long familyGroupId = 0L;
+    
+    /**
      * 目标年月（格式：YYYY-MM）
      */
     private String targetMonth;

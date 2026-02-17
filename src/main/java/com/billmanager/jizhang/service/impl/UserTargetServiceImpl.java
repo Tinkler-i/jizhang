@@ -4,6 +4,7 @@ import com.billmanager.jizhang.entity.UserTarget;
 import com.billmanager.jizhang.exception.BusinessException;
 import com.billmanager.jizhang.mapper.UserTargetMapper;
 import com.billmanager.jizhang.service.UserTargetService;
+import com.billmanager.jizhang.service.FamilyGroupService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -22,6 +23,7 @@ import java.util.List;
 public class UserTargetServiceImpl implements UserTargetService {
     
     private final UserTargetMapper userTargetMapper;
+    private final FamilyGroupService familyGroupService;
     
     @Override
     public UserTarget findById(Long id) {
@@ -85,6 +87,11 @@ public class UserTargetServiceImpl implements UserTargetService {
             throw new BusinessException("收入目标不能为空或小于0");
         }
         
+        // 确保familyGroupId有值（个人目标设为0）
+        if (userTarget.getFamilyGroupId() == null) {
+            userTarget.setFamilyGroupId(0L);
+        }
+        
         // 检查是否已存在相同的目标
         UserTarget existing = userTargetMapper.findByUserIdAndMonth(
                 userTarget.getUserId(), 
@@ -93,10 +100,24 @@ public class UserTargetServiceImpl implements UserTargetService {
             throw new BusinessException("该月份的目标已存在，请编辑修改或删除后重试");
         }
         
+        // 如果familyGroupId为0（个人目标），保持不变
+        // 如果familyGroupId>0（家庭目标），检查用户是否在该家庭组中
+        if (userTarget.getFamilyGroupId() > 0) {
+            try {
+                var familyGroup = familyGroupService.getFamilyGroupByUserId(userTarget.getUserId());
+                if (familyGroup == null || !familyGroup.getId().equals(userTarget.getFamilyGroupId())) {
+                    throw new BusinessException("用户不在指定的家庭组中");
+                }
+            } catch (Exception e) {
+                log.debug("【目标】检查家族组权限失败", e);
+                throw new BusinessException("检查家族组权限失败");
+            }
+        }
+        
         int result = userTargetMapper.insert(userTarget);
         if (result > 0) {
-            log.info("【目标创建】用户ID: {}, 目标年月: {}, 收入目标: {}", 
-                    userTarget.getUserId(), userTarget.getTargetMonth(), userTarget.getIncomeTarget());
+            log.info("【目标创建】用户ID: {}, 目标年月: {}, 收入目标: {}, familyGroupId: {}", 
+                    userTarget.getUserId(), userTarget.getTargetMonth(), userTarget.getIncomeTarget(), userTarget.getFamilyGroupId());
             return userTarget;
         } else {
             throw new BusinessException("创建目标失败");
@@ -135,9 +156,26 @@ public class UserTargetServiceImpl implements UserTargetService {
             throw new BusinessException("目标不存在");
         }
         
-        // 验证目标归属于指定用户
-        if (!target.getUserId().equals(userId)) {
-            throw new BusinessException("无权删除该目标");
+        // 验证目标归属于指定用户或用户所在的家庭组
+        boolean isOwner = target.getUserId().equals(userId);
+        boolean isFamilyTarget = target.getFamilyGroupId() != null && target.getFamilyGroupId() > 0;
+        
+        if (isFamilyTarget) {
+            // 家庭目标：需要检查用户是否在该家庭组中
+            try {
+                var familyGroup = familyGroupService.getFamilyGroupByUserId(userId);
+                if (familyGroup == null || !familyGroup.getId().equals(target.getFamilyGroupId())) {
+                    throw new BusinessException("无权删除该目标");
+                }
+            } catch (Exception e) {
+                log.error("【目标】验证家族组权限失败", e);
+                throw new BusinessException("无权删除该目标");
+            }
+        } else {
+            // 个人目标：只有创建者能删除
+            if (!isOwner) {
+                throw new BusinessException("无权删除该目标");
+            }
         }
         
         int result = userTargetMapper.delete(id);
