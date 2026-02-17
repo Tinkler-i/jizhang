@@ -2,6 +2,7 @@ package com.billmanager.jizhang.service.impl;
 
 import com.billmanager.jizhang.entity.FamilyGroup;
 import com.billmanager.jizhang.entity.FamilyMember;
+import com.billmanager.jizhang.constant.PermissionConstants;
 import com.billmanager.jizhang.mapper.BudgetMapper;
 import com.billmanager.jizhang.mapper.ExpenseCategoryMapper;
 import com.billmanager.jizhang.mapper.ExpenseMapper;
@@ -9,6 +10,7 @@ import com.billmanager.jizhang.mapper.FamilyGroupMapper;
 import com.billmanager.jizhang.mapper.FamilyMemberMapper;
 import com.billmanager.jizhang.mapper.IncomeCategoryMapper;
 import com.billmanager.jizhang.mapper.IncomeMapper;
+import com.billmanager.jizhang.mapper.UserTargetMapper;
 import com.billmanager.jizhang.service.FamilyMemberService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -36,6 +38,7 @@ public class FamilyMemberServiceImpl implements FamilyMemberService {
     private final IncomeCategoryMapper incomeCategoryMapper;
     private final ExpenseCategoryMapper expenseCategoryMapper;
     private final BudgetMapper budgetMapper;
+    private final UserTargetMapper userTargetMapper;
     private final ObjectMapper objectMapper;
     
     @Override
@@ -62,10 +65,8 @@ public class FamilyMemberServiceImpl implements FamilyMemberService {
                 throw new RuntimeException("该家庭组已禁用");
             }
             
-            // 使用默认成员权限（简化的6个权限，只有查看权限）
-            String defaultPermissions = "{\"income_view\":true,\"income_edit\":false," +
-                    "\"expense_view\":true,\"expense_edit\":false," +
-                    "\"budget_view\":true,\"budget_edit\":false}";
+            // 使用默认成员权限（8个权限，只有查看权限）
+            String defaultPermissions = PermissionConstants.DEFAULT_MEMBER_PERMISSIONS;
             
             // 检查是否有历史记录（被删除的成员记录）
             FamilyMember historicalMember = familyMemberMapper.selectByFamilyGroupAndUserIdIncludeDeleted(familyGroup.getId(), userId);
@@ -98,15 +99,18 @@ public class FamilyMemberServiceImpl implements FamilyMemberService {
                 int incomeUpdated = incomeMapper.updateFamilyGroupId(userId, familyGroup.getId());
                 int expenseUpdated = expenseMapper.updateFamilyGroupId(userId, familyGroup.getId());
                 
-                // 更新用户的所有收入和支出分类的家庭组ID（包括系统内置的"待分类"分类）
-                int incomeCategoryUpdated = incomeCategoryMapper.updateAllCategoriesFamilyGroupId(userId, familyGroup.getId());
-                int expenseCategoryUpdated = expenseCategoryMapper.updateAllCategoriesFamilyGroupId(userId, familyGroup.getId());
+                // 更新用户的所有收入和支出分类的家庭组ID
+                int incomeCategoryUpdated = incomeCategoryMapper.updateFamilyGroupId(userId, familyGroup.getId());
+                int expenseCategoryUpdated = expenseCategoryMapper.updateFamilyGroupId(userId, familyGroup.getId());
                 
                 // 更新用户的所有预算记录的家庭组ID
                 int budgetUpdated = budgetMapper.updateFamilyGroupId(userId, familyGroup.getId());
                 
-                log.info("【家庭成员】用户ID: {} 加入家庭组ID: {} 后，更新了 {} 条收入记录、{} 条支出记录、{} 个收入分类、{} 个支出分类和 {} 条预算记录", 
-                        userId, familyGroup.getId(), incomeUpdated, expenseUpdated, incomeCategoryUpdated, expenseCategoryUpdated, budgetUpdated);
+                // 【新增】更新用户的所有目标(UserTarget)的家庭组ID
+                int userTargetUpdated = userTargetMapper.updateFamilyGroupId(userId, familyGroup.getId());
+                
+                log.info("【家庭成员】用户ID: {} 加入家庭组ID: {} 后，更新了 {} 条收入记录、{} 条支出记录、{} 个收入分类、{} 个支出分类、{} 条预算记录和 {} 条目标记录", 
+                        userId, familyGroup.getId(), incomeUpdated, expenseUpdated, incomeCategoryUpdated, expenseCategoryUpdated, budgetUpdated, userTargetUpdated);
             } else {
                 log.info("【家庭成员】用户ID: {} 加入家庭组ID: {} 后，未带入现有数据", userId, familyGroup.getId());
             }
@@ -131,12 +135,14 @@ public class FamilyMemberServiceImpl implements FamilyMemberService {
                 // 管理员拥有所有权限
                 permissions = "{\"income_view\":true,\"income_edit\":true," +
                         "\"expense_view\":true,\"expense_edit\":true," +
-                        "\"budget_view\":true,\"budget_edit\":true}";
+                        "\"budget_view\":true,\"budget_edit\":true," +
+                        "\"target_view\":true,\"target_edit\":true}";
             } else {
                 // 普通成员只有查看权限
                 permissions = "{\"income_view\":true,\"income_edit\":false," +
                         "\"expense_view\":true,\"expense_edit\":false," +
-                        "\"budget_view\":true,\"budget_edit\":false}";
+                        "\"budget_view\":true,\"budget_edit\":false," +
+                        "\"target_view\":true,\"target_edit\":false}";
             }
             
             FamilyMember member = new FamilyMember();
@@ -233,6 +239,8 @@ public class FamilyMemberServiceImpl implements FamilyMemberService {
                     incomeCategoryMapper.deleteByUserIdAndFamilyGroupId(member.getUserId(), familyGroup.getId());
                     expenseCategoryMapper.deleteByUserIdAndFamilyGroupId(member.getUserId(), familyGroup.getId());
                     budgetMapper.deleteByUserIdAndFamilyGroupId(member.getUserId(), familyGroup.getId());
+                    // 【新增】删除用户的家庭目标
+                    userTargetMapper.deleteByUserIdAndFamilyGroupId(member.getUserId(), familyGroup.getId());
                     log.info("【家庭成员】创建者 (用户ID: {}) 选择删除数据后退出", member.getUserId());
                 } else {
                     // 用户选择保留数据，转换为个人数据
@@ -241,6 +249,8 @@ public class FamilyMemberServiceImpl implements FamilyMemberService {
                     incomeCategoryMapper.updateFamilyGroupIdToPersonal(member.getUserId(), familyGroup.getId());
                     expenseCategoryMapper.updateFamilyGroupIdToPersonal(member.getUserId(), familyGroup.getId());
                     budgetMapper.updateFamilyGroupIdToPersonal(member.getUserId(), familyGroup.getId());
+                    // 【新增】转换用户的家庭目标为个人目标
+                    userTargetMapper.updateFamilyGroupIdToPersonal(member.getUserId(), familyGroup.getId());
                     log.info("【家庭成员】创建者 (用户ID: {}) 选择保留数据后退出", member.getUserId());
                 }
                 
@@ -263,7 +273,9 @@ public class FamilyMemberServiceImpl implements FamilyMemberService {
                     expenseCategoryMapper.deleteByUserIdAndFamilyGroupId(member.getUserId(), member.getFamilyGroupId());
                     // 删除该用户在此家族组中的所有预算
                     budgetMapper.deleteByUserIdAndFamilyGroupId(member.getUserId(), member.getFamilyGroupId());
-                    log.info("【家庭成员】成功移除成员ID: {} (用户ID: {})，其在家族组中的收入、支出、分类和预算已删除", memberId, member.getUserId());
+                    // 【新增】删除用户在此家庭组中的所有目标
+                    userTargetMapper.deleteByUserIdAndFamilyGroupId(member.getUserId(), member.getFamilyGroupId());
+                    log.info("【家庭成员】成功移除成员ID: {} (用户ID: {})，其在家族组中的收入、支出、分类、预算和目标已删除", memberId, member.getUserId());
                 } else {
                     // 将数据转换为个人数据（family_group_id 改为 0）
                     incomeMapper.updateFamilyGroupIdToPersonal(member.getUserId(), member.getFamilyGroupId());
@@ -273,7 +285,9 @@ public class FamilyMemberServiceImpl implements FamilyMemberService {
                     expenseCategoryMapper.updateFamilyGroupIdToPersonal(member.getUserId(), member.getFamilyGroupId());
                     // 预算也要转换
                     budgetMapper.updateFamilyGroupIdToPersonal(member.getUserId(), member.getFamilyGroupId());
-                    log.info("【家庭成员】成功移除成员ID: {} (用户ID: {})，其收入、支出、分类和预算已转换为个人数据", memberId, member.getUserId());
+                    // 【新增】转换用户的家庭目标为个人目标
+                    userTargetMapper.updateFamilyGroupIdToPersonal(member.getUserId(), member.getFamilyGroupId());
+                    log.info("【家庭成员】成功移除成员ID: {} (用户ID: {})，其收入、支出、分类、预算和目标已转换为个人数据", memberId, member.getUserId());
                 }
             }
         } catch (Exception e) {
@@ -434,7 +448,6 @@ public class FamilyMemberServiceImpl implements FamilyMemberService {
                 incomeUnclassified.setFamilyGroupId(familyGroupId);
                 incomeUnclassified.setName("待分类");
                 incomeUnclassified.setDescription("自动导入账单时未匹配分类的默认分类");
-                incomeUnclassified.setIsBuiltIn(1);
                 incomeCategoryMapper.insert(incomeUnclassified);
                 log.info("【家庭成员】为用户ID: {}, 家庭组ID: {} 创建了收入'待分类'分类", userId, familyGroupId);
             }
@@ -448,7 +461,6 @@ public class FamilyMemberServiceImpl implements FamilyMemberService {
                 expenseUnclassified.setFamilyGroupId(familyGroupId);
                 expenseUnclassified.setName("待分类");
                 expenseUnclassified.setDescription("自动导入账单时未匹配分类的默认分类");
-                expenseUnclassified.setIsBuiltIn(1);
                 expenseCategoryMapper.insert(expenseUnclassified);
                 log.info("【家庭成员】为用户ID: {}, 家庭组ID: {} 创建了支出'待分类'分类", userId, familyGroupId);
             }

@@ -74,4 +74,74 @@ public interface UserTargetMapper {
      */
     @Delete("DELETE FROM user_target WHERE family_group_id = #{familyGroupId} AND family_group_id > 0")
     int deleteByFamilyGroupId(@Param("familyGroupId") Long familyGroupId);
+    
+    /**
+     * 更新用户的所有目标为家庭目标（加入家庭组时调用）
+     * 将用户的所有目标(family_group_id)更新为指定的家庭组ID
+     * 不管family_group_id原来是什么值，都强制更新为新的家庭组ID
+     */
+    @Update("UPDATE user_target SET family_group_id = #{targetFamilyGroupId} WHERE user_id = #{userId}")
+    int updateFamilyGroupId(@Param("userId") Long userId, @Param("targetFamilyGroupId") Long targetFamilyGroupId);
+    
+    /**
+     * 将用户在此家庭组中的目标转换为个人目标（退出家庭组时调用）
+     * 将family_group_id从指定值改为0
+     */
+    @Update("UPDATE user_target SET family_group_id = 0 WHERE user_id = #{userId} AND family_group_id = #{familyGroupId}")
+    int updateFamilyGroupIdToPersonal(@Param("userId") Long userId, @Param("familyGroupId") Long familyGroupId);
+    
+    /**
+     * 删除用户在此家庭组中的所有目标
+     */
+    @Delete("DELETE FROM user_target WHERE user_id = #{userId} AND family_group_id = #{familyGroupId}")
+    int deleteByUserIdAndFamilyGroupId(@Param("userId") Long userId, @Param("familyGroupId") Long familyGroupId);
+    
+    /**
+     * 查询家庭组指定月份的所有用户的目标汇总
+     * @param familyGroupId 家庭组ID
+     * @param targetMonth 目标年月（格式：YYYY-MM）
+     * @return 汇总后的目标对象，如果没有数据返回null或创建一个incomeTarget为0的对象
+     */
+    @Select("SELECT MIN(id) as id, family_group_id as familyGroupId, #{targetMonth} as targetMonth, SUM(income_target) as incomeTarget FROM user_target WHERE family_group_id = #{familyGroupId} AND target_month = #{targetMonth}")
+    UserTarget findByFamilyGroupIdAndMonthAggregated(@Param("familyGroupId") Long familyGroupId, @Param("targetMonth") String targetMonth);
+    
+    /**
+     * 查询家庭组所有月份的目标汇总（按月份聚合）
+     * @param familyGroupId 家庭组ID
+     * @return 按月份聚合的目标列表
+     */
+    @Select("SELECT MIN(id) as id, family_group_id as familyGroupId, target_month as targetMonth, SUM(income_target) as incomeTarget FROM user_target WHERE family_group_id = #{familyGroupId} AND family_group_id > 0 GROUP BY target_month ORDER BY target_month DESC")
+    List<UserTarget> findByFamilyGroupIdAggregated(@Param("familyGroupId") Long familyGroupId);
+    
+    /**
+     * 查询家庭组指定月份范围的目标汇总
+     * @param familyGroupId 家庭组ID
+     * @param startMonth 起始年月（格式：YYYY-MM）
+     * @param endMonth 结束年月（格式：YYYY-MM）
+     * @return 按月份聚合的目标列表
+     */
+    @Select("SELECT MIN(id) as id, family_group_id as familyGroupId, target_month as targetMonth, SUM(income_target) as incomeTarget FROM user_target WHERE family_group_id = #{familyGroupId} AND family_group_id > 0 AND target_month >= #{startMonth} AND target_month <= #{endMonth} GROUP BY target_month ORDER BY target_month DESC")
+    List<UserTarget> findByFamilyGroupIdAndMonthRangeAggregated(
+            @Param("familyGroupId") Long familyGroupId,
+            @Param("startMonth") String startMonth,
+            @Param("endMonth") String endMonth);
+    
+    /**
+     * 删除家庭组指定月份的所有用户的目标
+     * 用于修改目标时清除该月份的所有用户源数据
+     * @param familyGroupId 家庭组ID
+     * @param targetMonth 目标年月（格式：YYYY-MM）
+     * @return 删除的记录数
+     */
+    @Delete("DELETE FROM user_target WHERE family_group_id = #{familyGroupId} AND target_month = #{targetMonth}")
+    int deleteByFamilyGroupIdAndMonth(@Param("familyGroupId") Long familyGroupId, @Param("targetMonth") String targetMonth);
+    
+    /**
+     * 删除用户指定月份的个人目标
+     * @param userId 用户ID
+     * @param targetMonth 目标年月（格式：YYYY-MM）
+     * @return 删除的记录数
+     */
+    @Delete("DELETE FROM user_target WHERE user_id = #{userId} AND target_month = #{targetMonth} AND family_group_id = 0")
+    int deleteByUserIdAndMonth(@Param("userId") Long userId, @Param("targetMonth") String targetMonth);
 }

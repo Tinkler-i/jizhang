@@ -279,19 +279,8 @@ public class FamilyGroupController {
                         .body(Map.of("code", 400, "message", "您已经加入了一个家庭组，无法同时加入多个家庭组"));
             }
             
-            // 创建新家庭组
+            // 创建新家庭组（Service层已经为创建者创建了ADMIN身份的FamilyMember记录）
             FamilyGroup newFamily = familyGroupService.createFamilyGroup(userId, familyName);
-            
-            // 为创建者创建管理员身份的 FamilyMember 记录
-            FamilyMember creatorMember = new FamilyMember();
-            creatorMember.setFamilyGroupId(newFamily.getId());
-            creatorMember.setUserId(userId);
-            creatorMember.setRole("ADMIN");
-            // 管理员拥有所有权限
-            creatorMember.setPermissions(PermissionConstants.ADMIN_PERMISSIONS);
-            creatorMember.setStatus(1);
-            
-            familyMemberService.saveFamilyMember(creatorMember);
             
             // 根据用户选择，决定是否带入现有数据
             if (bringExistingData) {
@@ -299,9 +288,9 @@ public class FamilyGroupController {
                 incomeMapper.updateFamilyGroupId(userId, newFamily.getId());
                 expenseMapper.updateFamilyGroupId(userId, newFamily.getId());
                 
-                // 更新用户的所有收入和支出分类的家庭组ID（包括系统内置的"待分类"分类）
-                incomeCategoryMapper.updateAllCategoriesFamilyGroupId(userId, newFamily.getId());
-                expenseCategoryMapper.updateAllCategoriesFamilyGroupId(userId, newFamily.getId());
+                // 更新用户的所有收入和支出分类的家庭组ID
+                incomeCategoryMapper.updateFamilyGroupId(userId, newFamily.getId());
+                expenseCategoryMapper.updateFamilyGroupId(userId, newFamily.getId());
                 
                 // 更新用户的所有预算记录的家庭组ID
                 budgetMapper.updateFamilyGroupId(userId, newFamily.getId());
@@ -311,8 +300,6 @@ public class FamilyGroupController {
             } else {
                 log.info("【家庭组】用户ID: {} 创建家庭组ID: {} 后，未带入现有数据", userId, newFamily.getId());
             }
-            
-            log.info("【家庭组】为创建者用户ID: {} 创建了管理员身份的成员记录", userId);
             
             Map<String, Object> response = new HashMap<>();
             response.put("code", 200);

@@ -201,11 +201,11 @@ public class UserTargetController {
     
     /**
      * 删除目标
-     * @param id 目标ID
+     * @param month 年月（格式：YYYY-MM）
      */
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/{month}")
     public ApiResponse<?> deleteTarget(
-            @PathVariable Long id,
+            @PathVariable String month,
             HttpSession session) {
         
         User user = getCurrentUser(session);
@@ -214,7 +214,7 @@ public class UserTargetController {
         }
         
         try {
-            userTargetService.delete(id, user.getId());
+            userTargetService.deleteByMonth(user.getId(), month);
             return ApiResponse.success("删除成功");
         } catch (BusinessException e) {
             return ApiResponse.error(e.getMessage());

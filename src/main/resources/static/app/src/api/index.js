@@ -166,7 +166,7 @@ export const userTargetAPI = {
   }),
   update: (month, incomeTarget) => api.put(`/user-target/${month}`, { incomeTarget }),
   create: (targetMonth, incomeTarget) => api.post('/user-target', { targetMonth, incomeTarget }),
-  delete: (id) => api.delete(`/user-target/${id}`)
+  delete: (month) => api.delete(`/user-target/${month}`)
 }
 
 // Bill Import API - 账单导入

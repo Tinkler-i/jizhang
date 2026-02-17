@@ -23,12 +23,16 @@ public class RequestLoggingInterceptor implements HandlerInterceptor {
         String fullUrl = queryString != null ? uri + "?" + queryString : uri;
         
         log.info("【请求开始】{} {}", method, fullUrl);
-        log.debug("【请求头信息】");
-        Enumeration<String> headerNames = request.getHeaderNames();
-        while (headerNames.hasMoreElements()) {
-            String headerName = headerNames.nextElement();
-            String headerValue = request.getHeader(headerName);
-            log.debug("  {}: {}", headerName, headerValue);
+        
+        // 仅在 DEBUG 级别打印详细头信息
+        if (log.isDebugEnabled()) {
+            log.debug("【请求头信息】");
+            Enumeration<String> headerNames = request.getHeaderNames();
+            while (headerNames.hasMoreElements()) {
+                String headerName = headerNames.nextElement();
+                String headerValue = request.getHeader(headerName);
+                log.debug("  {}: {}", headerName, headerValue);
+            }
         }
         
         // 存储请求开始时间

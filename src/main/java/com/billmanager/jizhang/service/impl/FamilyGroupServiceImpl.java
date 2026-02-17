@@ -1,6 +1,7 @@
 package com.billmanager.jizhang.service.impl;
 
 import com.billmanager.jizhang.entity.FamilyGroup;
+import com.billmanager.jizhang.constant.PermissionConstants;
 import com.billmanager.jizhang.mapper.FamilyGroupMapper;
 import com.billmanager.jizhang.mapper.FamilyMemberMapper;
 import com.billmanager.jizhang.service.FamilyGroupService;
@@ -38,6 +39,17 @@ public class FamilyGroupServiceImpl implements FamilyGroupService {
             
             familyGroupMapper.insert(familyGroup);
             log.info("【家庭组】成功创建家庭组，ID: {}, 编号: {}, 创建者: {}", familyGroup.getId(), code, userId);
+            
+            // 【新增】为创建者创建 FamilyMember 记录，赋予管理员权限
+            com.billmanager.jizhang.entity.FamilyMember creatorMember = new com.billmanager.jizhang.entity.FamilyMember();
+            creatorMember.setFamilyGroupId(familyGroup.getId());
+            creatorMember.setUserId(userId);
+            creatorMember.setRole("ADMIN");
+            creatorMember.setPermissions(PermissionConstants.ADMIN_PERMISSIONS);
+            creatorMember.setStatus(1);
+            
+            familyMemberMapper.insert(creatorMember);
+            log.info("【家庭组】已为创建者 (用户ID: {}) 创建管理员成员记录，成员ID: {}", userId, creatorMember.getId());
             
             return familyGroup;
         } catch (Exception e) {
