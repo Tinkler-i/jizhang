@@ -3,7 +3,10 @@ package com.billmanager.jizhang.controller;
 import com.billmanager.jizhang.dto.ApiResponse;
 import com.billmanager.jizhang.dto.LoginRequest;
 import com.billmanager.jizhang.entity.User;
+import com.billmanager.jizhang.exception.BusinessException;
 import com.billmanager.jizhang.mapper.UserMapper;
+import com.billmanager.jizhang.service.CaptchaService;
+import com.billmanager.jizhang.service.LoginAttemptService;
 import com.billmanager.jizhang.service.UserService;
 import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.HttpServletRequest;
@@ -22,6 +25,7 @@ import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
+import com.billmanager.jizhang.service.impl.LoginAttemptServiceImpl;
 import java.util.Collections;
 import java.util.Map;
 
@@ -32,6 +36,8 @@ public class LoginController {
     
     private final UserService userService;
     private final UserMapper userMapper;
+    private final LoginAttemptService loginAttemptService;
+    private final CaptchaService captchaService;
     
     private User getCurrentUser(HttpSession session) {
         User user = (User) session.getAttribute("user");
@@ -52,6 +58,35 @@ public class LoginController {
         return null;
     }
     
+    private String getBrowserFingerprint(HttpServletRequest request) {
+        // 获取客户端 IP
+        String clientIp = getClientIP(request);
+        
+        // 获取 User-Agent
+        String userAgent = request.getHeader("User-Agent");
+        if (userAgent == null) {
+            userAgent = "";
+        }
+        
+        // 组合成浏览器指纹
+        return clientIp + "|" + userAgent;
+    }
+    
+    private String getClientIP(HttpServletRequest request) {
+        String xForwardedFor = request.getHeader("X-Forwarded-For");
+        if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
+            // X-Forwarded-For 可能包含多个 IP，取第一个
+            return xForwardedFor.split(",")[0].trim();
+        }
+        
+        String remoteAddr = request.getHeader("X-Real-IP");
+        if (remoteAddr != null && !remoteAddr.isEmpty()) {
+            return remoteAddr;
+        }
+        
+        return request.getRemoteAddr();
+    }
+    
     @GetMapping("/login")
     public String loginPage(Model model) {
         model.addAttribute("loginRequest", new LoginRequest());
@@ -60,64 +95,166 @@ public class LoginController {
     
     @PostMapping("/api/login")
     @ResponseBody
-    public ApiResponse<User> login(@Valid @RequestBody LoginRequest request, HttpSession session, HttpServletRequest httpRequest) {
-        User user = userService.login(request);
-        session.setAttribute("user", user);
+    public ApiResponse<User> login(@Valid @RequestBody LoginRequest request, @RequestParam(required = false) String captchaToken, HttpSession session, HttpServletRequest httpRequest) {
+        String username = request.getUsername();
+        String browserFingerprint = getBrowserFingerprint(httpRequest);
         
-        // 创建自定义的用户Principal，包含userId
-        com.billmanager.jizhang.security.CustomUserPrincipal principal = 
-            new com.billmanager.jizhang.security.CustomUserPrincipal(user.getId(), user.getUsername());
+        // 检查浏览器是否被锁定
+        if (loginAttemptService.isLocked(browserFingerprint)) {
+            long remainingTime = loginAttemptService.getLockTimeRemaining(browserFingerprint);
+            long minutesRemaining = (remainingTime / 1000 + 59) / 60;
+            String message = String.format("登录尝试过多，账户已被锁定，请在 %d 分钟后再试", minutesRemaining);
+            log.warn("【登录防护】浏览器 {} 被锁定（尝试登录用户: {}），剩余时间: {} 秒", 
+                    browserFingerprint, username, remainingTime / 1000);
+            return ApiResponse.error(429, message);
+        }
         
-        // 创建Spring Security认证对象，包含权限
-        UsernamePasswordAuthenticationToken token = 
-            new UsernamePasswordAuthenticationToken(
-                principal, 
-                null, 
-                Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
+        // 检查是否需要人机验证
+        if (loginAttemptService.needsCaptcha(browserFingerprint)) {
+            // 如果未提供验证码 token，需要先验证
+            if (captchaToken == null || !captchaService.isValidCaptchaToken(captchaToken)) {
+                log.warn("【登录防护】浏览器 {} 需要人机验证（尝试登录用户: {}）", browserFingerprint, username);
+                return ApiResponse.error(428, "需要人机验证");
+            }
+            // 标记验证码已使用
+            captchaService.useCaptchaToken(captchaToken);
+            // 重置失败次数
+            loginAttemptService.resetAttempts(browserFingerprint);
+        }
+        
+        try {
+            User user = userService.login(request);
+            session.setAttribute("user", user);
+            
+            // 创建自定义的用户Principal，包含userId
+            com.billmanager.jizhang.security.CustomUserPrincipal principal = 
+                new com.billmanager.jizhang.security.CustomUserPrincipal(user.getId(), user.getUsername());
+            
+            // 创建Spring Security认证对象，包含权限
+            UsernamePasswordAuthenticationToken token = 
+                new UsernamePasswordAuthenticationToken(
+                    principal, 
+                    null, 
+                    Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
+                );
+            
+            // 设置到SecurityContextHolder
+            SecurityContext context = SecurityContextHolder.getContext();
+            context.setAuthentication(token);
+            
+            // 显式保存到Session
+            session.setAttribute(
+                HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY,
+                context
             );
-        
-        // 设置到SecurityContextHolder
-        SecurityContext context = SecurityContextHolder.getContext();
-        context.setAuthentication(token);
-        
-        // 显式保存到Session
-        session.setAttribute(
-            HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY,
-            context
-        );
-        
-        return ApiResponse.success("登录成功", user);
+            
+            // 登录成功，清除登录防护记录
+            loginAttemptService.clearAttempts(browserFingerprint);
+            log.info("【登录防护】用户 {} 登录成功，已清除防护记录", username);
+            
+            return ApiResponse.success("登录成功", user);
+        } catch (BusinessException e) {
+            // 登录失败，记录失败尝试
+            loginAttemptService.addFailedAttempt(browserFingerprint, username);
+            
+            // 检查是否需要触发锁定
+            int attempts = loginAttemptService.getFailedAttempts(browserFingerprint);
+            if (attempts >= 3) {
+                ((LoginAttemptServiceImpl) loginAttemptService).handleLoginFailure(browserFingerprint);
+                
+                if (loginAttemptService.isLocked(browserFingerprint)) {
+                    long remainingTime = loginAttemptService.getLockTimeRemaining(browserFingerprint);
+                    long minutesRemaining = (remainingTime / 1000 + 59) / 60;
+                    log.warn("【登录防护】浏览器 {} 已被锁定 {} 分钟", browserFingerprint, minutesRemaining);
+                    return ApiResponse.error(429, String.format("登录尝试过多，账户已被锁定，请在 %d 分钟后再试", minutesRemaining));
+                }
+            }
+            
+            log.warn("【登录防护】浏览器 {} 登录失败（用户: {}），失败次数: {}", browserFingerprint, username, attempts);
+            return ApiResponse.error(e.getCode(), e.getMessage());
+        }
     }
     
     @PostMapping("/api/auth/login")
     @ResponseBody
-    public ApiResponse<User> authLogin(@Valid @RequestBody LoginRequest request, HttpSession session, HttpServletRequest httpRequest) {
-        User user = userService.login(request);
-        session.setAttribute("user", user);
+    public ApiResponse<User> authLogin(@Valid @RequestBody LoginRequest request, @RequestParam(required = false) String captchaToken, HttpSession session, HttpServletRequest httpRequest) {
+        String username = request.getUsername();
+        String browserFingerprint = getBrowserFingerprint(httpRequest);
         
-        // 创建自定义的用户Principal，包含userId
-        com.billmanager.jizhang.security.CustomUserPrincipal principal = 
-            new com.billmanager.jizhang.security.CustomUserPrincipal(user.getId(), user.getUsername());
+        // 检查浏览器是否被锁定
+        if (loginAttemptService.isLocked(browserFingerprint)) {
+            long remainingTime = loginAttemptService.getLockTimeRemaining(browserFingerprint);
+            long minutesRemaining = (remainingTime / 1000 + 59) / 60;
+            String message = String.format("登录尝试过多，账户已被锁定，请在 %d 分钟后再试", minutesRemaining);
+            log.warn("【登录防护】浏览器 {} 被锁定（尝试登录用户: {}），剩余时间: {} 秒", 
+                    browserFingerprint, username, remainingTime / 1000);
+            return ApiResponse.error(429, message);
+        }
         
-        // 创建Spring Security认证对象，包含权限
-        UsernamePasswordAuthenticationToken token = 
-            new UsernamePasswordAuthenticationToken(
-                principal, 
-                null, 
-                Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
+        // 检查是否需要人机验证
+        if (loginAttemptService.needsCaptcha(browserFingerprint)) {
+            // 如果未提供验证码 token，需要先验证
+            if (captchaToken == null || !captchaService.isValidCaptchaToken(captchaToken)) {
+                log.warn("【登录防护】浏览器 {} 需要人机验证（尝试登录用户: {}）", browserFingerprint, username);
+                return ApiResponse.error(428, "需要人机验证");
+            }
+            // 标记验证码已使用
+            captchaService.useCaptchaToken(captchaToken);
+            // 重置失败次数
+            loginAttemptService.resetAttempts(browserFingerprint);
+        }
+        
+        try {
+            User user = userService.login(request);
+            session.setAttribute("user", user);
+            
+            // 创建自定义的用户Principal，包含userId
+            com.billmanager.jizhang.security.CustomUserPrincipal principal = 
+                new com.billmanager.jizhang.security.CustomUserPrincipal(user.getId(), user.getUsername());
+            
+            // 创建Spring Security认证对象，包含权限
+            UsernamePasswordAuthenticationToken token = 
+                new UsernamePasswordAuthenticationToken(
+                    principal, 
+                    null, 
+                    Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
+                );
+            
+            // 设置到SecurityContextHolder
+            SecurityContext context = SecurityContextHolder.getContext();
+            context.setAuthentication(token);
+            
+            // 显式保存到Session
+            session.setAttribute(
+                HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY,
+                context
             );
-        
-        // 设置到SecurityContextHolder
-        SecurityContext context = SecurityContextHolder.getContext();
-        context.setAuthentication(token);
-        
-        // 显式保存到Session
-        session.setAttribute(
-            HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY,
-            context
-        );
-        
-        return ApiResponse.success("登录成功", user);
+            
+            // 登录成功，清除登录防护记录
+            loginAttemptService.clearAttempts(browserFingerprint);
+            log.info("【登录防护】用户 {} 登录成功，已清除防护记录", username);
+            
+            return ApiResponse.success("登录成功", user);
+        } catch (BusinessException e) {
+            // 登录失败，记录失败尝试
+            loginAttemptService.addFailedAttempt(browserFingerprint, username);
+            
+            // 检查是否需要触发锁定
+            int attempts = loginAttemptService.getFailedAttempts(browserFingerprint);
+            if (attempts >= 3) {
+                ((LoginAttemptServiceImpl) loginAttemptService).handleLoginFailure(browserFingerprint);
+                
+                if (loginAttemptService.isLocked(browserFingerprint)) {
+                    long remainingTime = loginAttemptService.getLockTimeRemaining(browserFingerprint);
+                    long minutesRemaining = (remainingTime / 1000 + 59) / 60;
+                    log.warn("【登录防护】浏览器 {} 已被锁定 {} 分钟", browserFingerprint, minutesRemaining);
+                    return ApiResponse.error(429, String.format("登录尝试过多，账户已被锁定，请在 %d 分钟后再试", minutesRemaining));
+                }
+            }
+            
+            log.warn("【登录防护】浏览器 {} 登录失败（用户: {}），失败次数: {}", browserFingerprint, username, attempts);
+            return ApiResponse.error(e.getCode(), e.getMessage());
+        }
     }
     
     /**

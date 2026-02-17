@@ -26,6 +26,22 @@
           required
         />
 
+        <!-- 需要人机验证时显示提示 -->
+        <div v-if="needsCaptcha" class="captcha-notice">
+          <span>⚠️ 登录尝试过多，请先进行人机验证</span>
+        </div>
+
+        <!-- 需要人机验证时显示按钮 -->
+        <div v-if="needsCaptcha" class="captcha-button-container">
+          <Button
+            type="primary"
+            block
+            @click="openCaptcha"
+          >
+            🔐 进行人机验证
+          </Button>
+        </div>
+
         <div class="form-options">
           <label class="remember-me">
             <input v-model="form.rememberMe" type="checkbox" />
@@ -38,6 +54,7 @@
           type="primary"
           block
           :loading="loading"
+          :disabled="needsCaptcha"
           @click="handleLogin"
         >
           登录
@@ -48,6 +65,14 @@
         <p>还没有账户？<router-link to="/register" class="register-link">立即注册</router-link></p>
       </div>
     </div>
+
+    <!-- 人机验证码组件 -->
+    <Captcha 
+      ref="captchaRef"
+      :show-trigger-button="false"
+      @success="handleCaptchaSuccess"
+      @close="handleCaptchaClose"
+    />
   </div>
 </template>
 
@@ -55,12 +80,15 @@
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useUIStore } from '../stores/ui'
 import { authAPI } from '../api'
 import Button from '../components/Button.vue'
 import Input from '../components/Input.vue'
+import Captcha from '../components/Captcha.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const uiStore = useUIStore()
 
 const form = reactive({
   username: '',
@@ -74,6 +102,9 @@ const errors = reactive({
 })
 
 const loading = ref(false)
+const needsCaptcha = ref(false)
+const captchaToken = ref(null)
+const captchaRef = ref(null)
 
 const validateForm = () => {
   errors.username = ''
@@ -90,18 +121,61 @@ const validateForm = () => {
   return true
 }
 
+const openCaptcha = () => {
+  console.log('【登录】打开人机验证码')
+  captchaRef.value?.openCaptcha()
+}
+
+const handleCaptchaSuccess = (data) => {
+  console.log('【登录】人机验证成功，token:', data.token)
+  captchaToken.value = data.token
+  needsCaptcha.value = false
+  uiStore.showNotification('验证成功，请继续登录', 'success')
+}
+
+const handleCaptchaClose = () => {
+  console.log('【登录】人机验证已关闭')
+}
+
 const handleLogin = async () => {
   if (!validateForm()) return
 
   loading.value = true
   try {
-    const response = await authAPI.login(form.username, form.password)
+    // 如果需要验证码但未验证，则提示
+    if (needsCaptcha.value && !captchaToken.value) {
+      errors.username = '请先完成人机验证'
+      loading.value = false
+      return
+    }
+
+    // 调用登录接口，如果有验证码 token 则一起发送
+    const response = await authAPI.login(
+      form.username, 
+      form.password,
+      captchaToken.value
+    )
+    
     if (response.code === 200 && response.data) {
-      const { token } = response.data
-      authStore.setAuth(token, form.username)
+      // 登录成功
+      authStore.setAuth(form.username, form.username)
+      uiStore.showNotification('登录成功！', 'success')
       router.push('/')
+    } else if (response.code === 428) {
+      // 需要人机验证
+      console.log('【登录】需要人机验证')
+      needsCaptcha.value = true
+      captchaToken.value = null
+      errors.username = response.message || '需要人机验证'
+      uiStore.showNotification('检测到异常登录，需要进行人机验证', 'warning')
+    } else if (response.code === 429) {
+      // 被锁定
+      console.log('【登录】账户被锁定')
+      needsCaptcha.value = false
+      errors.username = response.message || '登录尝试过多，请稍后再试'
+      uiStore.showNotification(response.message || '登录尝试过多，账户已被锁定', 'error')
     } else {
-      // 显示后端返回的错误信息
+      // 其他错误
       errors.username = response.message || '登录失败，请检查用户名和密码'
       console.error('Login failed:', response.message)
     }
@@ -186,6 +260,39 @@ const handleLogin = async () => {
 
   &:hover {
     color: #764ba2;
+  }
+}
+
+.captcha-notice {
+  background-color: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 16px;
+  color: #856404;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  animation: slideDown 0.3s ease;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.captcha-button-container {
+  margin-bottom: 16px;
+  width: 100%;
+  display: block;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
