@@ -157,14 +157,25 @@ public class ExpenseController {
         }
         
         log.debug("【API】用户 {} 查询支出列表", user.getId());
+        log.debug("【筛选条件】分类ID: {}, 开始日期: {}, 结束日期: {}, 关键字: {}", categoryId, startDate, endDate, keyword);
         
-        List<Expense> expenses;
+        // 先获取基础数据
+        List<Expense> expenses = expenseService.findByUserId(user.getId());
+        
+        // 按分类过滤
         if (categoryId != null) {
-            expenses = expenseService.findByUserIdAndCategoryId(user.getId(), categoryId);
-        } else if (startDate != null && endDate != null) {
-            expenses = expenseService.findByUserIdAndDateRange(user.getId(), startDate, endDate);
-        } else {
-            expenses = expenseService.findByUserId(user.getId());
+            expenses = expenses.stream()
+                    .filter(e -> e.getCategoryId() != null && e.getCategoryId().equals(categoryId))
+                    .collect(java.util.stream.Collectors.toList());
+            log.debug("【分类过滤后】支出数: {}", expenses.size());
+        }
+        
+        // 按日期范围过滤
+        if (startDate != null && endDate != null) {
+            expenses = expenses.stream()
+                    .filter(e -> e.getTransactionDate() != null && !e.getTransactionDate().isBefore(startDate) && !e.getTransactionDate().isAfter(endDate))
+                    .collect(java.util.stream.Collectors.toList());
+            log.debug("【日期范围过滤后】支出数: {} (范围: {} - {})", expenses.size(), startDate, endDate);
         }
         
         // 按关键字过滤描述
@@ -173,8 +184,10 @@ public class ExpenseController {
             expenses = expenses.stream()
                     .filter(e -> e.getDescription() != null && e.getDescription().toLowerCase().contains(key))
                     .collect(java.util.stream.Collectors.toList());
+            log.debug("【关键字过滤后】支出数: {}", expenses.size());
         }
         
+        log.debug("【查询结果】最终支出数: {}", expenses.size());
         return ApiResponse.success("查询成功", expenses);
     }
     

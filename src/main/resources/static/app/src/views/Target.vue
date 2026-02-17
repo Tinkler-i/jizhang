@@ -25,11 +25,16 @@
       <div v-else class="year-target-grid">
         <div
           v-for="target in yearTargets"
-          :key="target.id"
+          :key="target.targetMonth"
           class="year-target-item"
+          :class="{ 'no-target': target.isDefault }"
         >
           <div class="item-month">{{ target.targetMonth.substring(5) }} 月</div>
-          <div class="item-info">
+          <div v-if="target.isDefault" class="item-empty">
+            <p class="empty-text">暂未设置目标</p>
+            <p class="empty-tip">点击编辑添加目标</p>
+          </div>
+          <div v-else class="item-info">
             <div class="info-row">
               <span class="label">目标:</span>
               <span class="value">¥ {{ target.incomeTarget?.toFixed(2) || '0.00' }}</span>
@@ -39,7 +44,7 @@
               <span class="value">¥ {{ target.actualIncome?.toFixed(2) || '0.00' }}</span>
             </div>
           </div>
-          <div class="progress-container">
+          <div v-if="!target.isDefault" class="progress-container">
             <div class="progress-bar">
               <div 
                 class="progress-fill"
@@ -50,8 +55,8 @@
             <div class="progress-text">{{ target.progressPercent }}%</div>
           </div>
           <div class="item-actions">
-            <button class="link-btn" @click="editTarget(target)">编辑</button>
-            <button class="link-btn danger" @click="deleteTarget(target.id)">删除</button>
+            <button class="link-btn" @click="editTarget(target)">{{ target.isDefault ? '设置' : '编辑' }}</button>
+            <button v-if="!target.isDefault" class="link-btn danger" @click="deleteTarget(target.id)">删除</button>
           </div>
         </div>
       </div>
@@ -117,23 +122,48 @@ const form = reactive({
   selectedMonth: ''
 })
 
-// 计算包含进度信息的年度目标
+// 计算包含进度信息的年度目标（包含未设置的月份）
 const yearTargets = computed(() => {
   const year = currentYear.value.toString()
-  return allTargets.value
-    .filter(t => t.targetMonth.startsWith(year))
-    .sort((a, b) => a.targetMonth.localeCompare(b.targetMonth))
-    .map(target => {
-      const actualSavings = monthlySavings.value[target.targetMonth] || 0
+  
+  // 从API获取的目标
+  const apiTargets = allTargets.value.filter(t => t.targetMonth.startsWith(year))
+  const targetMap = new Map(apiTargets.map(t => [t.targetMonth, t]))
+  
+  // 生成全年12个月的目标列表
+  const allMonths = []
+  for (let month = 1; month <= 12; month++) {
+    const monthStr = String(month).padStart(2, '0')
+    const targetMonth = `${year}-${monthStr}`
+    
+    if (targetMap.has(targetMonth)) {
+      // 如果有设置目标，使用API数据
+      const target = targetMap.get(targetMonth)
+      const actualSavings = monthlySavings.value[targetMonth] || 0
       const progressPercent = target.incomeTarget > 0 
         ? Math.min(Math.round((actualSavings / target.incomeTarget) * 100), 100)
         : 0
-      return {
+      allMonths.push({
         ...target,
         actualIncome: actualSavings,
-        progressPercent
-      }
-    })
+        progressPercent,
+        isDefault: false
+      })
+    } else {
+      // 如果没有设置目标，使用默认值
+      const actualSavings = monthlySavings.value[targetMonth] || 0
+      allMonths.push({
+        id: null,
+        targetMonth,
+        incomeTarget: 0,
+        actualIncome: actualSavings,
+        progressPercent: 0,
+        isDefault: true
+      })
+    }
+  }
+  
+  return allMonths.sort((a, b) => a.targetMonth.localeCompare(b.targetMonth))
 })
 
 const loadAllTargets = async () => {
@@ -163,20 +193,20 @@ const loadAllTargets = async () => {
 // 加载每个月份的攒下数据（收入 - 支出）
 const loadMonthlySavings = async () => {
   const year = currentYear.value.toString()
-  const targetMonths = allTargets.value
-    .filter(t => t.targetMonth.startsWith(year))
-    .map(t => t.targetMonth)
-
-  console.log('【目标】加载月度攒下数据，月份:', targetMonths)
+  
+  console.log('【目标】加载月度攒下数据，年份:', year)
   monthlySavings.value = {}
 
-  for (const month of targetMonths) {
+  // 对每个月（包括没有设置目标的月份）都计算攒下金额
+  for (let month = 1; month <= 12; month++) {
+    const monthStr = String(month).padStart(2, '0')
+    const monthKey = `${year}-${monthStr}`
+    
     try {
       // 获取该月的日期范围
-      const [monthYear, monthNum] = month.split('-')
-      const startDate = `${monthYear}-${monthNum}-01`
-      const lastDay = new Date(monthYear, monthNum, 0).getDate()
-      const endDate = `${monthYear}-${monthNum}-${lastDay}`
+      const startDate = `${year}-${monthStr}-01`
+      const lastDay = new Date(year, month, 0).getDate()
+      const endDate = `${year}-${monthStr}-${lastDay}`
       
       // 并行加载收入和支出
       const [incomeRes, expenseRes] = await Promise.all([
@@ -184,8 +214,8 @@ const loadMonthlySavings = async () => {
         expenseAPI.getList({ startDate, endDate })
       ])
       
-      console.log(`【目标】${month} 的收入响应:`, incomeRes)
-      console.log(`【目标】${month} 的支出响应:`, expenseRes)
+      console.log(`【目标】${monthKey} 的收入响应:`, incomeRes)
+      console.log(`【目标】${monthKey} 的支出响应:`, expenseRes)
       
       // 计算该月的总收入
       let totalIncome = 0
@@ -194,7 +224,7 @@ const loadMonthlySavings = async () => {
       } else if (Array.isArray(incomeRes)) {
         totalIncome = incomeRes.reduce((sum, item) => sum + (item.amount || 0), 0)
       }
-      console.log(`【目标】${month} 的总收入: ¥${totalIncome}`)
+      console.log(`【目标】${monthKey} 的总收入: ¥${totalIncome}`)
       
       // 计算该月的总支出
       let totalExpense = 0
@@ -203,15 +233,15 @@ const loadMonthlySavings = async () => {
       } else if (Array.isArray(expenseRes)) {
         totalExpense = expenseRes.reduce((sum, item) => sum + (item.amount || 0), 0)
       }
-      console.log(`【目标】${month} 的总支出: ¥${totalExpense}`)
+      console.log(`【目标】${monthKey} 的总支出: ¥${totalExpense}`)
       
       // 攒下金额 = 收入 - 支出
       const savings = totalIncome - totalExpense
-      monthlySavings.value[month] = savings
-      console.log(`【目标】${month} 的攒下金额: ¥${savings}`)
+      monthlySavings.value[monthKey] = savings
+      console.log(`【目标】${monthKey} 的攒下金额: ¥${savings}`)
     } catch (error) {
-      console.error(`【目标】加载 ${month} 的数据失败:`, error)
-      monthlySavings.value[month] = 0
+      console.error(`【目标】加载 ${monthKey} 的数据失败:`, error)
+      monthlySavings.value[monthKey] = 0
     }
   }
 }
@@ -252,7 +282,7 @@ const editTarget = (target) => {
   editingId.value = target.id
   form.targetMonth = target.targetMonth
   form.selectedMonth = target.targetMonth.substring(5)
-  form.incomeTarget = target.incomeTarget.toString()
+  form.incomeTarget = target.isDefault ? '' : target.incomeTarget.toString()
   showModal.value = true
 }
 
@@ -526,6 +556,40 @@ onMounted(async () => {
   font-size: 12px;
   color: #666;
   font-weight: 600;
+}
+
+/* 暂未设置目标的卡片样式 */
+.year-target-item.no-target {
+  background: #fafafa;
+  border-color: #f0f0f0;
+  opacity: 0.9;
+}
+
+.year-target-item.no-target:hover {
+  border-color: #ffa940;
+  background: #fffbe6;
+}
+
+.item-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60px;
+  padding: 12px 0;
+}
+
+.item-empty .empty-text {
+  font-size: 14px;
+  color: #999;
+  margin: 0;
+  font-weight: 500;
+}
+
+.item-empty .empty-tip {
+  font-size: 12px;
+  color: #ccc;
+  margin: 4px 0 0 0;
 }
 
 .item-actions {

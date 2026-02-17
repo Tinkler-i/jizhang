@@ -100,10 +100,14 @@ const handleLogin = async () => {
       const { token } = response.data
       authStore.setAuth(token, form.username)
       router.push('/')
+    } else {
+      // 显示后端返回的错误信息
+      errors.username = response.message || '登录失败，请检查用户名和密码'
+      console.error('Login failed:', response.message)
     }
   } catch (error) {
-    errors.username = '用户名或密码错误'
-    console.error('Login failed:', error)
+    errors.username = '登录失败，请稍后重试'
+    console.error('Login error:', error)
   } finally {
     loading.value = false
   }

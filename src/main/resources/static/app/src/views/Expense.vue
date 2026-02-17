@@ -197,23 +197,34 @@ const loadCategories = async () => {
 const loadExpenses = async () => {
   loading.value = true
   try {
-    const params = {
-      ...(filters.categoryId && { categoryId: filters.categoryId }),
-      ...(filters.keyword && { keyword: filters.keyword })
+    // 构建查询参数：同时支持关键字、分类、月份三个条件
+    const params = {}
+    
+    // 添加关键字筛选
+    if (filters.keyword && filters.keyword.trim()) {
+      params.keyword = filters.keyword.trim()
+    }
+    
+    // 添加分类筛选
+    if (filters.categoryId) {
+      params.categoryId = filters.categoryId
     }
     
     // 处理月份参数，转换为日期范围
     if (filters.month) {
-      const [year, month] = filters.month.split('-')
-      const startDate = `${year}-${month}-01`
-      const lastDay = new Date(year, month, 0).getDate()
-      const endDate = `${year}-${month}-${lastDay}`
+      const [year, monthStr] = filters.month.split('-')
+      const month = parseInt(monthStr)
+      const startDate = `${year}-${monthStr}-01`
+      // 获取该月的最后一天：new Date(year, month, 0) 返回该月最后一天
+      const monthEnd = new Date(parseInt(year), month, 0)
+      const lastDay = monthEnd.getDate()
+      const endDate = `${year}-${monthStr}-${String(lastDay).padStart(2, '0')}`
       params.startDate = startDate
       params.endDate = endDate
       console.log('月份筛选:', filters.month, '转换为日期范围:', startDate, '~', endDate)
     }
     
-    console.log('加载支出，参数:', params)
+    console.log('加载支出，综合筛选参数:', params, '(关键字:', filters.keyword, '分类:', filters.categoryId, '月份:', filters.month, ')')
     const response = await expenseAPI.getList(params)
     console.log('【原始响应】', JSON.stringify(response, null, 2))
     
