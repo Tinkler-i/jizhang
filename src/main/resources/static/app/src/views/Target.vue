@@ -3,13 +3,39 @@
     <div class="page-header">
       <h1>目标管理</h1>
       <div class="header-actions">
-        <Input
-          v-model="currentYear"
-          type="number"
-          min="2020"
-          max="2099"
-          @change="loadYearTargets"
-        />
+        <!-- 年份选择器 -->
+        <div ref="yearSelectorRef" class="year-selector">
+          <div class="year-input-group">
+            <input 
+              type="text"
+              :value="`${currentYear}年`"
+              @click="toggleYearPicker"
+              class="year-input"
+              readonly
+            >
+            <span class="year-icon" @click="toggleYearPicker">📅</span>
+            
+            <!-- 年份选择面板 -->
+            <div v-if="showYearPicker" class="year-picker">
+              <div class="year-picker-header">
+                <button class="year-nav-btn" @click="previousYearRange">❮</button>
+                <span class="year-range-text">{{ yearRangeStart }}-{{ yearRangeEnd }}</span>
+                <button class="year-nav-btn" @click="nextYearRange">❯</button>
+              </div>
+              <div class="year-picker-grid">
+                <button 
+                  v-for="year in displayYears" 
+                  :key="year"
+                  :class="['year-button', { active: year === currentYear }]"
+                  @click="selectYearFromPicker(year)"
+                >
+                  {{ year }}
+                </button>
+              </div>
+            </div>
+          </div>
+          <button class="quick-btn" @click="selectCurrentYear">本年</button>
+        </div>
         <Button type="primary" @click="openAddModal">+ 添加目标</Button>
       </div>
     </div>
@@ -48,8 +74,8 @@
             <div class="progress-bar">
               <div 
                 class="progress-fill"
-                :style="{ width: target.progressPercent + '%' }"
-                :class="{ 'progress-complete': target.progressPercent >= 100 }"
+                :style="{ width: Math.min(target.progressPercent, 100) + '%' }"
+                :class="{ 'progress-complete': target.progressPercent >= 100, 'progress-exceeded': target.progressPercent > 100 }"
               ></div>
             </div>
             <div class="progress-text">{{ target.progressPercent }}%</div>
@@ -99,7 +125,7 @@
 </template>
 
 <script setup>
-import { reactive, ref, onMounted, computed } from 'vue'
+import { reactive, ref, onMounted, onUnmounted, computed } from 'vue'
 import { userTargetAPI, incomeAPI, expenseAPI } from '../api'
 import { useUIStore } from '../stores/ui'
 import Button from '../components/Button.vue'
@@ -115,6 +141,22 @@ const showModal = ref(false)
 const editingId = ref(null)
 
 const currentYear = ref(new Date().getFullYear())
+
+// 年份选择器相关
+const showYearPicker = ref(false)
+const yearPickerStart = ref(new Date().getFullYear() - 6)
+const yearSelectorRef = ref(null)
+
+const displayYears = computed(() => {
+  const years = []
+  for (let i = 0; i < 12; i++) {
+    years.push(yearPickerStart.value + i)
+  }
+  return years
+})
+
+const yearRangeStart = computed(() => yearPickerStart.value)
+const yearRangeEnd = computed(() => yearPickerStart.value + 11)
 
 const form = reactive({
   targetMonth: '',
@@ -141,7 +183,7 @@ const yearTargets = computed(() => {
       const target = targetMap.get(targetMonth)
       const actualSavings = monthlySavings.value[targetMonth] || 0
       const progressPercent = target.incomeTarget > 0 
-        ? Math.min(Math.round((actualSavings / target.incomeTarget) * 100), 100)
+        ? Math.round((actualSavings / target.incomeTarget) * 100)
         : 0
       allMonths.push({
         ...target,
@@ -193,6 +235,7 @@ const loadAllTargets = async () => {
 // 加载每个月份的攒下数据（收入 - 支出）
 const loadMonthlySavings = async () => {
   const year = currentYear.value.toString()
+  const yearNum = parseInt(year)
   
   console.log('【目标】加载月度攒下数据，年份:', year)
   monthlySavings.value = {}
@@ -205,8 +248,8 @@ const loadMonthlySavings = async () => {
     try {
       // 获取该月的日期范围
       const startDate = `${year}-${monthStr}-01`
-      const lastDay = new Date(year, month, 0).getDate()
-      const endDate = `${year}-${monthStr}-${lastDay}`
+      const lastDay = new Date(yearNum, month, 0).getDate()
+      const endDate = `${year}-${monthStr}-${String(lastDay).padStart(2, '0')}`
       
       // 并行加载收入和支出
       const [incomeRes, expenseRes] = await Promise.all([
@@ -260,6 +303,36 @@ const loadYearTargets = async () => {
   }
 }
 
+// 年份选择器方法
+const toggleYearPicker = () => {
+  showYearPicker.value = !showYearPicker.value
+}
+
+const previousYearRange = () => {
+  yearPickerStart.value -= 12
+}
+
+const nextYearRange = () => {
+  yearPickerStart.value += 12
+}
+
+const selectYearFromPicker = (year) => {
+  currentYear.value = year
+  showYearPicker.value = false
+  loadYearTargets()
+}
+
+const selectCurrentYear = () => {
+  currentYear.value = new Date().getFullYear()
+  loadYearTargets()
+}
+
+const handleClickOutside = (event) => {
+  if (yearSelectorRef.value && !yearSelectorRef.value.contains(event.target)) {
+    showYearPicker.value = false
+  }
+}
+
 const openAddModal = () => {
   console.log('【目标】打开添加模态框')
   editingId.value = null
@@ -281,7 +354,7 @@ const editTarget = (target) => {
   console.log('【目标】编辑目标:', target)
   editingId.value = target.id
   form.targetMonth = target.targetMonth
-  form.selectedMonth = target.targetMonth.substring(5)
+  form.selectedMonth = String(parseInt(target.targetMonth.substring(5)))
   form.incomeTarget = target.isDefault ? '' : target.incomeTarget.toString()
   showModal.value = true
 }
@@ -357,6 +430,11 @@ const deleteTarget = async (targetId) => {
 onMounted(async () => {
   console.log('【目标】页面已挂载，开始加载数据')
   await loadAllTargets()
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
 })
 </script>
 
@@ -387,42 +465,137 @@ onMounted(async () => {
   display: flex;
   gap: 12px;
   align-items: center;
-  height: 40px;
 }
 
-.header-actions input {
-  padding: 8px 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 14px;
-  min-width: 140px;
-  height: 40px;
-  box-sizing: border-box;
-  vertical-align: middle;
+.year-selector {
+  display: flex;
+  gap: 10px;
+  align-items: center;
 }
 
-/* 覆盖 form-group 默认样式，用于 header-actions 中的 Input 组件 */
-.header-actions :deep(.form-group) {
-  margin-bottom: 0 !important;
+.year-input-group {
+  position: relative;
   display: flex;
   align-items: center;
 }
 
-.header-actions :deep(.form-group label) {
-  display: none;
-}
-
-.header-actions :deep(.form-group input) {
-  margin-bottom: 0;
-  height: 40px;
+.year-input {
   padding: 8px 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+  background: white;
+  min-width: 140px;
+  height: 40px;
+  box-sizing: border-box;
 }
 
-/* 强制对齐按钮和输入框高度 */
-.header-actions :deep(.btn) {
-  padding: 8px 16px !important;
-  min-height: 40px !important;
-  height: 40px !important;
+.year-input:focus {
+  outline: none;
+  border-color: #1890ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+.year-icon {
+  position: absolute;
+  right: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  pointer-events: none;
+}
+
+.year-picker {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: white;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  margin-top: 4px;
+  padding: 12px;
+  z-index: 100;
+  min-width: 280px;
+}
+
+.year-picker-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.year-range-text {
+  font-weight: 600;
+  color: #333;
+  font-size: 14px;
+}
+
+.year-nav-btn {
+  background: none;
+  border: none;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #666;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.year-nav-btn:hover {
+  background: #f0f0f0;
+  color: #1890ff;
+}
+
+.year-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.year-button {
+  padding: 8px 4px;
+  border: 1px solid #d9d9d9;
+  background: white;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s ease;
+  color: #333;
+}
+
+.year-button:hover {
+  border-color: #1890ff;
+  color: #1890ff;
+}
+
+.year-button.active {
+  background: #1890ff;
+  border-color: #1890ff;
+  color: white;
+  font-weight: 600;
+}
+
+.quick-btn {
+  padding: 8px 16px;
+  background: #f0f0f0;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  color: #333;
+  height: 40px;
+  box-sizing: border-box;
+}
+
+.quick-btn:hover {
+  background: #e6e6e6;
+  border-color: #999;
 }
 
 .section {
@@ -549,6 +722,10 @@ onMounted(async () => {
 
 .progress-fill.progress-complete {
   background: linear-gradient(to right, #52c41a, #85ce61);
+}
+
+.progress-fill.progress-exceeded {
+  background: linear-gradient(to right, #52c41a 0%, #85ce61 95%, #ff4d4f 100%);
 }
 
 .progress-text {
