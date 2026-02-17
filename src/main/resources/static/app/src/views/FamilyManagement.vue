@@ -864,17 +864,19 @@ const formatPermissionLabel = (key) => {
     'expense_view': '支出 - 查看',
     'expense_edit': '支出 - 编辑（含创建/删除）',
     'budget_view': '预算 - 查看',
-    'budget_edit': '预算 - 编辑（含创建/删除）'
+    'budget_edit': '预算 - 编辑（含创建/删除）',
+    'target_view': '目标管理 - 查看',
+    'target_edit': '目标管理 - 编辑（含创建/删除）'
   }
   return labels[key] || key
 }
 
-// 过滤权限 - 只显示简化的6个权限
+// 过滤权限 - 显示8个权限（包括目标管理）
 const getFilteredPermissions = () => {
   if (!permissionDetails.value) return {}
   
-  // 只保留6个权限
-  const allowedKeys = ['income_view', 'income_edit', 'expense_view', 'expense_edit', 'budget_view', 'budget_edit']
+  // 保留8个权限（新增target_view和target_edit）
+  const allowedKeys = ['income_view', 'income_edit', 'expense_view', 'expense_edit', 'budget_view', 'budget_edit', 'target_view', 'target_edit']
   const filtered = {}
   for (const key of allowedKeys) {
     if (permissionDetails.value.hasOwnProperty(key)) {

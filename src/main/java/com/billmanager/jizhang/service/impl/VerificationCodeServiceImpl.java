@@ -360,7 +360,6 @@ public class VerificationCodeServiceImpl implements VerificationCodeService {
             incomeCategory.setFamilyGroupId(0L); // 0 表示个人数据，不绑定到任何家族组
             incomeCategory.setName("待分类");
             incomeCategory.setDescription("自动导入账单时未匹配分类的默认分类");
-            incomeCategory.setIsBuiltIn(1); // 1 表示系统内置
             incomeCategory.setCreateTime(LocalDateTime.now());
             incomeCategory.setUpdateTime(LocalDateTime.now());
             incomeCategoryMapper.insert(incomeCategory);
@@ -372,7 +371,6 @@ public class VerificationCodeServiceImpl implements VerificationCodeService {
             expenseCategory.setFamilyGroupId(0L); // 0 表示个人数据，不绑定到任何家族组
             expenseCategory.setName("待分类");
             expenseCategory.setDescription("自动导入账单时未匹配分类的默认分类");
-            expenseCategory.setIsBuiltIn(1); // 1 表示系统内置
             expenseCategory.setCreateTime(LocalDateTime.now());
             expenseCategory.setUpdateTime(LocalDateTime.now());
             expenseCategoryMapper.insert(expenseCategory);

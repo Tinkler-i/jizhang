@@ -139,11 +139,6 @@ public class IncomeCategoryServiceImpl implements IncomeCategoryService {
             }
         }
         
-        // 检查是否是系统内置分类，不允许删除
-        if (category.getIsBuiltIn() != null && category.getIsBuiltIn() == 1) {
-            throw new BusinessException("系统内置分类不能删除");
-        }
-        
         incomeCategoryMapper.deleteById(id);
     }
     

@@ -1,10 +1,12 @@
 package com.billmanager.jizhang.service.impl;
 
 import com.billmanager.jizhang.entity.UserTarget;
+import com.billmanager.jizhang.entity.FamilyGroup;
 import com.billmanager.jizhang.exception.BusinessException;
 import com.billmanager.jizhang.mapper.UserTargetMapper;
 import com.billmanager.jizhang.service.UserTargetService;
 import com.billmanager.jizhang.service.FamilyGroupService;
+import com.billmanager.jizhang.service.PermissionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -24,6 +26,7 @@ public class UserTargetServiceImpl implements UserTargetService {
     
     private final UserTargetMapper userTargetMapper;
     private final FamilyGroupService familyGroupService;
+    private final PermissionService permissionService;
     
     @Override
     public UserTarget findById(Long id) {
@@ -32,11 +35,52 @@ public class UserTargetServiceImpl implements UserTargetService {
     
     @Override
     public UserTarget findByUserIdAndMonth(Long userId, String targetMonth) {
+        // 先检查用户是否在家庭组中
+        try {
+            FamilyGroup familyGroup = familyGroupService.getFamilyGroupByUserId(userId);
+            if (familyGroup != null && familyGroup.getId() > 0) {
+                // 用户在家庭组中，返回该家庭组的汇总目标
+                return userTargetMapper.findByFamilyGroupIdAndMonthAggregated(familyGroup.getId(), targetMonth);
+            }
+        } catch (Exception e) {
+            log.debug("【目标查询】查询用户ID: {} 的家庭组失败: {}", userId, e.getMessage());
+        }
+        
+        // 用户不在家庭组中，返回个人目标
         return userTargetMapper.findByUserIdAndMonth(userId, targetMonth);
     }
     
     @Override
     public List<UserTarget> findByUserId(Long userId) {
+        // 先检查用户是否在家庭组中
+        try {
+            FamilyGroup familyGroup = familyGroupService.getFamilyGroupByUserId(userId);
+            if (familyGroup != null && familyGroup.getId() > 0) {
+                // 用户在家庭组中，返回该家庭组的聚合目标 + 个人目标
+                List<UserTarget> familyTargets = userTargetMapper.findByFamilyGroupIdAggregated(familyGroup.getId());
+                List<UserTarget> personalTargets = userTargetMapper.findByUserIdAndMonthRange(userId, "1900-01", "2999-12");
+                
+                // 过滤个人目标（只保留family_group_id = 0的）
+                personalTargets.removeIf(t -> t.getFamilyGroupId() != null && t.getFamilyGroupId() > 0);
+                
+                // 合并两个列表
+                familyTargets.addAll(personalTargets);
+                
+                // 按月份倒序排列
+                familyTargets.sort((a, b) -> b.getTargetMonth().compareTo(a.getTargetMonth()));
+                
+                log.debug("【目标查询】用户ID: {} 在家庭组ID: {} 中，返回家庭组聚合目标 {} 条 + 个人目标 {} 条", 
+                        userId, familyGroup.getId(), 
+                        userTargetMapper.findByFamilyGroupIdAggregated(familyGroup.getId()).size(),
+                        personalTargets.size());
+                
+                return familyTargets;
+            }
+        } catch (Exception e) {
+            log.debug("【目标查询】查询用户ID: {} 的家庭组失败: {}", userId, e.getMessage());
+        }
+        
+        // 用户不在家庭组中，返回所有个人目标
         return userTargetMapper.findByUserId(userId);
     }
     
@@ -55,20 +99,51 @@ public class UserTargetServiceImpl implements UserTargetService {
             throw new BusinessException("收入目标不能为空或小于0");
         }
         
-        // 查询是否已存在
-        UserTarget existing = userTargetMapper.findByUserIdAndMonth(userId, targetMonth);
+        // 检查用户是否在家庭组中
+        FamilyGroup familyGroup = null;
+        try {
+            familyGroup = familyGroupService.getFamilyGroupByUserId(userId);
+        } catch (Exception e) {
+            log.debug("【目标修改】查询用户ID: {} 的家庭组失败: {}", userId, e.getMessage());
+        }
         
-        if (existing != null) {
-            // 更新现有目标
-            existing.setIncomeTarget(incomeTarget);
-            return update(existing);
-        } else {
-            // 创建新目标
+        // 如果用户在家庭组中，删除该月份的所有家庭组目标，然后新建
+        if (familyGroup != null && familyGroup.getId() > 0) {
+            // 删除该家庭组该月份的所有用户目标
+            int deletedCount = userTargetMapper.deleteByFamilyGroupIdAndMonth(familyGroup.getId(), targetMonth);
+            if (deletedCount > 0) {
+                log.info("【目标修改】删除家庭组ID: {} 月份 {} 的 {} 条旧目标数据", familyGroup.getId(), targetMonth, deletedCount);
+            }
+            
+            // 创建新的家庭组目标
             UserTarget newTarget = new UserTarget();
             newTarget.setUserId(userId);
             newTarget.setTargetMonth(targetMonth);
             newTarget.setIncomeTarget(incomeTarget);
+            newTarget.setFamilyGroupId(familyGroup.getId());
+            
+            log.info("【目标修改】用户ID: {} 在家庭组ID: {} 中创建新目标，月份: {}, 金额: {}", 
+                    userId, familyGroup.getId(), targetMonth, incomeTarget);
+            
             return create(newTarget);
+        } else {
+            // 用户不在家庭组中，按原逻辑处理个人目标
+            UserTarget existing = userTargetMapper.findByUserIdAndMonth(userId, targetMonth);
+            
+            if (existing != null) {
+                // 更新现有的个人目标
+                existing.setIncomeTarget(incomeTarget);
+                return update(existing);
+            } else {
+                // 创建新的个人目标
+                UserTarget newTarget = new UserTarget();
+                newTarget.setUserId(userId);
+                newTarget.setTargetMonth(targetMonth);
+                newTarget.setIncomeTarget(incomeTarget);
+                newTarget.setFamilyGroupId(0L);
+                
+                return create(newTarget);
+            }
         }
     }
     
@@ -79,6 +154,11 @@ public class UserTargetServiceImpl implements UserTargetService {
             throw new BusinessException("用户ID无效");
         }
         
+        // 【新增】检查权限：用户是否有target_edit权限
+        if (!permissionService.canEdit(userTarget.getUserId(), "target")) {
+            throw new BusinessException("无权创建目标");
+        }
+        
         if (userTarget.getTargetMonth() == null || !userTarget.getTargetMonth().matches("^\\d{4}-\\d{2}$")) {
             throw new BusinessException("目标年月格式不正确，应为 YYYY-MM");
         }
@@ -87,9 +167,24 @@ public class UserTargetServiceImpl implements UserTargetService {
             throw new BusinessException("收入目标不能为空或小于0");
         }
         
-        // 确保familyGroupId有值（个人目标设为0）
-        if (userTarget.getFamilyGroupId() == null) {
-            userTarget.setFamilyGroupId(0L);
+        // 确保familyGroupId有值，如果为null或0都需要检测
+        if (userTarget.getFamilyGroupId() == null || userTarget.getFamilyGroupId() == 0) {
+            // 自动检查用户是否在家庭组中，如果在则使用家庭组ID，否则使用个人目标(0)
+            try {
+                FamilyGroup familyGroup = familyGroupService.getFamilyGroupByUserId(userTarget.getUserId());
+                if (familyGroup != null) {
+                    userTarget.setFamilyGroupId(familyGroup.getId());
+                    log.info("【目标创建】用户ID: {} 在家庭组ID: {} 中，设置目标为家庭目标", 
+                            userTarget.getUserId(), familyGroup.getId());
+                } else {
+                    userTarget.setFamilyGroupId(0L);
+                    log.info("【目标创建】用户ID: {} 不在家庭组中，设置为个人目标(familyGroupId: 0)", userTarget.getUserId());
+                }
+            } catch (Exception e) {
+                // 如果查询失败，设为个人目标
+                userTarget.setFamilyGroupId(0L);
+                log.warn("【目标创建】查询用户ID: {} 的家庭组失败: {}", userTarget.getUserId(), e.getMessage());
+            }
         }
         
         // 检查是否已存在相同的目标
@@ -131,6 +226,17 @@ public class UserTargetServiceImpl implements UserTargetService {
             throw new BusinessException("目标ID无效");
         }
         
+        // 【新增】获取原目标信息以进行权限检查
+        UserTarget original = userTargetMapper.findById(userTarget.getId());
+        if (original == null) {
+            throw new BusinessException("目标不存在");
+        }
+        
+        // 【新增】检查权限：目标所有者是否有target_edit权限
+        if (!permissionService.canEdit(original.getUserId(), "target")) {
+            throw new BusinessException("无权修改目标");
+        }
+        
         if (userTarget.getIncomeTarget() == null || userTarget.getIncomeTarget().compareTo(BigDecimal.ZERO) < 0) {
             throw new BusinessException("收入目标不能为空或小于0");
         }
@@ -151,38 +257,57 @@ public class UserTargetServiceImpl implements UserTargetService {
             throw new BusinessException("目标ID无效");
         }
         
+        // 【改进】检查权限：用户是否有target_edit权限
+        if (!permissionService.canEdit(userId, "target")) {
+            throw new BusinessException("无权删除目标");
+        }
+        
         UserTarget target = userTargetMapper.findById(id);
         if (target == null) {
             throw new BusinessException("目标不存在");
         }
         
-        // 验证目标归属于指定用户或用户所在的家庭组
-        boolean isOwner = target.getUserId().equals(userId);
+        // 检查是否是家庭组目标
         boolean isFamilyTarget = target.getFamilyGroupId() != null && target.getFamilyGroupId() > 0;
         
         if (isFamilyTarget) {
-            // 家庭目标：需要检查用户是否在该家庭组中
+            // 【家庭组目标删除逻辑】
+            // 验证用户是否在该家庭组中
             try {
-                var familyGroup = familyGroupService.getFamilyGroupByUserId(userId);
-                if (familyGroup == null || !familyGroup.getId().equals(target.getFamilyGroupId())) {
+                var userFamilyGroup = familyGroupService.getFamilyGroupByUserId(userId);
+                if (userFamilyGroup == null || !userFamilyGroup.getId().equals(target.getFamilyGroupId())) {
                     throw new BusinessException("无权删除该目标");
                 }
+            } catch (BusinessException e) {
+                throw e;
             } catch (Exception e) {
                 log.error("【目标】验证家族组权限失败", e);
                 throw new BusinessException("无权删除该目标");
             }
+            
+            // 删除该家庭组该月份的所有目标（与createOrUpdate保持一致）
+            String targetMonth = target.getTargetMonth();
+            Long familyGroupId = target.getFamilyGroupId();
+            
+            int deletedCount = userTargetMapper.deleteByFamilyGroupIdAndMonth(familyGroupId, targetMonth);
+            log.info("【目标删除】删除家庭组ID: {} 月份 {} 的 {} 条目标数据", familyGroupId, targetMonth, deletedCount);
+            
+            if (deletedCount == 0) {
+                throw new BusinessException("删除目标失败");
+            }
         } else {
-            // 个人目标：只有创建者能删除
-            if (!isOwner) {
+            // 【个人目标删除逻辑】
+            // 只有创建者能删除
+            if (!target.getUserId().equals(userId)) {
                 throw new BusinessException("无权删除该目标");
             }
-        }
-        
-        int result = userTargetMapper.delete(id);
-        if (result > 0) {
-            log.info("【目标删除】目标ID: {}, 用户ID: {}", id, userId);
-        } else {
-            throw new BusinessException("删除目标失败");
+            
+            int result = userTargetMapper.delete(id);
+            if (result > 0) {
+                log.info("【目标删除】个人目标ID: {}, 用户ID: {}", id, userId);
+            } else {
+                throw new BusinessException("删除目标失败");
+            }
         }
     }
     
@@ -225,6 +350,76 @@ public class UserTargetServiceImpl implements UserTargetService {
             throw new BusinessException("起始年月不能晚于结束年月");
         }
         
+        // 先检查用户是否在家庭组中
+        try {
+            FamilyGroup familyGroup = familyGroupService.getFamilyGroupByUserId(userId);
+            if (familyGroup != null && familyGroup.getId() > 0) {
+                // 用户在家庭组中，返回该家庭组的聚合目标 + 个人目标
+                List<UserTarget> familyTargets = userTargetMapper.findByFamilyGroupIdAndMonthRangeAggregated(
+                        familyGroup.getId(), startMonth, endMonth);
+                List<UserTarget> personalTargets = userTargetMapper.findByUserIdAndMonthRange(userId, startMonth, endMonth);
+                
+                // 过滤个人目标（只保留family_group_id = 0的）
+                personalTargets.removeIf(t -> t.getFamilyGroupId() != null && t.getFamilyGroupId() > 0);
+                
+                // 合并两个列表
+                familyTargets.addAll(personalTargets);
+                
+                // 按月份倒序排列
+                familyTargets.sort((a, b) -> b.getTargetMonth().compareTo(a.getTargetMonth()));
+                
+                return familyTargets;
+            }
+        } catch (Exception e) {
+            log.debug("【目标范围查询】查询用户ID: {} 的家庭组失败: {}", userId, e.getMessage());
+        }
+        
+        // 用户不在家庭组中，返回所有个人目标
         return userTargetMapper.findByUserIdAndMonthRange(userId, startMonth, endMonth);
+    }
+    
+    @Override
+    @Transactional
+    public void deleteByMonth(Long userId, String targetMonth) {
+        if (userId == null || userId <= 0) {
+            throw new BusinessException("用户ID无效");
+        }
+        
+        if (targetMonth == null || targetMonth.isEmpty()) {
+            throw new BusinessException("目标月份无效");
+        }
+        
+        // 检查权限：用户是否有target_edit权限
+        if (!permissionService.canEdit(userId, "target")) {
+            throw new BusinessException("无权删除目标");
+        }
+        
+        // 检查用户是否在家庭组中
+        try {
+            FamilyGroup familyGroup = familyGroupService.getFamilyGroupByUserId(userId);
+            if (familyGroup != null && familyGroup.getId() > 0) {
+                // 【家庭组删除】删除该家庭组该月份的所有目标
+                int deletedCount = userTargetMapper.deleteByFamilyGroupIdAndMonth(
+                        familyGroup.getId(), targetMonth);
+                log.info("【目标删除】删除家庭组ID: {} 月份 {} 的 {} 条目标数据", 
+                        familyGroup.getId(), targetMonth, deletedCount);
+                
+                if (deletedCount == 0) {
+                    throw new BusinessException("删除目标失败");
+                }
+                return;
+            }
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.debug("【目标删除】查询用户ID: {} 的家庭组失败: {}", userId, e.getMessage());
+        }
+        
+        // 【个人目标删除】删除用户该月份的个人目标
+        int deletedCount = userTargetMapper.deleteByUserIdAndMonth(userId, targetMonth);
+        if (deletedCount == 0) {
+            throw new BusinessException("删除目标失败");
+        }
+        log.info("【目标删除】删除用户ID: {} 月份 {} 的目标数据", userId, targetMonth);
     }
 }

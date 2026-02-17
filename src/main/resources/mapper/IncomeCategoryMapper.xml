@@ -14,8 +14,8 @@
     </resultMap>
 
     <insert id="insert" parameterType="com.billmanager.jizhang.entity.IncomeCategory" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO income_category (user_id, family_group_id, name, description, is_built_in, create_time, update_time)
-        VALUES (#{userId}, #{familyGroupId}, #{name}, #{description}, #{isBuiltIn}, #{createTime}, #{updateTime})
+        INSERT INTO income_category (user_id, family_group_id, name, description, create_time, update_time)
+        VALUES (#{userId}, #{familyGroupId}, #{name}, #{description}, #{createTime}, #{updateTime})
     </insert>
 
     <update id="update" parameterType="com.billmanager.jizhang.entity.IncomeCategory">
@@ -66,7 +66,7 @@
 
     <!-- 删除指定用户的所有分类 -->
     <delete id="deleteByUserId">
-        DELETE FROM income_category WHERE user_id = #{userId} AND is_built_in = 0
+        DELETE FROM income_category WHERE user_id = #{userId}
     </delete>
     
     <!-- 删除指定用户在指定家族组中的分类 -->
@@ -74,26 +74,14 @@
         DELETE FROM income_category WHERE user_id = #{userId} AND family_group_id = #{familyGroupId}
     </delete>
     
-    <!-- 将指定用户在指定家族组中的分类转换为个人数据，不转换系统内置分类 -->
+    <!-- 将指定用户在指定家族组中的分类转换为个人数据 -->
     <update id="updateFamilyGroupIdToPersonal">
         UPDATE income_category 
         SET family_group_id = 0, update_time = CURRENT_TIMESTAMP
-        WHERE user_id = #{userId} AND family_group_id = #{familyGroupId} AND is_built_in = 0
+        WHERE user_id = #{userId} AND family_group_id = #{familyGroupId}
     </update>
     
-    <!-- 更新指定用户的所有非系统内置分类的家庭组ID -->
-    <update id="updateFamilyGroupIdExcludeBuiltIn">
-        UPDATE income_category 
-        SET family_group_id = #{familyGroupId}, update_time = CURRENT_TIMESTAMP
-        WHERE user_id = #{userId} AND is_built_in = 0
-    </update>
 
-    <!-- 更新指定用户的所有分类的家庭组ID，包括待分类 -->
-    <update id="updateAllCategoriesFamilyGroupId">
-        UPDATE income_category 
-        SET family_group_id = #{familyGroupId}, update_time = CURRENT_TIMESTAMP
-        WHERE user_id = #{userId}
-    </update>
 
     <!-- 查询指定家庭组中所有同名的分类 -->
     <select id="findAllByFamilyGroupIdAndName" resultMap="BaseResultMap">

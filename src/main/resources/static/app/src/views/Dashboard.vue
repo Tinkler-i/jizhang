@@ -101,7 +101,6 @@
               </p>
               <p class="metric-target">
                 达成度: <span :class="{ 'text-success': achievementRate >= 100, 'text-danger': achievementRate < 50 }">{{ achievementRate }}%</span> (¥{{ metrics.targetIncome || '0.00' }})
-                <button class="edit-btn" @click="openEditTargetModal" title="编辑目标">✏️</button>
               </p>
             </div>
           </div>

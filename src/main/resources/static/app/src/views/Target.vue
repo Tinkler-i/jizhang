@@ -36,7 +36,7 @@
           </div>
           <button class="quick-btn" @click="selectCurrentYear">本年</button>
         </div>
-        <Button type="primary" @click="openAddModal">+ 添加目标</Button>
+        <!-- 添加目标按钮已移除（暂时） -->
       </div>
     </div>
 
@@ -46,7 +46,6 @@
       <div v-if="loading" class="loading">加载中...</div>
       <div v-else-if="yearTargets.length === 0" class="empty-state">
         <p>该年度暂无目标记录</p>
-        <Button type="primary" @click="openAddModal">添加目标</Button>
       </div>
       <div v-else class="year-target-grid">
         <div
@@ -82,7 +81,7 @@
           </div>
           <div class="item-actions">
             <button class="link-btn" @click="editTarget(target)">{{ target.isDefault ? '设置' : '编辑' }}</button>
-            <button v-if="!target.isDefault" class="link-btn danger" @click="deleteTarget(target.id)">删除</button>
+            <button v-if="!target.isDefault" class="link-btn danger" @click="deleteTarget(target)">删除</button>
           </div>
         </div>
       </div>
@@ -405,14 +404,20 @@ const handleSave = async () => {
   }
 }
 
-const deleteTarget = async (targetId) => {
+const deleteTarget = async (target) => {
   try {
+    if (!target || !target.targetMonth) {
+      console.warn('【目标】删除失败：月份信息无效')
+      uiStore.showNotification('无法删除：月份信息无效', 'warning', 3000)
+      return
+    }
+
     if (!confirm('确定要删除此目标吗？')) {
       return
     }
 
-    console.log('【目标】删除目标:', targetId)
-    const response = await userTargetAPI.delete(targetId)
+    console.log('【目标】删除目标:', target.targetMonth)
+    const response = await userTargetAPI.delete(target.targetMonth)
     console.log('【目标】删除响应:', response)
     
     if (response?.code === 0 || response?.code === 200) {

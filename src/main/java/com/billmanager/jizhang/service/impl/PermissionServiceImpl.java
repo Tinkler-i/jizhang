@@ -13,10 +13,11 @@ import org.springframework.stereotype.Service;
 /**
  * 权限管理服务实现
  * 
- * 简化的6个权限模型：
+ * 简化的8个权限模型：
  * - income_view / income_edit
  * - expense_view / expense_edit
  * - budget_view / budget_edit
+ * - target_view / target_edit  ← 【新增】用于目标管理功能
  * 
  * 规则：
  * 1. 管理员（ADMIN）拥有所有权限

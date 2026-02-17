@@ -70,6 +70,15 @@ public interface UserTargetService {
     void delete(Long id);
     
     /**
+     * 按月份删除目标（最新删除方式）
+     * 如果用户在家庭组中，删除该家庭组的该月份所有目标
+     * 否则删除用户的该月份目标
+     * @param userId 用户ID
+     * @param targetMonth 目标年月（格式：YYYY-MM）
+     */
+    void deleteByMonth(Long userId, String targetMonth);
+    
+    /**
      * 查询用户在某个月份范围内的目标
      * @param userId 用户ID
      * @param startMonth 起始年月（格式：YYYY-MM）
