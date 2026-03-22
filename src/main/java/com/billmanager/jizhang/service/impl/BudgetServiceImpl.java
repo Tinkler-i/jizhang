@@ -164,10 +164,12 @@ public class BudgetServiceImpl implements BudgetService {
         
         FamilyMember member = permissionService.getFamilyMember(userId);
         if (member == null) {
-            return budgetMapper.findByUserIdAndYearMonth(userId, budgetMonth);
+            List<Budget> result = budgetMapper.findByUserIdAndYearMonth(userId, budgetMonth);
+            return result != null ? result : new java.util.ArrayList<>();
         }
         
-        return budgetMapper.findByFamilyGroupIdAndYearMonth(member.getFamilyGroupId(), budgetMonth);
+        List<Budget> result = budgetMapper.findByFamilyGroupIdAndYearMonth(member.getFamilyGroupId(), budgetMonth);
+        return result != null ? result : new java.util.ArrayList<>();
     }
     
     @Override

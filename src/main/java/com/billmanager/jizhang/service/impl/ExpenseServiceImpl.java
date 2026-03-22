@@ -140,10 +140,12 @@ public class ExpenseServiceImpl implements ExpenseService {
         FamilyMember member = permissionService.getFamilyMember(userId);
         
         if (member == null) {
-            return expenseMapper.findByUserIdOrderByDateDesc(userId);
+            List<Expense> result = expenseMapper.findByUserIdOrderByDateDesc(userId);
+            return result != null ? result : new java.util.ArrayList<>();
         }
         
-        return expenseMapper.findByFamilyGroupIdOrderByDateDesc(member.getFamilyGroupId());
+        List<Expense> result = expenseMapper.findByFamilyGroupIdOrderByDateDesc(member.getFamilyGroupId());
+        return result != null ? result : new java.util.ArrayList<>();
     }
     
     @Override
@@ -157,10 +159,12 @@ public class ExpenseServiceImpl implements ExpenseService {
         FamilyMember member = permissionService.getFamilyMember(userId);
         
         if (member == null) {
-            return expenseMapper.findByUserIdAndDateRange(userId, startDate, endDate);
+            List<Expense> result = expenseMapper.findByUserIdAndDateRange(userId, startDate, endDate);
+            return result != null ? result : new java.util.ArrayList<>();
         }
         
-        return expenseMapper.findByFamilyGroupIdAndDateRange(member.getFamilyGroupId(), startDate, endDate);
+        List<Expense> result = expenseMapper.findByFamilyGroupIdAndDateRange(member.getFamilyGroupId(), startDate, endDate);
+        return result != null ? result : new java.util.ArrayList<>();
     }
     
     @Override
@@ -174,10 +178,12 @@ public class ExpenseServiceImpl implements ExpenseService {
         FamilyMember member = permissionService.getFamilyMember(userId);
         
         if (member == null) {
-            return expenseMapper.findByUserIdAndCategoryId(userId, categoryId);
+            List<Expense> result = expenseMapper.findByUserIdAndCategoryId(userId, categoryId);
+            return result != null ? result : new java.util.ArrayList<>();
         }
         
-        return expenseMapper.findByFamilyGroupIdAndCategoryId(member.getFamilyGroupId(), categoryId);
+        List<Expense> result = expenseMapper.findByFamilyGroupIdAndCategoryId(member.getFamilyGroupId(), categoryId);
+        return result != null ? result : new java.util.ArrayList<>();
     }
     
     @Override

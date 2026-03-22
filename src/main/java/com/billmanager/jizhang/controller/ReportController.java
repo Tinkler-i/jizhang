@@ -22,6 +22,8 @@ import com.billmanager.jizhang.entity.ExpenseCategory;
 import com.billmanager.jizhang.service.ReportService;
 import com.billmanager.jizhang.service.IncomeService;
 import com.billmanager.jizhang.service.ExpenseService;
+import com.billmanager.jizhang.service.BudgetService;
+import com.billmanager.jizhang.service.UserTargetService;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -48,6 +50,8 @@ public class ReportController {
     private final ReportService reportService;
     private final IncomeService incomeService;
     private final ExpenseService expenseService;
+    private final BudgetService budgetService;
+    private final UserTargetService userTargetService;
     private final UserMapper userMapper;
     private final UserTargetMapper userTargetMapper;
     private final IncomeMapper incomeMapper;
@@ -120,9 +124,9 @@ public class ReportController {
                 BigDecimal budgetExpense = BigDecimal.ZERO;
                 for (int m = 1; m <= 12; m++) {
                     String monthStr = String.format("%d-%02d", year, m);
-                    List<Budget> budgets = budgetMapper.findByUserIdAndYearMonth(user.getId(), monthStr);
+                    List<Budget> budgets = budgetService.findByUserIdAndBudgetMonth(user.getId(), monthStr);
                     BigDecimal monthBudget = budgets.stream()
-                            .map(Budget::getAmount)
+                            .map(b -> b.getAmount() == null ? BigDecimal.ZERO : b.getAmount())
                             .reduce(BigDecimal.ZERO, BigDecimal::add);
                     budgetExpense = budgetExpense.add(monthBudget);
                 }
@@ -131,8 +135,8 @@ public class ReportController {
                 BigDecimal targetIncome = BigDecimal.ZERO;
                 for (int m = 1; m <= 12; m++) {
                     String monthStr = String.format("%d-%02d", year, m);
-                    UserTarget target = userTargetMapper.findByUserIdAndMonth(user.getId(), monthStr);
-                    if (target != null) {
+                    UserTarget target = userTargetService.findByUserIdAndMonth(user.getId(), monthStr);
+                    if (target != null && target.getIncomeTarget() != null) {
                         targetIncome = targetIncome.add(target.getIncomeTarget());
                     }
                 }
@@ -167,23 +171,24 @@ public class ReportController {
                 // 获取本月收入
                 List<Income> monthIncomes = incomeService.findByUserIdAndDateRange(user.getId(), monthStart, monthEnd);
                 BigDecimal totalIncome = monthIncomes.stream()
-                        .map(Income::getAmount)
+                    .map(i -> i.getAmount() == null ? BigDecimal.ZERO : i.getAmount())
                         .reduce(BigDecimal.ZERO, BigDecimal::add);
                 
                 // 获取本月支出
                 List<Expense> monthExpenses = expenseService.findByUserIdAndDateRange(user.getId(), monthStart, monthEnd);
                 BigDecimal totalExpense = monthExpenses.stream()
-                        .map(Expense::getAmount)
+                    .map(e -> e.getAmount() == null ? BigDecimal.ZERO : e.getAmount())
                         .reduce(BigDecimal.ZERO, BigDecimal::add);
                 
                 // 获取本月收入目标
-                UserTarget target = userTargetMapper.findByUserIdAndMonth(user.getId(), month);
-                BigDecimal targetIncome = target != null ? target.getIncomeTarget() : BigDecimal.ZERO;
+                UserTarget target = userTargetService.findByUserIdAndMonth(user.getId(), month);
+                BigDecimal targetIncome = (target != null && target.getIncomeTarget() != null)
+                    ? target.getIncomeTarget() : BigDecimal.ZERO;
                 
                 // 获取本月预算总额
-                List<Budget> budgets = budgetMapper.findByUserIdAndYearMonth(user.getId(), month);
+                List<Budget> budgets = budgetService.findByUserIdAndBudgetMonth(user.getId(), month);
                 BigDecimal budgetExpense = budgets.stream()
-                        .map(Budget::getAmount)
+                    .map(b -> b.getAmount() == null ? BigDecimal.ZERO : b.getAmount())
                         .reduce(BigDecimal.ZERO, BigDecimal::add);
                 
                 // 计算预算使用率

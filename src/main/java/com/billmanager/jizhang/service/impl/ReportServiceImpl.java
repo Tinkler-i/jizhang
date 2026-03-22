@@ -6,6 +6,7 @@ import com.billmanager.jizhang.mapper.*;
 import com.billmanager.jizhang.service.ReportService;
 import com.billmanager.jizhang.service.IncomeService;
 import com.billmanager.jizhang.service.ExpenseService;
+import com.billmanager.jizhang.service.BudgetService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -22,6 +23,7 @@ public class ReportServiceImpl implements ReportService {
     
     private final IncomeService incomeService;
     private final ExpenseService expenseService;
+    private final BudgetService budgetService;
     private final ExpenseMapper expenseMapper;
     private final IncomeMapper incomeMapper;
     private final BudgetMapper budgetMapper;
@@ -85,7 +87,8 @@ public class ReportServiceImpl implements ReportService {
         report.setBudgetMonth(budgetMonth);
         
         // 获取该月的所有预算
-        List<Budget> budgets = budgetMapper.findByUserIdAndYearMonth(userId, budgetMonth);
+        // 使用budgetService以支持家庭组模式
+        List<Budget> budgets = budgetService.findByUserIdAndBudgetMonth(userId, budgetMonth);
         
         // 获取该月的实际支出
         LocalDate startOfMonth = LocalDate.parse(budgetMonth + "-01");

@@ -155,11 +155,13 @@ public class IncomeServiceImpl implements IncomeService {
         
         if (member == null) {
             // 不在家庭组中，只查自己的数据
-            return incomeMapper.findByUserIdOrderByDateDesc(userId);
+            List<Income> result = incomeMapper.findByUserIdOrderByDateDesc(userId);
+            return result != null ? result : new java.util.ArrayList<>();
         }
         
         // 在家庭组中，查询家庭组所有数据
-        return incomeMapper.findByFamilyGroupIdOrderByDateDesc(member.getFamilyGroupId());
+        List<Income> result = incomeMapper.findByFamilyGroupIdOrderByDateDesc(member.getFamilyGroupId());
+        return result != null ? result : new java.util.ArrayList<>();
     }
     
     @Override
@@ -173,10 +175,12 @@ public class IncomeServiceImpl implements IncomeService {
         FamilyMember member = permissionService.getFamilyMember(userId);
         
         if (member == null) {
-            return incomeMapper.findByUserIdAndDateRange(userId, startDate, endDate);
+            List<Income> result = incomeMapper.findByUserIdAndDateRange(userId, startDate, endDate);
+            return result != null ? result : new java.util.ArrayList<>();
         }
         
-        return incomeMapper.findByFamilyGroupIdAndDateRange(member.getFamilyGroupId(), startDate, endDate);
+        List<Income> result = incomeMapper.findByFamilyGroupIdAndDateRange(member.getFamilyGroupId(), startDate, endDate);
+        return result != null ? result : new java.util.ArrayList<>();
     }
     
     @Override
@@ -190,10 +194,12 @@ public class IncomeServiceImpl implements IncomeService {
         FamilyMember member = permissionService.getFamilyMember(userId);
         
         if (member == null) {
-            return incomeMapper.findByUserIdAndCategoryId(userId, categoryId);
+            List<Income> result = incomeMapper.findByUserIdAndCategoryId(userId, categoryId);
+            return result != null ? result : new java.util.ArrayList<>();
         }
         
-        return incomeMapper.findByFamilyGroupIdAndCategoryId(member.getFamilyGroupId(), categoryId);
+        List<Income> result = incomeMapper.findByFamilyGroupIdAndCategoryId(member.getFamilyGroupId(), categoryId);
+        return result != null ? result : new java.util.ArrayList<>();
     }
     
     @Override
