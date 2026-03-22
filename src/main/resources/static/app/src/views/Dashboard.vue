@@ -330,6 +330,10 @@ const selectedMonth = ref('')
 const selectedYear = ref(new Date().getFullYear())
 const currentYear = new Date().getFullYear()
 
+// 请求序号用于避免模式切换时旧请求回写新状态
+let dashboardRequestSeq = 0
+let chartsRequestSeq = 0
+
 const metrics = reactive({
   income: '0.00',
   expense: '0.00',
@@ -373,6 +377,10 @@ const achievementRate = computed(() => {
   const rate = Math.round((balance / target) * 100)
   return Math.max(0, rate)
 })
+
+const getCurrentPeriod = () => {
+  return modeType.value === 'monthly' ? selectedMonth.value : `${selectedYear.value}`
+}
 
 // 年度目标相关计算属性 - 已移至Report.vue
 // const yearlyTotalTarget = computed(() => {
@@ -458,17 +466,22 @@ const handleYearChange = async () => {
 }
 
 const loadDashboardData = async () => {
+  const requestId = ++dashboardRequestSeq
+  const requestMode = modeType.value
+  const requestPeriod = getCurrentPeriod()
+
   try {
-    let month
-    if (modeType.value === 'monthly') {
-      month = selectedMonth.value
-    } else {
-      // 年度模式：传递年份，后端返回年度数据
-      month = `${selectedYear.value}`
-    }
+    const month = requestPeriod
     
     console.log('【仪表盘】加载数据，模式:', modeType.value, '时间:', month)
     const response = await reportAPI.getSummary({ month })
+
+    // 若模式或时间已切换，丢弃旧请求结果
+    if (requestId !== dashboardRequestSeq || requestMode !== modeType.value || requestPeriod !== getCurrentPeriod()) {
+      console.log('【仪表盘】丢弃过期摘要响应，模式/时间已变更')
+      return
+    }
+
     console.log('【仪表盘】原始响应:', JSON.stringify(response, null, 2))
     
     if (response && response.code === 200 && response.data) {
@@ -489,20 +502,37 @@ const loadDashboardData = async () => {
       console.log('【仪表盘】更新后的 metrics:', JSON.stringify(metrics, null, 2))
     } else {
       console.warn('【仪表盘】响应格式错误或无数据:', response)
+      metrics.income = '0.00'
+      metrics.expense = '0.00'
+      metrics.balance = '0.00'
+      metrics.targetIncome = '0.00'
+      metrics.budgetExpense = '0.00'
+      metrics.budgetUsage = '0%'
+      metrics.profitRate = '0%'
     }
   } catch (error) {
     console.error('【仪表盘】加载失败:', error)
+    metrics.income = '0.00'
+    metrics.expense = '0.00'
+    metrics.balance = '0.00'
+    metrics.targetIncome = '0.00'
+    metrics.budgetExpense = '0.00'
+    metrics.budgetUsage = '0%'
+    metrics.profitRate = '0%'
   }
 }
 
 const loadCharts = async () => {
+  const requestId = ++chartsRequestSeq
+  const requestMode = modeType.value
+  const requestPeriod = getCurrentPeriod()
+
+  const isStaleRequest = () => {
+    return requestId !== chartsRequestSeq || requestMode !== modeType.value || requestPeriod !== getCurrentPeriod()
+  }
+
   try {
-    let month
-    if (modeType.value === 'monthly') {
-      month = selectedMonth.value
-    } else {
-      month = `${selectedYear.value}`
-    }
+    const month = requestPeriod
     console.log('【图表】加载图表数据，时间:', month)
     
     // 重置总计值，确保数据更新时显示新数据
@@ -517,6 +547,7 @@ const loadCharts = async () => {
     
     // 加载趋势图数据
     const trendData = await reportAPI.getIncomeChart(month)
+    if (isStaleRequest()) return
     console.log('【趋势图】原始响应:', JSON.stringify(trendData, null, 2))
     if (trendData && trendData.code === 200 && trendData.data) {
       console.log('【趋势图】绘制数据:', JSON.stringify(trendData.data, null, 2))
@@ -527,6 +558,7 @@ const loadCharts = async () => {
 
     // 加载收入分类分布图
     const incomeCategoryData = await reportAPI.getIncomeCategoryChart(month)
+    if (isStaleRequest()) return
     console.log('【收入分类图】原始响应:', JSON.stringify(incomeCategoryData, null, 2))
     if (incomeCategoryData && incomeCategoryData.code === 200 && incomeCategoryData.data) {
       console.log('【收入分类图】绘制数据:', JSON.stringify(incomeCategoryData.data, null, 2))
@@ -537,6 +569,7 @@ const loadCharts = async () => {
 
     // 加载支出分类分布图
     const expenseCategoryData = await reportAPI.getExpenseChart(month)
+    if (isStaleRequest()) return
     console.log('【支出分类图】原始响应:', JSON.stringify(expenseCategoryData, null, 2))
     if (expenseCategoryData && expenseCategoryData.code === 200 && expenseCategoryData.data) {
       console.log('【支出分类图】绘制数据:', JSON.stringify(expenseCategoryData.data, null, 2))
@@ -548,6 +581,7 @@ const loadCharts = async () => {
     // 加载预算执行情况
     try {
       const budgetData = await analysisAPI.getBudgetVsActual(month)
+      if (isStaleRequest()) return
       console.log('【预算图】原始响应:', JSON.stringify(budgetData, null, 2))
       if (budgetData && budgetData.code === 200 && budgetData.data) {
         console.log('【预算图】绘制数据:', JSON.stringify(budgetData.data, null, 2))
@@ -1210,6 +1244,31 @@ watch(modeType, async () => {
       drawYearlyTargetsChart()
     }
   }, 500)
+})
+
+// 监听年份改变-仅在年度模式下
+watch(selectedYear, async () => {
+  if (modeType.value === 'yearly') {
+    console.log('【仪表盘】年份改变为:', selectedYear.value)
+    loadDashboardData()
+    setTimeout(async () => {
+      await loadCharts()
+      await loadYearlyTargetsProgress()
+      await new Promise(resolve => setTimeout(resolve, 100))
+      drawYearlyTargetsChart()
+    }, 500)
+  }
+})
+
+// 监听月份改变-仅在月度模式下
+watch(selectedMonth, async () => {
+  if (modeType.value === 'monthly' && selectedMonth.value) {
+    console.log('【仪表盘】月份改变为:', selectedMonth.value)
+    loadDashboardData()
+    setTimeout(async () => {
+      await loadCharts()
+    }, 500)
+  }
 })
 
 // 监听收入分类选择变化

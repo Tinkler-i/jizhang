@@ -10,6 +10,7 @@
         <div class="captcha-content">
           <mi-captcha
             ref="captchaRef"
+            :image="captchaBgImage"
             :init-action="initAction"
             :verify-action="dynamicVerifyAction"
             :verify-params="verifyParams"
@@ -36,6 +37,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useUIStore } from '../stores/ui'
+import captchaBgImage from '../assets/images/captcha-bg.jpg'
 
 const props = defineProps({
   // 是否显示触发按钮

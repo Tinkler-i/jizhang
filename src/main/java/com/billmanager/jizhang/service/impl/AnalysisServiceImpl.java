@@ -11,7 +11,9 @@ import com.billmanager.jizhang.mapper.*;
 import com.billmanager.jizhang.service.AnalysisService;
 import com.billmanager.jizhang.service.IncomeService;
 import com.billmanager.jizhang.service.ExpenseService;
+import com.billmanager.jizhang.service.BudgetService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -23,10 +25,12 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AnalysisServiceImpl implements AnalysisService {
     
     private final IncomeService incomeService;
     private final ExpenseService expenseService;
+    private final BudgetService budgetService;
     private final ExpenseMapper expenseMapper;
     private final IncomeMapper incomeMapper;
     private final BudgetMapper budgetMapper;
@@ -363,7 +367,8 @@ public class AnalysisServiceImpl implements AnalysisService {
      * 计算预算使用率
      */
     private BigDecimal calculateBudgetUtilization(Long userId, String yearMonth) {
-        List<com.billmanager.jizhang.entity.Budget> budgets = budgetMapper.findByUserIdAndYearMonth(userId, yearMonth);
+        // 使用budgetService以支持家庭组模式
+        List<com.billmanager.jizhang.entity.Budget> budgets = budgetService.findByUserIdAndBudgetMonth(userId, yearMonth);
         
         if (budgets.isEmpty()) {
             return BigDecimal.ZERO;
@@ -373,9 +378,27 @@ public class AnalysisServiceImpl implements AnalysisService {
                 .map(com.billmanager.jizhang.entity.Budget::getAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         
-        BigDecimal totalSpent = budgets.stream()
-                .map(com.billmanager.jizhang.entity.Budget::getSpent)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        // 计算实际支出：按月份统计所有支出
+        BigDecimal totalSpent = BigDecimal.ZERO;
+        
+        try {
+            YearMonth targetMonth = YearMonth.parse(yearMonth);
+            LocalDate startDate = targetMonth.atDay(1);
+            LocalDate endDate = targetMonth.atEndOfMonth();
+            
+            List<Expense> monthlyExpenses = expenseService.findByUserIdAndDateRange(userId, startDate, endDate);
+            
+            // 只统计有预算的分类的支出
+            for (com.billmanager.jizhang.entity.Budget budget : budgets) {
+                BigDecimal categorySpent = monthlyExpenses.stream()
+                        .filter(e -> e.getCategoryId().equals(budget.getCategoryId()))
+                        .map(Expense::getAmount)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+                totalSpent = totalSpent.add(categorySpent);
+            }
+        } catch (Exception e) {
+            log.error("【预算使用率计算错误】{}", e.getMessage());
+        }
         
         return totalBudget.compareTo(BigDecimal.ZERO) > 0
                 ? totalSpent.divide(totalBudget, 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100"))
@@ -467,8 +490,8 @@ public class AnalysisServiceImpl implements AnalysisService {
             monthsToProcess.add(yearMonth);
         }
         
-        // 获取年度范围内的所有预算和实际支出
-        List<com.billmanager.jizhang.entity.Budget> allBudgets = budgetMapper.findByUserIdAndYearMonth(userId, monthsToProcess.get(0));
+        // 获取年度范围内的所有预算和实际支出（使用budgetService支持家庭组）
+        List<com.billmanager.jizhang.entity.Budget> allBudgets = budgetService.findByUserIdAndBudgetMonth(userId, monthsToProcess.get(0));
         
         // 获取年度范围内的实际支出
         List<Expense> yearExpenses = expenseService.findByUserIdAndDateRange(userId, yearStart, yearEnd);
@@ -482,7 +505,7 @@ public class AnalysisServiceImpl implements AnalysisService {
         if (yearMonth.length() == 4) {
             Map<Long, BigDecimal> budgetByCategory = new HashMap<>();
             for (String month : monthsToProcess) {
-                List<com.billmanager.jizhang.entity.Budget> monthBudgets = budgetMapper.findByUserIdAndYearMonth(userId, month);
+                List<com.billmanager.jizhang.entity.Budget> monthBudgets = budgetService.findByUserIdAndBudgetMonth(userId, month);
                 for (com.billmanager.jizhang.entity.Budget budget : monthBudgets) {
                     budgetByCategory.put(
                             budget.getCategoryId(),
@@ -519,12 +542,12 @@ public class AnalysisServiceImpl implements AnalysisService {
                 result.add(bva);
             }
         } else {
-            // 月度查询逻辑（原有逻辑）
+            // 月度查询逻辑
             if (allBudgets.isEmpty()) {
                 return result;
             }
             
-            // 构建预算与实际对比数据
+            // 构建预算与实际对比数据（已通过budgetService支持家庭组）
             for (com.billmanager.jizhang.entity.Budget budget : allBudgets) {
                 ExpenseCategory category = expenseCategoryMapper.findById(budget.getCategoryId());
                 if (category == null) {
