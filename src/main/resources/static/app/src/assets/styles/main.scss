@@ -9,6 +9,9 @@ html,
 body {
   width: 100%;
   height: 100%;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 body {
@@ -48,6 +51,41 @@ input::-webkit-inner-spin-button {
 
 input[type='number'] {
   -moz-appearance: textfield;
+}
+
+/* 移动端输入框优化 */
+@media (max-width: 768px) {
+  input[type='date'],
+  input[type='month'],
+  input[type='time'],
+  input[type='datetime-local'] {
+    font-size: 16px; /* iOS不自动缩放 */
+  }
+
+  textarea,
+  select {
+    font-size: 16px;
+  }
+
+  /* iOS 滚动优化 */
+  input,
+  textarea,
+  select {
+    -webkit-appearance: none;
+    -webkit-appearance: none;
+  }
+
+  /* Checkbox 和 Radio 保留原生样式 */
+  input[type='checkbox'],
+  input[type='radio'] {
+    -webkit-appearance: auto;
+    appearance: auto;
+  }
+
+  input,
+  textarea {
+    -webkit-user-zoom: 1;
+  }
 }
 
 /* 按钮重置 */
@@ -138,14 +176,74 @@ button {
 }
 
 /* 响应式 */
-@media (max-width: 768px) {
-  .hide-mobile {
-    display: none !important;
+@media (max-width: 1024px) {
+  .container {
+    padding: 0 16px;
+  }
+
+  .grid-2,
+  .grid-3,
+  .grid-4 {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)) !important;
   }
 }
 
-@media (min-width: 769px) {
-  .hide-desktop {
-    display: none !important;
+@media (max-width: 768px) {
+  body {
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  .container {
+    padding: 0 12px;
+  }
+
+  .grid {
+    gap: 16px;
+
+    &.grid-2,
+    &.grid-3,
+    &.grid-4 {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .mt-10 { margin-top: 8px; }
+  .mt-20 { margin-top: 16px; }
+  .mt-30 { margin-top: 24px; }
+  .mb-10 { margin-bottom: 8px; }
+  .mb-20 { margin-bottom: 16px; }
+  .mb-30 { margin-bottom: 24px; }
+  .p-10 { padding: 8px; }
+  .p-20 { padding: 16px; }
+  .p-30 { padding: 20px; }
+}
+
+@media (max-width: 480px) {
+  body {
+    font-size: 12px;
+    line-height: 1.3;
+  }
+
+  .container {
+    padding: 0 10px;
+  }
+
+  .grid {
+    gap: 12px;
+  }
+
+  .mt-10 { margin-top: 6px; }
+  .mt-20 { margin-top: 12px; }
+  .mt-30 { margin-top: 18px; }
+  .mb-10 { margin-bottom: 6px; }
+  .mb-20 { margin-bottom: 12px; }
+  .mb-30 { margin-bottom: 18px; }
+  .p-10 { padding: 6px; }
+  .p-20 { padding: 12px; }
+  .p-30 { padding: 16px; }
+
+  .text-center {
+    text-align: center;
   }
 }

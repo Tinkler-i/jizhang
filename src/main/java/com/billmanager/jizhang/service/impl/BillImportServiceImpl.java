@@ -2,13 +2,16 @@ package com.billmanager.jizhang.service.impl;
 
 import com.billmanager.jizhang.dto.*;
 import com.billmanager.jizhang.entity.Expense;
+import com.billmanager.jizhang.entity.FamilyMember;
 import com.billmanager.jizhang.entity.Income;
 import com.billmanager.jizhang.exception.BusinessException;
+import com.billmanager.jizhang.exception.FamilyPermissionException;
 import com.billmanager.jizhang.mapper.ExpenseCategoryMapper;
 import com.billmanager.jizhang.mapper.ExpenseMapper;
 import com.billmanager.jizhang.mapper.IncomeCategoryMapper;
 import com.billmanager.jizhang.mapper.IncomeMapper;
 import com.billmanager.jizhang.service.BillImportService;
+import com.billmanager.jizhang.service.PermissionService;
 import com.billmanager.jizhang.service.XunfeiApiService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,6 +38,7 @@ public class BillImportServiceImpl implements BillImportService {
     private final IncomeMapper incomeMapper;
     private final ExpenseCategoryMapper expenseCategoryMapper;
     private final IncomeCategoryMapper incomeCategoryMapper;
+    private final PermissionService permissionService;
     
     /**
      * 识别账单图像
@@ -134,7 +138,16 @@ public class BillImportServiceImpl implements BillImportService {
     private Long importRecord(Long userId, BillImportConfirmRequest.BillRecordConfirmDTO record) {
         String type = record.getType();
         
+        // 获取家庭组成员信息（如果有）
+        FamilyMember member = permissionService.getFamilyMember(userId);
+        Long familyGroupId = member != null ? member.getFamilyGroupId() : 0L;
+        
         if ("INCOME".equals(type)) {
+            // 检查权限
+            if (!permissionService.canEdit(userId, "income")) {
+                throw new FamilyPermissionException("没有创建收入的权限");
+            }
+            
             // 验证收入分类是否存在
             if (incomeCategoryMapper.findById(record.getCategoryId()) == null) {
                 throw new BusinessException("收入分类不存在，分类ID: " + record.getCategoryId());
@@ -142,6 +155,7 @@ public class BillImportServiceImpl implements BillImportService {
             
             Income income = new Income();
             income.setUserId(userId);
+            income.setFamilyGroupId(familyGroupId);
             income.setCategoryId(record.getCategoryId());
             income.setAmount(record.getAmount());
             income.setTransactionDate(record.getTransactionDate());
@@ -153,6 +167,11 @@ public class BillImportServiceImpl implements BillImportService {
             return income.getId();
             
         } else if ("EXPENSE".equals(type)) {
+            // 检查权限
+            if (!permissionService.canEdit(userId, "expense")) {
+                throw new FamilyPermissionException("没有创建支出的权限");
+            }
+            
             // 验证支出分类是否存在
             if (expenseCategoryMapper.findById(record.getCategoryId()) == null) {
                 throw new BusinessException("支出分类不存在，分类ID: " + record.getCategoryId());
@@ -160,6 +179,7 @@ public class BillImportServiceImpl implements BillImportService {
             
             Expense expense = new Expense();
             expense.setUserId(userId);
+            expense.setFamilyGroupId(familyGroupId);
             expense.setCategoryId(record.getCategoryId());
             expense.setAmount(record.getAmount());
             expense.setTransactionDate(record.getTransactionDate());

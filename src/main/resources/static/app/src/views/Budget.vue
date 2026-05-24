@@ -149,12 +149,14 @@
 <script setup>
 import { reactive, ref, onMounted, computed } from 'vue'
 import { budgetAPI, expenseCategoryAPI } from '../api'
+import { useUIStore } from '../stores/ui'
 import Card from '../components/Card.vue'
 import Button from '../components/Button.vue'
 import Input from '../components/Input.vue'
 import Select from '../components/Select.vue'
 import Modal from '../components/Modal.vue'
 
+const uiStore = useUIStore()
 const budgets = ref([])
 const categories = ref([])
 const loading = ref(false)
@@ -376,11 +378,12 @@ const createBudgets = async () => {
         })
       } else {
         console.log(`【预算】创建新预算 ${monthStr}: 分类=${categoryId}, 金额=${amount}`)
-        await budgetAPI.create({
+        const createResult = await budgetAPI.create({
           categoryId: categoryId,
           amount: amount.toString(),
           budgetMonth: monthStr
         })
+        console.log(`【预算】创建结果:`, createResult)
       }
     }
     
@@ -405,9 +408,11 @@ const handleConfirm = async () => {
 }
 
 const deleteBudget = async (id) => {
-  if (confirm('确定删除此预算吗？')) {
+  const confirmed = await uiStore.showConfirm('确定删除此预算吗？', '删除确认', 'danger')
+  if (confirmed) {
     try {
       await budgetAPI.delete(id)
+      uiStore.showNotification('删除成功', 'success')
       loadBudgets()
     } catch (error) {
       console.error('Failed to delete budget:', error)
@@ -655,18 +660,50 @@ onMounted(() => {
 
 @media (max-width: 768px) {
   .page-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 15px;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    justify-content: space-between;
+  }
+
+  .page-header h1 {
+    font-size: 20px;
+    width: auto;
+    margin-bottom: 0;
+    flex-shrink: 0;
   }
 
   .header-actions {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+    align-items: center;
+    justify-content: space-between;
     width: 100%;
-    flex-direction: column;
+  }
+
+  .header-actions :deep(input) {
+    width: auto;
+    min-width: 140px;
+  }
+
+  .header-actions :deep(.btn) {
+    width: auto;
+    white-space: nowrap;
+    padding: 8px 12px;
   }
 
   .budget-grid {
     grid-template-columns: 1fr;
+  }
+
+  .empty-state {
+    padding: 40px 16px;
+  }
+
+  .empty-state :deep(.btn) {
+    width: 100%;
+    max-width: 200px;
   }
 }
 </style>

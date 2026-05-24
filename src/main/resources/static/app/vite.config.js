@@ -6,11 +6,18 @@ export default defineConfig({
   plugins: [vue()],
   server: {
     port: 5173,
+    host: '::',// 允许外部访问
+    allowedHosts: ['jizhang.gyng.de5.net', '192.168.124.8', '192.168.1.8'], // 允许请求
     proxy: {
       '/jizhang/api': {
         target: 'http://localhost:8080',
         changeOrigin: true,
-        rewrite: (path) => path  // 保持原路径，直接代理到后端
+        rewrite: (path) => path
+      },
+      '/api': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        rewrite: (path) => '/jizhang' + path  // /api/captcha/verify -> /jizhang/api/captcha/verify
       }
     }
   },

@@ -93,3 +93,100 @@
     transform: translateY(-2px);
   }
 }
+
+/* 移动端卡片优化 */
+@media (max-width: 768px) {
+  .card {
+    .card-header {
+      padding: 16px;
+    }
+
+    .card-body {
+      padding: 16px;
+    }
+
+    .card-footer {
+      padding: 16px;
+      flex-direction: column;
+      gap: 8px;
+
+      button {
+        flex: 1;
+        min-height: 40px;
+      }
+    }
+
+    h2,
+    h3,
+    h4 {
+      font-size: 1.1em;
+    }
+  }
+
+  .metric-card {
+    padding: 16px;
+    gap: 16px;
+    flex-direction: column;
+    text-align: center;
+
+    .metric-icon {
+      font-size: 28px;
+    }
+
+    .metric-content {
+      .metric-value {
+        font-size: 20px;
+      }
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .card {
+    border-radius: 6px;
+
+    .card-header {
+      padding: 12px;
+    }
+
+    .card-body {
+      padding: 12px;
+    }
+
+    .card-footer {
+      padding: 12px;
+    }
+
+    h2,
+    h3,
+    h4 {
+      font-size: 1em;
+    }
+
+    p {
+      font-size: 12px;
+    }
+  }
+
+  .metric-card {
+    padding: 12px;
+
+    .metric-icon {
+      font-size: 24px;
+    }
+
+    .metric-content {
+      .metric-label {
+        font-size: 11px;
+      }
+
+      .metric-value {
+        font-size: 18px;
+      }
+
+      .metric-target {
+        font-size: 11px;
+      }
+    }
+  }
+}

@@ -6,6 +6,7 @@
     <resultMap id="BaseResultMap" type="com.billmanager.jizhang.entity.Budget">
         <id column="id" property="id"/>
         <result column="user_id" property="userId"/>
+        <result column="family_group_id" property="familyGroupId"/>
         <result column="category_id" property="categoryId"/>
         <result column="amount" property="amount"/>
         <result column="budget_month" property="budgetMonth"/>
@@ -16,8 +17,8 @@
     </resultMap>
 
     <insert id="insert" parameterType="com.billmanager.jizhang.entity.Budget" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO budget (user_id, category_id, amount, `budget_month`, spent, remark)
-        VALUES (#{userId}, #{categoryId}, #{amount}, #{budgetMonth}, COALESCE(#{spent}, 0), #{remark})
+        INSERT INTO budget (user_id, family_group_id, category_id, amount, `budget_month`, spent, remark)
+        VALUES (#{userId}, #{familyGroupId}, #{categoryId}, #{amount}, #{budgetMonth}, COALESCE(#{spent}, 0), #{remark})
     </insert>
 
     <update id="update" parameterType="com.billmanager.jizhang.entity.Budget">
@@ -67,6 +68,51 @@
 
     <update id="updateSpent">
         UPDATE budget SET spent = #{spent}, update_time = CURRENT_TIMESTAMP WHERE id = #{id}
+    </update>
+
+    <!-- 按家庭组查询 -->
+    <select id="findByFamilyGroupId" resultMap="BaseResultMap">
+        SELECT * FROM budget WHERE family_group_id = #{familyGroupId} ORDER BY `budget_month` DESC, create_time DESC
+    </select>
+
+    <select id="findByFamilyGroupIdAndCategoryIdAndYearMonth" resultMap="BaseResultMap">
+        SELECT * FROM budget 
+        WHERE family_group_id = #{familyGroupId} 
+        AND category_id = #{categoryId}
+        AND `budget_month` = #{yearMonth}
+    </select>
+
+    <select id="findByFamilyGroupIdAndYearMonth" resultMap="BaseResultMap">
+        SELECT * FROM budget 
+        WHERE family_group_id = #{familyGroupId} 
+        AND `budget_month` = #{yearMonth}
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="findByFamilyGroupIdAndCategoryId" resultMap="BaseResultMap">
+        SELECT * FROM budget 
+        WHERE family_group_id = #{familyGroupId} 
+        AND category_id = #{categoryId}
+        ORDER BY `budget_month` DESC
+    </select>
+
+    <!-- 删除指定用户在指定家族组中的预算 -->
+    <delete id="deleteByUserIdAndFamilyGroupId">
+        DELETE FROM budget WHERE user_id = #{userId} AND family_group_id = #{familyGroupId}
+    </delete>
+
+    <!-- 更新指定用户的所有预算记录的家庭组ID -->
+    <update id="updateFamilyGroupId">
+        UPDATE budget 
+        SET family_group_id = #{familyGroupId}, update_time = CURRENT_TIMESTAMP
+        WHERE user_id = #{userId}
+    </update>
+
+    <!-- 将指定用户在指定家族组中的预算转换为个人数据 -->
+    <update id="updateFamilyGroupIdToPersonal">
+        UPDATE budget 
+        SET family_group_id = 0, update_time = CURRENT_TIMESTAMP
+        WHERE user_id = #{userId} AND family_group_id = #{familyGroupId}
     </update>
 
 </mapper>

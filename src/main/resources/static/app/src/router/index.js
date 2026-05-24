@@ -3,15 +3,19 @@ import { authAPI } from '../api'
 import { useUIStore } from '../stores/ui'
 import Login from '../views/Login.vue'
 import Register from '../views/Register.vue'
+import ForgotPassword from '../views/ForgotPassword.vue'
 import Dashboard from '../views/Dashboard.vue'
 import Income from '../views/Income.vue'
 import IncomeCategory from '../views/IncomeCategory.vue'
 import Expense from '../views/Expense.vue'
 import ExpenseCategory from '../views/ExpenseCategory.vue'
 import Budget from '../views/Budget.vue'
+import Target from '../views/Target.vue'
 import Report from '../views/Report.vue'
 import UserProfile from '../views/UserProfile.vue'
 import BillImport from '../views/BillImport.vue'
+import FamilyManagement from '../views/FamilyManagement.vue'
+import AIAnalysis from '../views/AIAnalysis.vue'
 
 const routes = [
   {
@@ -24,6 +28,12 @@ const routes = [
     path: '/register',
     name: 'Register',
     component: Register,
+    meta: { requiresAuth: false }
+  },
+  {
+    path: '/forgot-password',
+    name: 'ForgotPassword',
+    component: ForgotPassword,
     meta: { requiresAuth: false }
   },
   {
@@ -63,6 +73,12 @@ const routes = [
     meta: { requiresAuth: true, title: '预算管理' }
   },
   {
+    path: '/target',
+    name: 'Target',
+    component: Target,
+    meta: { requiresAuth: true, title: '目标管理' }
+  },
+  {
     path: '/report',
     name: 'Report',
     component: Report,
@@ -78,7 +94,19 @@ const routes = [
     path: '/bill-import',
     name: 'BillImport',
     component: BillImport,
-    meta: { requiresAuth: true, title: '账单导入' }
+    meta: { requiresAuth: true, title: 'AI账单导入' }
+  },
+  {
+    path: '/family-management',
+    name: 'FamilyManagement',
+    component: FamilyManagement,
+    meta: { requiresAuth: true, title: '家庭组管理' }
+  },
+  {
+    path: '/ai-analysis',
+    name: 'AIAnalysis',
+    component: AIAnalysis,
+    meta: { requiresAuth: true, title: 'AI财务顾问' }
   }
 ]
 

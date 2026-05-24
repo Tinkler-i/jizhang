@@ -9,7 +9,11 @@ import com.billmanager.jizhang.entity.Income;
 import com.billmanager.jizhang.entity.IncomeCategory;
 import com.billmanager.jizhang.mapper.*;
 import com.billmanager.jizhang.service.AnalysisService;
+import com.billmanager.jizhang.service.IncomeService;
+import com.billmanager.jizhang.service.ExpenseService;
+import com.billmanager.jizhang.service.BudgetService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -21,8 +25,12 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AnalysisServiceImpl implements AnalysisService {
     
+    private final IncomeService incomeService;
+    private final ExpenseService expenseService;
+    private final BudgetService budgetService;
     private final ExpenseMapper expenseMapper;
     private final IncomeMapper incomeMapper;
     private final BudgetMapper budgetMapper;
@@ -38,8 +46,8 @@ public class AnalysisServiceImpl implements AnalysisService {
         LocalDate monthStart = now.atDay(1);
         LocalDate monthEnd = now.atEndOfMonth();
         
-        List<Income> monthIncomes = incomeMapper.findByUserIdAndDateRange(userId, monthStart, monthEnd);
-        List<Expense> monthExpenses = expenseMapper.findByUserIdAndDateRange(userId, monthStart, monthEnd);
+        List<Income> monthIncomes = incomeService.findByUserIdAndDateRange(userId, monthStart, monthEnd);
+        List<Expense> monthExpenses = expenseService.findByUserIdAndDateRange(userId, monthStart, monthEnd);
         
         BigDecimal thisMonthIncome = monthIncomes.stream()
                 .map(Income::getAmount)
@@ -61,8 +69,8 @@ public class AnalysisServiceImpl implements AnalysisService {
         LocalDate last30DaysStart = LocalDate.now().minusDays(30);
         LocalDate last30DaysEnd = LocalDate.now();
         
-        List<Income> last30DaysIncomes = incomeMapper.findByUserIdAndDateRange(userId, last30DaysStart, last30DaysEnd);
-        List<Expense> last30DaysExpenses = expenseMapper.findByUserIdAndDateRange(userId, last30DaysStart, last30DaysEnd);
+        List<Income> last30DaysIncomes = incomeService.findByUserIdAndDateRange(userId, last30DaysStart, last30DaysEnd);
+        List<Expense> last30DaysExpenses = expenseService.findByUserIdAndDateRange(userId, last30DaysStart, last30DaysEnd);
         
         BigDecimal last30DaysIncome = last30DaysIncomes.stream()
                 .map(Income::getAmount)
@@ -80,8 +88,8 @@ public class AnalysisServiceImpl implements AnalysisService {
         LocalDate yearStart = LocalDate.of(LocalDate.now().getYear(), 1, 1);
         LocalDate yearEnd = LocalDate.now();
         
-        List<Income> yearIncomes = incomeMapper.findByUserIdAndDateRange(userId, yearStart, yearEnd);
-        List<Expense> yearExpenses = expenseMapper.findByUserIdAndDateRange(userId, yearStart, yearEnd);
+        List<Income> yearIncomes = incomeService.findByUserIdAndDateRange(userId, yearStart, yearEnd);
+        List<Expense> yearExpenses = expenseService.findByUserIdAndDateRange(userId, yearStart, yearEnd);
         
         BigDecimal yearToDateIncome = yearIncomes.stream()
                 .map(Income::getAmount)
@@ -135,8 +143,8 @@ public class AnalysisServiceImpl implements AnalysisService {
         LocalDate monthStart = now.atDay(1);
         LocalDate monthEnd = now.atEndOfMonth();
         
-        List<Income> monthIncomes = incomeMapper.findByUserIdAndDateRange(userId, monthStart, monthEnd);
-        List<Expense> monthExpenses = expenseMapper.findByUserIdAndDateRange(userId, monthStart, monthEnd);
+        List<Income> monthIncomes = incomeService.findByUserIdAndDateRange(userId, monthStart, monthEnd);
+        List<Expense> monthExpenses = expenseService.findByUserIdAndDateRange(userId, monthStart, monthEnd);
         
         BigDecimal monthIncome = monthIncomes.stream()
                 .map(Income::getAmount)
@@ -169,7 +177,7 @@ public class AnalysisServiceImpl implements AnalysisService {
         
         // 检查最近30天是否有收入
         LocalDate last30DaysStart = LocalDate.now().minusDays(30);
-        List<Income> last30DaysIncomes = incomeMapper.findByUserIdAndDateRange(userId, last30DaysStart, LocalDate.now());
+        List<Income> last30DaysIncomes = incomeService.findByUserIdAndDateRange(userId, last30DaysStart, LocalDate.now());
         if (!last30DaysIncomes.isEmpty()) {
             score += 5;
         }
@@ -186,8 +194,8 @@ public class AnalysisServiceImpl implements AnalysisService {
         LocalDate monthStart = now.atDay(1);
         LocalDate monthEnd = now.atEndOfMonth();
         
-        List<Income> monthIncomes = incomeMapper.findByUserIdAndDateRange(userId, monthStart, monthEnd);
-        List<Expense> monthExpenses = expenseMapper.findByUserIdAndDateRange(userId, monthStart, monthEnd);
+        List<Income> monthIncomes = incomeService.findByUserIdAndDateRange(userId, monthStart, monthEnd);
+        List<Expense> monthExpenses = expenseService.findByUserIdAndDateRange(userId, monthStart, monthEnd);
         
         BigDecimal monthIncome = monthIncomes.stream()
                 .map(Income::getAmount)
@@ -267,8 +275,8 @@ public class AnalysisServiceImpl implements AnalysisService {
         LocalDate endDate = LocalDate.now();
         LocalDate startDate = endDate.minusDays(29);
         
-        List<Income> allIncomes = incomeMapper.findByUserIdAndDateRange(userId, startDate, endDate);
-        List<Expense> allExpenses = expenseMapper.findByUserIdAndDateRange(userId, startDate, endDate);
+        List<Income> allIncomes = incomeService.findByUserIdAndDateRange(userId, startDate, endDate);
+        List<Expense> allExpenses = expenseService.findByUserIdAndDateRange(userId, startDate, endDate);
         
         // 按日期聚合
         Map<LocalDate, BigDecimal> dailyIncome = new TreeMap<>();
@@ -304,7 +312,7 @@ public class AnalysisServiceImpl implements AnalysisService {
         LocalDate monthStart = now.atDay(1);
         LocalDate monthEnd = now.atEndOfMonth();
         
-        List<Income> monthIncomes = incomeMapper.findByUserIdAndDateRange(userId, monthStart, monthEnd);
+        List<Income> monthIncomes = incomeService.findByUserIdAndDateRange(userId, monthStart, monthEnd);
         BigDecimal totalMonthIncome = monthIncomes.stream()
                 .map(Income::getAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -329,7 +337,7 @@ public class AnalysisServiceImpl implements AnalysisService {
         
         // 支出分类饼图
         List<DashboardData.CategoryData> expenseCategoryData = new ArrayList<>();
-        List<Expense> monthExpenses = expenseMapper.findByUserIdAndDateRange(userId, monthStart, monthEnd);
+        List<Expense> monthExpenses = expenseService.findByUserIdAndDateRange(userId, monthStart, monthEnd);
         BigDecimal totalMonthExpense = monthExpenses.stream()
                 .map(Expense::getAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -359,7 +367,8 @@ public class AnalysisServiceImpl implements AnalysisService {
      * 计算预算使用率
      */
     private BigDecimal calculateBudgetUtilization(Long userId, String yearMonth) {
-        List<com.billmanager.jizhang.entity.Budget> budgets = budgetMapper.findByUserIdAndYearMonth(userId, yearMonth);
+        // 使用budgetService以支持家庭组模式
+        List<com.billmanager.jizhang.entity.Budget> budgets = budgetService.findByUserIdAndBudgetMonth(userId, yearMonth);
         
         if (budgets.isEmpty()) {
             return BigDecimal.ZERO;
@@ -369,9 +378,27 @@ public class AnalysisServiceImpl implements AnalysisService {
                 .map(com.billmanager.jizhang.entity.Budget::getAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         
-        BigDecimal totalSpent = budgets.stream()
-                .map(com.billmanager.jizhang.entity.Budget::getSpent)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        // 计算实际支出：按月份统计所有支出
+        BigDecimal totalSpent = BigDecimal.ZERO;
+        
+        try {
+            YearMonth targetMonth = YearMonth.parse(yearMonth);
+            LocalDate startDate = targetMonth.atDay(1);
+            LocalDate endDate = targetMonth.atEndOfMonth();
+            
+            List<Expense> monthlyExpenses = expenseService.findByUserIdAndDateRange(userId, startDate, endDate);
+            
+            // 只统计有预算的分类的支出
+            for (com.billmanager.jizhang.entity.Budget budget : budgets) {
+                BigDecimal categorySpent = monthlyExpenses.stream()
+                        .filter(e -> e.getCategoryId().equals(budget.getCategoryId()))
+                        .map(Expense::getAmount)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+                totalSpent = totalSpent.add(categorySpent);
+            }
+        } catch (Exception e) {
+            log.error("【预算使用率计算错误】{}", e.getMessage());
+        }
         
         return totalBudget.compareTo(BigDecimal.ZERO) > 0
                 ? totalSpent.divide(totalBudget, 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100"))
@@ -388,7 +415,7 @@ public class AnalysisServiceImpl implements AnalysisService {
         LocalDate monthEnd = ym.atEndOfMonth();
         
         // 获取该月的所有支出
-        List<Expense> monthExpenses = expenseMapper.findByUserIdAndDateRange(userId, monthStart, monthEnd);
+        List<Expense> monthExpenses = expenseService.findByUserIdAndDateRange(userId, monthStart, monthEnd);
         
         if (monthExpenses.isEmpty()) {
             return result;
@@ -440,51 +467,112 @@ public class AnalysisServiceImpl implements AnalysisService {
     public List<BudgetVsActual> getBudgetVsActual(Long userId, String yearMonth) {
         List<BudgetVsActual> result = new ArrayList<>();
         
-        // 解析年月
-        YearMonth ym = YearMonth.parse(yearMonth);
-        LocalDate monthStart = ym.atDay(1);
-        LocalDate monthEnd = ym.atEndOfMonth();
+        // 支持两种格式：年份（2025）和年月（2026-01）
+        List<String> monthsToProcess = new ArrayList<>();
+        LocalDate yearStart, yearEnd;
         
-        // 获取该月的所有预算
-        List<com.billmanager.jizhang.entity.Budget> budgets = budgetMapper.findByUserIdAndYearMonth(userId, yearMonth);
-        
-        if (budgets.isEmpty()) {
-            return result;
+        if (yearMonth.length() == 4) {
+            // 年度查询：格式为 "2025"
+            int year = Integer.parseInt(yearMonth);
+            yearStart = LocalDate.of(year, 1, 1);
+            yearEnd = LocalDate.of(year, 12, 31);
+            
+            // 生成全年的月份列表
+            for (int month = 1; month <= 12; month++) {
+                String monthStr = String.format("%04d-%02d", year, month);
+                monthsToProcess.add(monthStr);
+            }
+        } else {
+            // 月度查询：格式为 "2026-01"
+            YearMonth ym = YearMonth.parse(yearMonth);
+            yearStart = ym.atDay(1);
+            yearEnd = ym.atEndOfMonth();
+            monthsToProcess.add(yearMonth);
         }
         
-        // 获取该月的实际支出
-        List<Expense> monthExpenses = expenseMapper.findByUserIdAndDateRange(userId, monthStart, monthEnd);
-        Map<Long, BigDecimal> actualByCategory = monthExpenses.stream()
+        // 获取年度范围内的所有预算和实际支出（使用budgetService支持家庭组）
+        List<com.billmanager.jizhang.entity.Budget> allBudgets = budgetService.findByUserIdAndBudgetMonth(userId, monthsToProcess.get(0));
+        
+        // 获取年度范围内的实际支出
+        List<Expense> yearExpenses = expenseService.findByUserIdAndDateRange(userId, yearStart, yearEnd);
+        Map<Long, BigDecimal> actualByCategory = yearExpenses.stream()
                 .collect(Collectors.groupingBy(
                         Expense::getCategoryId,
                         Collectors.reducing(BigDecimal.ZERO, Expense::getAmount, BigDecimal::add)
                 ));
         
-        // 构建预算与实际对比数据
-        for (com.billmanager.jizhang.entity.Budget budget : budgets) {
-            ExpenseCategory category = expenseCategoryMapper.findById(budget.getCategoryId());
-            if (category == null) {
-                continue;
+        // 如果是年度查询，需要汇总所有月份的预算
+        if (yearMonth.length() == 4) {
+            Map<Long, BigDecimal> budgetByCategory = new HashMap<>();
+            for (String month : monthsToProcess) {
+                List<com.billmanager.jizhang.entity.Budget> monthBudgets = budgetService.findByUserIdAndBudgetMonth(userId, month);
+                for (com.billmanager.jizhang.entity.Budget budget : monthBudgets) {
+                    budgetByCategory.put(
+                            budget.getCategoryId(),
+                            budgetByCategory.getOrDefault(budget.getCategoryId(), BigDecimal.ZERO)
+                                    .add(budget.getAmount())
+                    );
+                }
             }
             
-            BigDecimal actualAmount = actualByCategory.getOrDefault(budget.getCategoryId(), BigDecimal.ZERO);
-            BigDecimal budgetAmount = budget.getAmount();
+            // 构建年度预算与实际对比数据
+            for (Map.Entry<Long, BigDecimal> entry : budgetByCategory.entrySet()) {
+                ExpenseCategory category = expenseCategoryMapper.findById(entry.getKey());
+                if (category == null) {
+                    continue;
+                }
+                
+                BigDecimal budgetAmount = entry.getValue();
+                BigDecimal actualAmount = actualByCategory.getOrDefault(entry.getKey(), BigDecimal.ZERO);
+                
+                BigDecimal percentage = budgetAmount.compareTo(BigDecimal.ZERO) > 0
+                        ? actualAmount.divide(budgetAmount, 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100"))
+                        : BigDecimal.ZERO;
+                
+                BigDecimal remaining = budgetAmount.subtract(actualAmount);
+                
+                BudgetVsActual bva = new BudgetVsActual();
+                bva.setCategoryId(entry.getKey());
+                bva.setCategoryName(category.getName());
+                bva.setBudgetAmount(budgetAmount);
+                bva.setActualAmount(actualAmount);
+                bva.setPercentage(percentage);
+                bva.setRemaining(remaining);
+                
+                result.add(bva);
+            }
+        } else {
+            // 月度查询逻辑
+            if (allBudgets.isEmpty()) {
+                return result;
+            }
             
-            BigDecimal percentage = budgetAmount.compareTo(BigDecimal.ZERO) > 0
-                    ? actualAmount.divide(budgetAmount, 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100"))
-                    : BigDecimal.ZERO;
-            
-            BigDecimal remaining = budgetAmount.subtract(actualAmount);
-            
-            BudgetVsActual bva = new BudgetVsActual();
-            bva.setCategoryId(budget.getCategoryId());
-            bva.setCategoryName(category.getName());
-            bva.setBudgetAmount(budgetAmount);
-            bva.setActualAmount(actualAmount);
-            bva.setPercentage(percentage);
-            bva.setRemaining(remaining);
-            
-            result.add(bva);
+            // 构建预算与实际对比数据（已通过budgetService支持家庭组）
+            for (com.billmanager.jizhang.entity.Budget budget : allBudgets) {
+                ExpenseCategory category = expenseCategoryMapper.findById(budget.getCategoryId());
+                if (category == null) {
+                    continue;
+                }
+                
+                BigDecimal actualAmount = actualByCategory.getOrDefault(budget.getCategoryId(), BigDecimal.ZERO);
+                BigDecimal budgetAmount = budget.getAmount();
+                
+                BigDecimal percentage = budgetAmount.compareTo(BigDecimal.ZERO) > 0
+                        ? actualAmount.divide(budgetAmount, 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100"))
+                        : BigDecimal.ZERO;
+                
+                BigDecimal remaining = budgetAmount.subtract(actualAmount);
+                
+                BudgetVsActual bva = new BudgetVsActual();
+                bva.setCategoryId(budget.getCategoryId());
+                bva.setCategoryName(category.getName());
+                bva.setBudgetAmount(budgetAmount);
+                bva.setActualAmount(actualAmount);
+                bva.setPercentage(percentage);
+                bva.setRemaining(remaining);
+                
+                result.add(bva);
+            }
         }
         
         // 按预算金额降序排列

@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 public class IncomeCategory {
     private Long id;
     private Long userId;
+    private Long familyGroupId;   // 家庭组ID
     private String name;
     private String description;
     private Integer isBuiltIn;  // 0-用户自定义，1-系统内置

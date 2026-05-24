@@ -23,6 +23,8 @@
   overflow-y: auto;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
   animation: slideUp 0.3s;
+  display: flex;
+  flex-direction: column;
 
   &.modal-lg {
     max-width: 700px;
@@ -90,6 +92,127 @@
 @keyframes slideUp {
   from {
     transform: translateY(30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+/* 移动端模态框优化 */
+@media (max-width: 768px) {
+  .modal-overlay {
+    align-items: flex-end;
+  }
+
+  .modal {
+    width: 100%;
+    max-width: 100%;
+    max-height: 80vh;
+    border-radius: 16px 16px 0 0;
+    animation: slideUpMobile 0.3s;
+    display: flex;
+    flex-direction: column;
+
+    &.modal-lg {
+      max-width: 100%;
+      max-height: 80vh;
+    }
+
+    &.modal-sm {
+      max-width: 100%;
+      max-height: 75vh;
+    }
+  }
+
+  .modal-header {
+    padding: 14px 16px 10px;
+    flex-shrink: 0;
+    border-bottom: 2px solid #f0f0f0;
+
+    h2 {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .modal-close {
+      font-size: 28px;
+      width: 36px;
+      height: 36px;
+    }
+  }
+
+  .modal-body {
+    padding: 14px 16px;
+    overflow-y: auto;
+    flex: 1;
+    -webkit-overflow-scrolling: touch;
+    min-height: 0;
+  }
+
+  .modal-footer {
+    padding: 10px 16px;
+    border-top: 1px solid #f0f0f0;
+    flex-direction: column;
+    gap: 8px;
+    justify-content: stretch;
+    flex-shrink: 0;
+    background: #fafafa;
+
+    button {
+      flex: 1;
+      min-height: 48px;
+      font-size: 15px;
+      font-weight: 500;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+
+      &:active {
+        transform: scale(0.98);
+      }
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .modal {
+    border-radius: 12px 12px 0 0;
+    max-height: 75vh;
+  }
+
+  .modal-header {
+    padding: 12px 14px 8px;
+
+    h2 {
+      font-size: 15px;
+    }
+
+    .modal-close {
+      font-size: 24px;
+      width: 32px;
+      height: 32px;
+    }
+  }
+
+  .modal-body {
+    padding: 12px 14px;
+  }
+
+  .modal-footer {
+    padding: 8px 14px;
+
+    button {
+      min-height: 40px;
+      font-size: 14px;
+    }
+  }
+}
+
+@keyframes slideUpMobile {
+  from {
+    transform: translateY(100%);
     opacity: 0;
   }
   to {

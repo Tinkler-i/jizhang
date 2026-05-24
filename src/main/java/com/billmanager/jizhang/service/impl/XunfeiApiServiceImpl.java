@@ -2,8 +2,10 @@ package com.billmanager.jizhang.service.impl;
 
 import com.billmanager.jizhang.config.XunfeiApiProperties;
 import com.billmanager.jizhang.dto.BillRecordDTO;
+import com.billmanager.jizhang.entity.FamilyMember;
 import com.billmanager.jizhang.mapper.ExpenseCategoryMapper;
 import com.billmanager.jizhang.mapper.IncomeCategoryMapper;
+import com.billmanager.jizhang.service.PermissionService;
 import com.billmanager.jizhang.service.XunfeiApiService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -32,6 +34,7 @@ public class XunfeiApiServiceImpl implements XunfeiApiService {
     private final ObjectMapper objectMapper;
     private final ExpenseCategoryMapper expenseCategoryMapper;
     private final IncomeCategoryMapper incomeCategoryMapper;
+    private final PermissionService permissionService;
     
     /**
      * 调用讯飞大模型进行图像识别
@@ -317,45 +320,64 @@ public class XunfeiApiServiceImpl implements XunfeiApiService {
     
     /**
      * 构建用于提示词的分类上下文
-     * 注意：这里只包括用户自定义分类（is_built_in=0），不包括系统内置分类如'待分类'
-     * AI会尽量选择用户分类中最接近的，没有接近的才使用'待分类'作为默认分类
+     * 包括用户自定义分类和系统内置分类（除了'待分类'）
+     * AI会尽量选择列表中的分类，没有接近的才使用'待分类'作为默认分类
+     * 支持家庭组：如果用户在家庭组中，获取家庭组的分类
      */
     private String buildCategoryContext(Long userId) {
         log.debug("为用户 {} 构建分类上下文...", userId);
         
         try {
-            // 获取用户的支出分类（排除内置分类）
-            List<String> expenseCategories = expenseCategoryMapper.findByUserId(userId).stream()
-                .filter(cat -> cat.getIsBuiltIn() == null || cat.getIsBuiltIn() == 0)
+            // 检查是否在家庭组中
+            FamilyMember member = permissionService.getFamilyMember(userId);
+            Long familyGroupId = member != null ? member.getFamilyGroupId() : null;
+            
+            List<com.billmanager.jizhang.entity.ExpenseCategory> expenseCategoryList;
+            List<com.billmanager.jizhang.entity.IncomeCategory> incomeCategoryList;
+            
+            if (familyGroupId != null) {
+                // 家庭组模式：获取家庭组的分类
+                log.debug("用户在家庭组中，获取家庭组 {} 的分类", familyGroupId);
+                expenseCategoryList = expenseCategoryMapper.findByFamilyGroupId(familyGroupId);
+                incomeCategoryList = incomeCategoryMapper.findByFamilyGroupId(familyGroupId);
+            } else {
+                // 个人模式：获取用户的分类
+                expenseCategoryList = expenseCategoryMapper.findByUserId(userId);
+                incomeCategoryList = incomeCategoryMapper.findByUserId(userId);
+            }
+            
+            // 获取支出分类（包括内置分类，但排除'待分类'）
+            List<String> expenseCategories = expenseCategoryList.stream()
+                .filter(cat -> !"待分类".equals(cat.getName()))
                 .map(cat -> "- " + cat.getName())
                 .collect(Collectors.toList());
             
-            // 获取用户的收入分类（排除内置分类）
-            List<String> incomeCategories = incomeCategoryMapper.findByUserId(userId).stream()
-                .filter(cat -> cat.getIsBuiltIn() == null || cat.getIsBuiltIn() == 0)
+            // 获取收入分类（包括内置分类，但排除'待分类'）
+            List<String> incomeCategories = incomeCategoryList.stream()
+                .filter(cat -> !"待分类".equals(cat.getName()))
                 .map(cat -> "- " + cat.getName())
                 .collect(Collectors.toList());
             
             StringBuilder context = new StringBuilder();
-            context.append("\n【用户的支出分类】\n");
+            context.append("\n【支出分类列表】（优先从这些分类中选择）\n");
             if (expenseCategories.isEmpty()) {
-                context.append("暂无用户自定义分类\n");
+                context.append("暂无支出分类\n");
             } else {
                 for (String cat : expenseCategories) {
                     context.append(cat).append("\n");
                 }
             }
             
-            context.append("\n【用户的收入分类】\n");
+            context.append("\n【收入分类列表】（优先从这些分类中选择）\n");
             if (incomeCategories.isEmpty()) {
-                context.append("暂无用户自定义分类\n");
+                context.append("暂无收入分类\n");
             } else {
                 for (String cat : incomeCategories) {
                     context.append(cat).append("\n");
                 }
             }
             
-            log.debug("分类上下文构建完成");
+            log.debug("分类上下文构建完成，共 {} 个支出分类，{} 个收入分类", expenseCategories.size(), incomeCategories.size());
             return context.toString();
             
         } catch (Exception e) {
@@ -366,64 +388,79 @@ public class XunfeiApiServiceImpl implements XunfeiApiService {
     
     /**
      * 根据交易类型和分类名称匹配分类ID
-     * 如果匹配不到，返回"待分类"分类的ID
+     * 支持：1) 精确匹配所有分类（包括内置和用户自定义）
+     *      2) 模糊匹配（如关键词匹配）
+     *      3) 如果都匹配不到，返回"待分类"分类的ID
+     * 支持家庭组：如果用户在家庭组中，匹配家庭组的分类
      */
     private Long matchCategoryId(String type, String categoryName, Long userId) {
         try {
+            // 检查是否在家庭组中
+            FamilyMember member = permissionService.getFamilyMember(userId);
+            Long familyGroupId = member != null ? member.getFamilyGroupId() : null;
+            
             if ("EXPENSE".equals(type)) {
-                // 先尝试精确匹配
-                com.billmanager.jizhang.entity.ExpenseCategory category = 
-                    expenseCategoryMapper.findByUserIdAndName(userId, categoryName);
-                if (category != null && (category.getIsBuiltIn() == null || category.getIsBuiltIn() == 0)) {
-                    log.debug("支出分类精确匹配成功: {}", categoryName);
-                    return category.getId();
+                List<com.billmanager.jizhang.entity.ExpenseCategory> categories;
+                if (familyGroupId != null) {
+                    categories = expenseCategoryMapper.findByFamilyGroupId(familyGroupId);
+                } else {
+                    categories = expenseCategoryMapper.findByUserId(userId);
                 }
                 
-                // 尝试模糊匹配
-                List<com.billmanager.jizhang.entity.ExpenseCategory> categories = 
-                    expenseCategoryMapper.findByUserId(userId);
+                // 先尝试精确匹配（支持内置分类）
                 for (com.billmanager.jizhang.entity.ExpenseCategory cat : categories) {
-                    if ((cat.getIsBuiltIn() == null || cat.getIsBuiltIn() == 0) && 
-                        isCategoryMatch(categoryName, cat.getName())) {
+                    if (cat.getName().equals(categoryName)) {
+                        log.debug("支出分类精确匹配成功: {}", categoryName);
+                        return cat.getId();
+                    }
+                }
+                
+                // 尝试模糊匹配（支持内置分类）
+                for (com.billmanager.jizhang.entity.ExpenseCategory cat : categories) {
+                    if (isCategoryMatch(categoryName, cat.getName())) {
                         log.debug("支出分类模糊匹配成功: {} -> {}", categoryName, cat.getName());
                         return cat.getId();
                     }
                 }
                 
                 // 返回"待分类"分类ID
-                com.billmanager.jizhang.entity.ExpenseCategory unclassified = 
-                    expenseCategoryMapper.findByUserIdAndName(userId, "待分类");
-                if (unclassified != null) {
-                    log.debug("使用待分类分类: {}", categoryName);
-                    return unclassified.getId();
+                for (com.billmanager.jizhang.entity.ExpenseCategory cat : categories) {
+                    if ("待分类".equals(cat.getName())) {
+                        log.debug("无法精确或模糊匹配，使用待分类: {}", categoryName);
+                        return cat.getId();
+                    }
                 }
                 
             } else if ("INCOME".equals(type)) {
-                // 先尝试精确匹配
-                com.billmanager.jizhang.entity.IncomeCategory category = 
-                    incomeCategoryMapper.findByUserIdAndName(userId, categoryName);
-                if (category != null && (category.getIsBuiltIn() == null || category.getIsBuiltIn() == 0)) {
-                    log.debug("收入分类精确匹配成功: {}", categoryName);
-                    return category.getId();
+                List<com.billmanager.jizhang.entity.IncomeCategory> categories;
+                if (familyGroupId != null) {
+                    categories = incomeCategoryMapper.findByFamilyGroupId(familyGroupId);
+                } else {
+                    categories = incomeCategoryMapper.findByUserId(userId);
                 }
                 
-                // 尝试模糊匹配
-                List<com.billmanager.jizhang.entity.IncomeCategory> categories = 
-                    incomeCategoryMapper.findByUserId(userId);
+                // 先尝试精确匹配（支持内置分类）
                 for (com.billmanager.jizhang.entity.IncomeCategory cat : categories) {
-                    if ((cat.getIsBuiltIn() == null || cat.getIsBuiltIn() == 0) && 
-                        isCategoryMatch(categoryName, cat.getName())) {
+                    if (cat.getName().equals(categoryName)) {
+                        log.debug("收入分类精确匹配成功: {}", categoryName);
+                        return cat.getId();
+                    }
+                }
+                
+                // 尝试模糊匹配（支持内置分类）
+                for (com.billmanager.jizhang.entity.IncomeCategory cat : categories) {
+                    if (isCategoryMatch(categoryName, cat.getName())) {
                         log.debug("收入分类模糊匹配成功: {} -> {}", categoryName, cat.getName());
                         return cat.getId();
                     }
                 }
                 
                 // 返回"待分类"分类ID
-                com.billmanager.jizhang.entity.IncomeCategory unclassified = 
-                    incomeCategoryMapper.findByUserIdAndName(userId, "待分类");
-                if (unclassified != null) {
-                    log.debug("使用待分类分类: {}", categoryName);
-                    return unclassified.getId();
+                for (com.billmanager.jizhang.entity.IncomeCategory cat : categories) {
+                    if ("待分类".equals(cat.getName())) {
+                        log.debug("无法精确或模糊匹配，使用待分类: {}", categoryName);
+                        return cat.getId();
+                    }
                 }
             }
             

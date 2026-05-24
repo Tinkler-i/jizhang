@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { useUIStore } from '../stores/ui'
 
 const api = axios.create({
   baseURL: '/jizhang/api',
@@ -20,7 +21,7 @@ api.interceptors.request.use(
   error => Promise.reject(error)
 )
 
-// 响应拦截器 - 统一处理会话过期
+// 响应拦截器 - 统一处理会话过期和权限错误
 api.interceptors.response.use(
   response => {
     // 检查返回数据中是否包含错误且是认证相关错误
@@ -36,11 +37,25 @@ api.interceptors.response.use(
     return response.data
   },
   error => {
+    console.log('【API错误】状态码:', error.response?.status, '消息:', error.response?.data?.message)
     // 处理HTTP状态码错误
     if (error.response?.status === 401) {
       localStorage.removeItem('token')
       localStorage.removeItem('username')
       window.location.href = '/jizhang/login'
+    }
+    // 处理403权限不足错误
+    if (error.response?.status === 403) {
+      console.log('【API错误】检测到403权限错误，准备显示通知')
+      try {
+        const uiStore = useUIStore()
+        const message = error.response?.data?.message || '您没有权限执行此操作'
+        console.log('【API错误】显示通知:', message)
+        uiStore.showNotification(message, 'error', 5000)
+      } catch (e) {
+        console.error('无法显示权限错误提示:', e)
+      }
+      return Promise.reject(new Error(error.response?.data?.message || '权限不足'))
     }
     // 处理网络错误或其他错误
     if (error.response?.status === 500) {
@@ -57,14 +72,25 @@ api.interceptors.response.use(
 
 // Auth API
 export const authAPI = {
-  login: (username, password) =>
-    api.post('/auth/login', { username, password }),
+  login: (username, password, captchaToken = null) => {
+    const params = {};
+    if (captchaToken) {
+      params.captchaToken = captchaToken;
+    }
+    const config = Object.keys(params).length > 0 ? { params } : {};
+    return api.post('/auth/login', { username, password }, config);
+  },
   logout: () => api.post('/auth/logout'),
   getProfile: () => api.get('/user/profile'),
   updateProfile: (data) => api.put('/user/profile', data),
+  updateNickname: (nickname) => api.put('/user/nickname', { nickname }),
   sendVerificationCode: (data) => api.post('/auth/send-verification-code', data),
   verifyCode: (data) => api.post('/auth/verify-code', data),
-  register: (data) => api.post('/auth/register', data)
+  register: (data) => api.post('/auth/register', data),
+  // 忘记密码 API
+  sendResetPasswordCode: (data) => api.post('/auth/send-reset-password-code', data),
+  verifyResetPasswordCode: (data) => api.post('/auth/verify-reset-password-code', data),
+  resetPassword: (data) => api.post('/auth/reset-password', data)
 }
 
 // Income API
@@ -134,14 +160,35 @@ export const analysisAPI = {
 // User Target API - 用户收入目标
 export const userTargetAPI = {
   getByMonth: (month) => api.get(`/user-target/${month}`),
+  getAll: () => api.get('/user-target'),
+  getByRange: (startMonth, endMonth) => api.get('/user-target/range', { 
+    params: { startMonth, endMonth } 
+  }),
   update: (month, incomeTarget) => api.put(`/user-target/${month}`, { incomeTarget }),
-  create: (targetMonth, incomeTarget) => api.post('/user-target', { targetMonth, incomeTarget })
+  create: (targetMonth, incomeTarget) => api.post('/user-target', { targetMonth, incomeTarget }),
+  delete: (month) => api.delete(`/user-target/${month}`)
 }
 
 // Bill Import API - 账单导入
 export const billImportAPI = {
-  recognize: (image, accountType, currentDate) => api.post('/bill-import/recognize', { image, accountType, currentDate }, { timeout: 120000 }),
+  recognize: (image, currentDate) => api.post('/bill-import/recognize', { image, currentDate }, { timeout: 120000 }),
   confirm: (records) => api.post('/bill-import/confirm', { records })
+}
+
+// 通用 API 调用函数 - 用于需要灵活请求的场景（如FamilyManagement）
+export const apiCall = (url, method = 'GET', data = null) => {
+  const config = {
+    method: method.toUpperCase(),
+    url: url
+  }
+  
+  if (data && (method.toUpperCase() === 'POST' || method.toUpperCase() === 'PUT')) {
+    config.data = data
+  } else if (data && method.toUpperCase() === 'GET') {
+    config.params = data
+  }
+  
+  return api.request(config)
 }
 
 export default api

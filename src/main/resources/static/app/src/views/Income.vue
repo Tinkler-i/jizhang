@@ -105,12 +105,14 @@
 <script setup>
 import { reactive, ref, onMounted, computed } from 'vue'
 import { incomeAPI, incomeCategoryAPI } from '../api'
+import { useUIStore } from '../stores/ui'
 import Card from '../components/Card.vue'
 import Button from '../components/Button.vue'
 import Input from '../components/Input.vue'
 import Select from '../components/Select.vue'
 import Modal from '../components/Modal.vue'
 
+const uiStore = useUIStore()
 const incomes = ref([])
 const categories = ref([])
 const loading = ref(false)
@@ -195,23 +197,34 @@ const loadCategories = async () => {
 const loadIncomes = async () => {
   loading.value = true
   try {
-    const params = {
-      ...(filters.categoryId && { categoryId: filters.categoryId }),
-      ...(filters.keyword && { keyword: filters.keyword })
+    // 构建查询参数：同时支持关键字、分类、月份三个条件
+    const params = {}
+    
+    // 添加关键字筛选
+    if (filters.keyword && filters.keyword.trim()) {
+      params.keyword = filters.keyword.trim()
+    }
+    
+    // 添加分类筛选
+    if (filters.categoryId) {
+      params.categoryId = filters.categoryId
     }
     
     // 处理月份参数，转换为日期范围
     if (filters.month) {
-      const [year, month] = filters.month.split('-')
-      const startDate = `${year}-${month}-01`
-      const lastDay = new Date(year, month, 0).getDate()
-      const endDate = `${year}-${month}-${lastDay}`
+      const [year, monthStr] = filters.month.split('-')
+      const month = parseInt(monthStr)
+      const startDate = `${year}-${monthStr}-01`
+      // 获取该月的最后一天：new Date(year, month, 0) 返回该月最后一天
+      const monthEnd = new Date(parseInt(year), month, 0)
+      const lastDay = monthEnd.getDate()
+      const endDate = `${year}-${monthStr}-${String(lastDay).padStart(2, '0')}`
       params.startDate = startDate
       params.endDate = endDate
       console.log('月份筛选:', filters.month, '转换为日期范围:', startDate, '~', endDate)
     }
     
-    console.log('加载收入，参数:', params)
+    console.log('加载收入，综合筛选参数:', params, '(关键字:', filters.keyword, '分类:', filters.categoryId, '月份:', filters.month, ')')
     const response = await incomeAPI.getList(params)
     console.log('【原始响应】', JSON.stringify(response, null, 2))
     
@@ -266,15 +279,15 @@ const editIncome = (item) => {
 const handleSave = async () => {
   // 表单验证
   if (!form.categoryId) {
-    alert('请选择分类')
+    uiStore.showNotification('请选择分类', 'warning')
     return
   }
   if (!form.amount || parseFloat(form.amount) <= 0) {
-    alert('请输入有效的金额')
+    uiStore.showNotification('请输入有效的金额', 'warning')
     return
   }
   if (!form.transactionDate) {
-    alert('请选择日期')
+    uiStore.showNotification('请选择日期', 'warning')
     return
   }
 
@@ -289,23 +302,25 @@ const handleSave = async () => {
 
     if (editingId.value) {
       await incomeAPI.update(editingId.value, data)
-      alert('修改成功')
+      uiStore.showNotification('修改成功', 'success')
     } else {
       await incomeAPI.create(data)
-      alert('添加成功')
+      uiStore.showNotification('添加成功', 'success')
     }
     showModal.value = false
     loadIncomes()
   } catch (error) {
     console.error('Failed to save income:', error)
-    alert('保存失败: ' + (error.response?.data?.message || error.message))
+    uiStore.showNotification('保存失败: ' + (error.response?.data?.message || error.message), 'error')
   }
 }
 
 const deleteIncome = async (id) => {
-  if (confirm('确定删除此记录吗？')) {
+  const confirmed = await uiStore.showConfirm('确定删除此收入记录吗？', '删除确认', 'danger')
+  if (confirmed) {
     try {
       await incomeAPI.delete(id)
+      uiStore.showNotification('删除成功', 'success')
       loadIncomes()
     } catch (error) {
       console.error('Failed to delete income:', error)
@@ -422,9 +437,14 @@ onMounted(() => {
 
 @media (max-width: 768px) {
   .page-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 15px;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .page-header h1 {
+    margin-bottom: 0;
   }
 
   .filter-row {

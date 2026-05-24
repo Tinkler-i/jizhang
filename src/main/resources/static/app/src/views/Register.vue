@@ -1,741 +1,904 @@
 <template>
   <div class="register-container">
-    <div class="register-card">
-      <h1>账户注册</h1>
-      
-      <!-- 标签页：邮箱/短信注册 -->
-      <div class="tabs">
-        <button 
-          :class="['tab-btn', { active: registerType === 'EMAIL' }]"
-          @click="registerType = 'EMAIL'">
-          邮箱注册
-        </button>
-        <button 
-          :class="['tab-btn', { active: registerType === 'SMS' }]"
-          @click="registerType = 'SMS'">
-          短信注册
-        </button>
-      </div>
-
-      <!-- 邮箱/手机输入 -->
-      <div class="form-group">
-        <label>{{ registerType === 'EMAIL' ? '邮箱地址' : '手机号码' }}</label>
-        <div class="input-wrapper">
-          <input 
-            v-model="email"
-            v-if="registerType === 'EMAIL'"
-            type="email" 
-            placeholder="请输入邮箱地址"
-            @blur="checkEmailRegistered">
-          <input 
-            v-model="phone"
-            v-if="registerType === 'SMS'"
-            type="tel" 
-            placeholder="请输入手机号码"
-            @blur="checkPhoneRegistered">
-          <span v-if="registeredMessage" class="error-message">{{ registeredMessage }}</span>
-          <span v-if="canRegisterMessage" class="success-message">{{ canRegisterMessage }}</span>
+    <div class="register-box">
+      <div class="register-header">
+        <div class="back-button" @click="goBack">
+          <span>← 返回</span>
         </div>
+        <h1>账户注册</h1>
+        <p>创建新账户，开始您的记账之旅</p>
       </div>
 
-      <!-- 人机验证 - 简单版本 -->
-      <div class="form-group" v-if="!userRegistered">
-        <label>人机验证</label>
-        <button 
-          @click="handleCaptchaSuccess"
-          :class="['captcha-btn', { verified: captchaVerified }]">
-          {{ captchaVerified ? '✓ 已验证' : '点击验证' }}
-        </button>
-        <span v-if="captchaMessage" class="error-message">{{ captchaMessage }}</span>
-      </div>
-
-      <!-- 验证码输入和发送 -->
-      <div class="form-group" v-if="!userRegistered && captchaVerified">
-        <label>验证码</label>
-        <div class="code-input-wrapper">
-          <input 
-            v-model="verificationCode"
-            type="text" 
-            placeholder="请输入验证码"
-            maxlength="4">
-          <button 
-            :disabled="codeCountdown > 0 || !canSendCode || isLoadingSendCode"
-            @click="sendVerificationCode"
-            class="send-btn">
-            <span v-if="isLoadingSendCode">发送中...</span>
-            <span v-else-if="codeCountdown > 0">{{ codeCountdown }}秒后重新发送</span>
-            <span v-else>发送验证码</span>
+      <!-- 步骤 1: 选择验证方式和发送验证码 -->
+      <div v-if="currentStep === 1" class="step-content">
+        <div class="verification-type-selector">
+          <button
+            :class="['type-btn', { active: verifyType === 'EMAIL' }]"
+            @click="verifyType = 'EMAIL'"
+          >
+            📧 邮箱注册
+          </button>
+          <button
+            :class="['type-btn', { active: verifyType === 'SMS' }]"
+            @click="verifyType = 'SMS'"
+          >
+            📱 短信注册
           </button>
         </div>
+
+        <!-- 邮箱输入 -->
+        <div v-if="verifyType === 'EMAIL'" class="input-group">
+          <Input
+            v-model="form.email"
+            type="email"
+            label="邮箱地址"
+            placeholder="请输入邮箱地址"
+            :error="errors.email"
+            required
+          />
+        </div>
+
+        <!-- 手机号输入 -->
+        <div v-if="verifyType === 'SMS'" class="input-group">
+          <Input
+            v-model="form.phone"
+            type="tel"
+            label="手机号"
+            placeholder="请输入手机号"
+            :error="errors.phone"
+            required
+          />
+        </div>
+
+        <!-- 人机验证组件 -->
+        <div class="input-group">
+          <label>人机验证</label>
+          <div v-if="!captchaToken" class="captcha-button-group">
+            <Button
+              type="primary"
+              block
+              @click="openCaptcha"
+            >
+              🔐 开始验证
+            </Button>
+          </div>
+          <div v-if="captchaToken" class="captcha-success-tip">
+            ✓ 人机验证已通过，正在为您发送验证码...
+          </div>
+          <div v-if="errors.captcha" class="error-message">{{ errors.captcha }}</div>
+          <Captcha
+            ref="captchaRef"
+            :before-open="handleValidateBeforeCaptcha"
+            @success="handleCaptchaSuccess"
+            @close="handleCaptchaClose"
+          />
+        </div>
+
+        <div class="step-indicator">
+          <span class="step active">1</span>
+          <span class="separator"></span>
+          <span class="step">2</span>
+          <span class="separator"></span>
+          <span class="step">3</span>
+        </div>
+
+        <p class="login-link">
+          已有账户？<router-link to="/login">立即登录</router-link>
+        </p>
       </div>
 
-      <!-- 注册信息（如果邮箱/手机未注册） -->
-      <div v-if="!userRegistered && captchaVerified">
-        <div class="form-group">
-          <label>用户名</label>
-          <input 
-            v-model="username"
-            type="text" 
-            placeholder="请输入用户名">
+      <!-- 步骤 2: 验证码和用户名 -->
+      <div v-if="currentStep === 2" class="step-content">
+        <div class="step-title">
+          <h2>输入验证码</h2>
+          <p>我们已将验证码发送至 {{ verifyType === 'EMAIL' ? form.email : form.phone }}</p>
         </div>
 
-        <div class="form-group">
-          <label>密码</label>
-          <input 
-            v-model="password"
-            type="password" 
-            placeholder="请输入密码（至少8位）">
-        </div>
-
-        <div class="form-group">
-          <label>确认密码</label>
-          <input 
-            v-model="confirmPassword"
-            type="password" 
-            placeholder="请再次输入密码">
-        </div>
-
-        <button
-          @click="register"
-          :disabled="!canRegister || isLoadingRegister"
-          class="register-btn">
-          <span v-if="isLoadingRegister">注册中...</span>
-          <span v-else>立即注册</span>
-        </button>
-        
-        <!-- 验证失败提示 -->
-        <div v-if="!canRegister && registerValidationErrors.length > 0" class="validation-hints">
-          <div class="hint-title">⚠️ 无法注册，请满足以下要求：</div>
-          <div class="hint-items">
-            <div v-for="(error, index) in registerValidationErrors" :key="index" class="hint-item">
-              {{ error }}
-            </div>
+        <div class="input-group">
+          <label>验证码</label>
+          <div class="code-input-group">
+            <Input
+              v-model="form.code"
+              type="text"
+              placeholder="请输入 4 位验证码"
+              maxlength="4"
+              :error="errors.code"
+              required
+            />
+            <Button
+              type="secondary"
+              :disabled="countdown > 0 || resendLoading"
+              :loading="resendLoading"
+              @click="handleResendCode"
+            >
+              {{ countdown > 0 ? `${countdown}s` : '重新发送' }}
+            </Button>
           </div>
         </div>
-      </div>
 
-      <!-- 已注册用户提示 -->
-      <div v-if="userRegistered" class="registered-prompt">
-        <p>{{ registeredMessage }}</p>
-        <div class="btn-group">
-          <router-link to="/login" class="btn btn-primary">去登录</router-link>
-          <button @click="resetForm" class="btn btn-secondary">修改密码</button>
+        <div class="input-group">
+          <Input
+            v-model="form.username"
+            type="text"
+            label="用户名"
+            placeholder="请输入用户名"
+            :error="errors.username"
+            required
+          />
         </div>
+
+        <Button
+          type="primary"
+          block
+          :loading="verifyCodeLoading"
+          @click="handleVerifyCode"
+        >
+          验证
+        </Button>
+
+        <div class="step-indicator">
+          <span class="step completed">✓</span>
+          <span class="separator"></span>
+          <span class="step active">2</span>
+          <span class="separator"></span>
+          <span class="step">3</span>
+        </div>
+
+        <button class="back-link" @click="currentStep = 1">
+          ← 返回上一步
+        </button>
       </div>
 
-      <!-- 登录链接 -->
-      <p class="login-link" v-if="!userRegistered">
-        已有账户？<router-link to="/login">立即登录</router-link>
-      </p>
+      <!-- 步骤 3: 设置密码 -->
+      <div v-if="currentStep === 3" class="step-content">
+        <div class="step-title">
+          <h2>设置密码</h2>
+          <p>请设置安全的密码</p>
+        </div>
 
-      <!-- 错误信息 -->
-      <div v-if="errorMessage" class="error-alert">
-        {{ errorMessage }}
+        <div class="input-group">
+          <Input
+            v-model="form.password"
+            type="password"
+            label="密码"
+            placeholder="请输入密码（至少 8 位）"
+            :error="errors.password"
+            required
+          />
+          <div v-if="form.password" class="password-strength">
+            <div class="strength-bar" :class="getPasswordStrength(form.password).class"></div>
+            <span class="strength-text">{{ getPasswordStrength(form.password).text }}</span>
+          </div>
+        </div>
+
+        <div class="input-group">
+          <Input
+            v-model="form.confirmPassword"
+            type="password"
+            label="确认密码"
+            placeholder="请再次输入密码"
+            :error="errors.confirmPassword"
+            required
+          />
+        </div>
+
+        <Button
+          type="primary"
+          block
+          :loading="registerLoading"
+          @click="handleRegister"
+        >
+          完成注册
+        </Button>
+
+        <div class="step-indicator">
+          <span class="step completed">✓</span>
+          <span class="separator"></span>
+          <span class="step completed">✓</span>
+          <span class="separator"></span>
+          <span class="step active">3</span>
+        </div>
+
+        <button class="back-link" @click="currentStep = 2">
+          ← 返回上一步
+        </button>
+      </div>
+
+      <!-- 成功提示 -->
+      <div v-if="currentStep === 4" class="step-content success-content">
+        <div class="success-icon">✓</div>
+        <h2>注册成功</h2>
+        <p>账户已创建，请使用新账户登录</p>
+        <Button type="primary" block @click="goToLogin">
+          返回登录
+        </Button>
       </div>
     </div>
-
-    <!-- Toast 浮窗通知 -->
-    <transition name="toast-fade">
-      <div v-if="toast.show" :class="['toast', toast.type]">
-        <div class="toast-content">
-          {{ toast.message }}
-        </div>
-      </div>
-    </transition>
   </div>
 </template>
 
-<script>
-import { ref, computed } from 'vue'
+<script setup>
+import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import axios from 'axios'
 import { authAPI } from '../api'
+import Button from '../components/Button.vue'
+import Input from '../components/Input.vue'
+import Captcha from '../components/Captcha.vue'
+import { useUIStore } from '../stores/ui'
 
-export default {
-  name: 'Register',
-  components: {},
-  setup() {
-    const router = useRouter()
-    
-    // 表单数据
-    const registerType = ref('EMAIL')
-    const email = ref('')
-    const phone = ref('')
-    const username = ref('')
-    const password = ref('')
-    const confirmPassword = ref('')
-    const verificationCode = ref('')
-    
-    // UI 状态
-    const errorMessage = ref('')
-    const registeredMessage = ref('')
-    const canRegisterMessage = ref('')
-    const captchaMessage = ref('')
-    const codeCountdown = ref(0)
-    const userRegistered = ref(false)
-    const captchaVerified = ref(false)
-    const isLoadingSendCode = ref(false)
-    const isLoadingRegister = ref(false)
-    
-    // Toast 通知
-    const toast = ref({
-      show: false,
-      message: '',
-      type: 'success' // 'success' 或 'error'
-    })
-    let toastTimer = null
-    
-    // 计算属性
-    const canSendCode = computed(() => {
-      if (registerType.value === 'EMAIL') {
-        return email.value && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value)
-      } else {
-        return phone.value && /^1[3-9]\d{9}$/.test(phone.value)
-      }
-    })
-    
-    const canRegister = computed(() => {
-      return (
-        username.value.trim().length > 0 &&
-        password.value.length >= 8 &&
-        password.value === confirmPassword.value &&
-        verificationCode.value.length === 4
-      )
-    })
-    
-    const registerValidationErrors = computed(() => {
-      const errors = []
-      if (username.value.trim().length === 0) {
-        errors.push('• 用户名不能为空')
-      }
-      if (password.value.length === 0) {
-        errors.push('• 密码不能为空')
-      } else if (password.value.length < 8) {
-        errors.push('• 密码至少需要8个字符（当前' + password.value.length + '个）')
-      }
-      if (password.value.length > 0 && confirmPassword.value.length === 0) {
-        errors.push('• 请再次输入密码进行确认')
-      } else if (password.value !== confirmPassword.value && confirmPassword.value.length > 0) {
-        errors.push('• 两次输入的密码不一致')
-      }
-      if (verificationCode.value.length === 0) {
-        errors.push('• 请输入验证码')
-      } else if (verificationCode.value.length < 4) {
-        errors.push('• 验证码必须是4位数字（当前' + verificationCode.value.length + '位）')
-      }
-      return errors
-    })
-    
-    // Toast 通知函数
-    const showToast = (message, type = 'success', duration = 3000) => {
-      if (toastTimer) {
-        clearTimeout(toastTimer)
-      }
-      toast.value.message = message
-      toast.value.type = type
-      toast.value.show = true
-      
-      toastTimer = setTimeout(() => {
-        toast.value.show = false
-      }, duration)
+const router = useRouter()
+const uiStore = useUIStore()
+const captchaRef = ref(null)
+
+const currentStep = ref(1)
+const verifyType = ref('EMAIL')
+const sendCodeLoading = ref(false)
+const verifyCodeLoading = ref(false)
+const resendLoading = ref(false)
+const registerLoading = ref(false)
+const countdown = ref(0)
+const captchaToken = ref('')
+
+const form = reactive({
+  email: '',
+  phone: '',
+  code: '',
+  username: '',
+  password: '',
+  confirmPassword: ''
+})
+
+const errors = reactive({
+  email: '',
+  phone: '',
+  code: '',
+  username: '',
+  password: '',
+  confirmPassword: '',
+  captcha: ''
+})
+
+// 获取密码强度
+const getPasswordStrength = (password) => {
+  if (!password) return { class: '', text: '' }
+  if (password.length < 6) {
+    return { class: 'weak', text: '密码过弱' }
+  }
+  if (password.length < 8) {
+    return { class: 'medium', text: '密码强度中等' }
+  }
+  if (/[a-z]/.test(password) && /[A-Z]/.test(password) && /[0-9]/.test(password)) {
+    return { class: 'strong', text: '密码强度强' }
+  }
+  return { class: 'medium', text: '密码强度中等' }
+}
+
+// 验证邮箱格式
+const validateEmail = (email) => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  return emailRegex.test(email)
+}
+
+// 验证手机号格式
+const validatePhone = (phone) => {
+  const phoneRegex = /^1[3-9]\d{9}$/
+  return phoneRegex.test(phone)
+}
+
+// 打开人机验证码
+const openCaptcha = () => {
+  console.log('【Register】打开人机验证码')
+  captchaRef.value?.openCaptcha()
+}
+
+// 验证是否可以开启人机验证（返回 true 表示可以，返回错误信息字符串表示验证失败）
+const handleValidateBeforeCaptcha = () => {
+  console.log('【Register】验证是否可以开启人机验证')
+  errors.email = ''
+  errors.phone = ''
+  
+  // 根据选择的验证类型进行验证
+  if (verifyType.value === 'EMAIL') {
+    if (!form.email) {
+      errors.email = '请输入邮箱地址'
+      console.warn('【Register】邮箱为空')
+      return '请先输入邮箱地址'
     }
-    
-    // 清除消息
-    const clearMessages = () => {
-      errorMessage.value = ''
-      registeredMessage.value = ''
-      canRegisterMessage.value = ''
-      captchaMessage.value = ''
+    if (!validateEmail(form.email)) {
+      errors.email = '邮箱格式不正确'
+      console.warn('【Register】邮箱格式不正确:', form.email)
+      return '邮箱格式不正确，请重新输入'
     }
-    
-    // 检查邮箱是否已注册
-    const checkEmailRegistered = async () => {
-      if (!email.value || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value)) {
-        return
-      }
-      
-      try {
-        const response = await authAPI.verifyCode({
-          email: email.value,
-          type: 'EMAIL'
-        })
-        
-        if (response.code === 200) {
-          const result = response.data
-          if (result.status === 'REGISTERED') {
-            registeredMessage.value = result.message
-            canRegisterMessage.value = ''
-            userRegistered.value = true
-          } else {
-            userRegistered.value = false
-            registeredMessage.value = ''
-            canRegisterMessage.value = '可以注册'
-          }
-        }
-      } catch (error) {
-        console.error('检查邮箱失败:', error)
-      }
+  } else {
+    if (!form.phone) {
+      errors.phone = '请输入手机号'
+      console.warn('【Register】手机号为空')
+      return '请先输入手机号'
     }
-    
-    // 检查手机号是否已注册
-    const checkPhoneRegistered = async () => {
-      if (!phone.value || !/^1[3-9]\d{9}$/.test(phone.value)) {
-        return
-      }
-      
-      try {
-        const response = await authAPI.verifyCode({
-          phone: phone.value,
-          type: 'SMS'
-        })
-        
-        if (response.code === 200) {
-          const result = response.data
-          if (result.status === 'REGISTERED') {
-            registeredMessage.value = result.message
-            canRegisterMessage.value = ''
-            userRegistered.value = true
-          } else {
-            userRegistered.value = false
-            registeredMessage.value = ''
-            canRegisterMessage.value = '可以注册'
-          }
-        }
-      } catch (error) {
-        console.error('检查手机号失败:', error)
-      }
-    }
-    
-    // 处理人机验证
-    const handleCaptchaSuccess = () => {
-      captchaVerified.value = true
-      captchaMessage.value = ''
-      console.log('人机验证成功')
-    }
-    
-    // 发送验证码
-    const sendVerificationCode = async () => {
-      errorMessage.value = ''
-      isLoadingSendCode.value = true
-      
-      try {
-        console.log('[注册] 📬 开始发送验证码...')
-        const payload = {
-          type: registerType.value,
-          captchaToken: 'temp-token'
-        }
-        
-        if (registerType.value === 'EMAIL') {
-          payload.email = email.value
-          console.log('[注册] 📧 邮箱：' + email.value)
-        } else {
-          payload.phone = phone.value
-          console.log('[注册] 📱 手机号：' + phone.value)
-        }
-        
-        console.log('[注册] 📨 请求数据：', JSON.stringify(payload))
-        const response = await authAPI.sendVerificationCode(payload)
-        console.log('[注册] 📨 响应状态：code=' + response.code + ', message=' + response.message)
-        console.log('[注册] 📨 完整响应：', response)
-        
-        if (response && response.code === 200) {
-          showToast('✅ 验证码已发送，请查收邮件', 'success', 4000)
-          startCodeCountdown()
-          console.log('[注册] ✅ 验证码发送成功')
-        } else {
-          const msg = response?.message || '未知错误'
-          showToast('❌ 发送失败：' + msg, 'error', 4000)
-          console.error('[注册] ❌ 发送失败，状态码：' + response?.code + '，消息：' + msg)
-        }
-      } catch (error) {
-        console.error('[注册] ❌ 请求异常捕获')
-        console.error('[注册] 错误对象：', error)
-        console.error('[注册] 响应数据：', error.response?.data)
-        console.error('[注册] HTTP状态码：', error.response?.status)
-        
-        let errorMsg = '网络错误'
-        if (error.response?.data?.message) {
-          errorMsg = error.response.data.message
-        } else if (error.message) {
-          errorMsg = error.message
-        }
-        
-        showToast('❌ 发送失败：' + errorMsg, 'error', 4000)
-        console.error('[注册] ❌ 最终错误消息：' + errorMsg)
-      } finally {
-        isLoadingSendCode.value = false
-      }
-    }
-    
-    // 启动验证码倒计时
-    const startCodeCountdown = () => {
-      codeCountdown.value = 60
-      const interval = setInterval(() => {
-        codeCountdown.value--
-        if (codeCountdown.value <= 0) {
-          clearInterval(interval)
-        }
-      }, 1000)
-    }
-    
-    // 用户注册
-    const register = async () => {
-      console.log('[注册] 检查注册条件')
-      console.log('[注册] username.length=' + username.value.trim().length + ', 需要>0')
-      console.log('[注册] password.length=' + password.value.length + ', 需要>=8')
-      console.log('[注册] confirmPassword相等=' + (password.value === confirmPassword.value))
-      console.log('[注册] verificationCode.length=' + verificationCode.value.length + ', 需要=4')
-      console.log('[注册] canRegister=' + canRegister.value)
-      
-      if (!canRegister.value) {
-        const reasons = []
-        if (username.value.trim().length === 0) reasons.push('用户名为空')
-        if (password.value.length < 8) reasons.push('密码少于8个字符')
-        if (password.value !== confirmPassword.value) reasons.push('两次密码不匹配')
-        if (verificationCode.value.length !== 4) reasons.push('验证码必须是4位数字')
-        
-        const msg = '❌ 注册信息不完整：' + reasons.join('、')
-        errorMessage.value = msg
-        console.warn('[注册] ' + msg)
-        return
-      }
-      
-      errorMessage.value = ''
-      isLoadingRegister.value = true
-      
-      try {
-        console.log('[注册] 👤 开始注册用户...')
-        const payload = {
-          username: username.value,
-          password: password.value,
-          confirmPassword: confirmPassword.value,
-          type: registerType.value,
-          code: verificationCode.value,
-          captchaToken: 'temp-token'
-        }
-        
-        if (registerType.value === 'EMAIL') {
-          payload.email = email.value
-          console.log('[注册] 📧 邮箱：' + email.value)
-        } else {
-          payload.phone = phone.value
-          console.log('[注册] 📱 手机号：' + phone.value)
-        }
-        
-        console.log('[注册] 👤 注册数据：', { ...payload, password: '***' })
-        const response = await authAPI.register(payload)
-        console.log('[注册] 👤 注册响应状态：code=' + response.code + ', message=' + response.message)
-        console.log('[注册] 👤 完整响应：', response)
-        
-        if (response && response.code === 200) {
-          showToast('✅ 注册成功！即将跳转到登录页...', 'success', 2000)
-          console.log('[注册] ✅ 注册成功')
-          // 2秒后跳转到登录页
-          setTimeout(() => {
-            router.push('/login')
-          }, 2000)
-        } else {
-          const msg = response?.message || '未知错误'
-          showToast('❌ 注册失败：' + msg, 'error', 4000)
-          console.error('[注册] ❌ 注册失败，状态码：' + response?.code + '，消息：' + msg)
-        }
-      } catch (error) {
-        console.error('[注册] ❌ 注册异常捕获')
-        console.error('[注册] 错误对象：', error)
-        console.error('[注册] 响应数据：', error.response?.data)
-        console.error('[注册] HTTP状态码：', error.response?.status)
-        
-        let errorMsg = '网络错误'
-        if (error.response?.data?.message) {
-          errorMsg = error.response.data.message
-        } else if (error.message) {
-          errorMsg = error.message
-        }
-        
-        showToast('❌ 注册失败：' + errorMsg, 'error', 4000)
-        console.error('[注册] ❌ 最终错误消息：' + errorMsg)
-      } finally {
-        isLoadingRegister.value = false
-      }
-    }
-    
-    // 重置表单
-    const resetForm = () => {
-      email.value = ''
-      phone.value = ''
-      username.value = ''
-      password.value = ''
-      confirmPassword.value = ''
-      verificationCode.value = ''
-      registeredMessage.value = ''
-      canRegisterMessage.value = ''
-      userRegistered.value = false
-      captchaVerified.value = false
-      clearMessages()
-    }
-    
-    return {
-      registerType,
-      email,
-      phone,
-      username,
-      password,
-      confirmPassword,
-      verificationCode,
-      errorMessage,
-      registeredMessage,
-      canRegisterMessage,
-      captchaMessage,
-      codeCountdown,
-      userRegistered,
-      captchaVerified,
-      isLoadingSendCode,
-      isLoadingRegister,
-      canSendCode,
-      canRegister,
-      registerValidationErrors,
-      toast,
-      showToast,
-      checkEmailRegistered,
-      checkPhoneRegistered,
-      handleCaptchaSuccess,
-      sendVerificationCode,
-      register,
-      resetForm
+    if (!validatePhone(form.phone)) {
+      errors.phone = '手机号格式不正确'
+      console.warn('【Register】手机号格式不正确:', form.phone)
+      return '手机号格式不正确，请输入11位手机号'
     }
   }
+  
+  console.log('【Register】验证通过，可以开启人机验证')
+  return true
+}
+
+// 处理人机验证成功
+const handleCaptchaSuccess = (data) => {
+  console.log('【Register】人机验证成功', data)
+  captchaToken.value = data.token
+  errors.captcha = ''
+  uiStore.showNotification('人机验证成功', 'success')
+  
+  // 自动发送验证码并进入下一步
+  setTimeout(() => {
+    handleSendCode()
+  }, 800)
+}
+
+// 处理人机验证关闭
+const handleCaptchaClose = () => {
+  console.log('【Register】人机验证模态框已关闭')
+}
+
+// 第一步：发送验证码
+const handleSendCode = async () => {
+  errors.email = ''
+  errors.phone = ''
+  errors.captcha = ''
+
+  if (verifyType.value === 'EMAIL') {
+    if (!form.email.trim()) {
+      errors.email = '请输入邮箱地址'
+      return
+    }
+    if (!validateEmail(form.email)) {
+      errors.email = '邮箱格式不正确'
+      return
+    }
+  } else {
+    if (!form.phone.trim()) {
+      errors.phone = '请输入手机号'
+      return
+    }
+    if (!validatePhone(form.phone)) {
+      errors.phone = '手机号格式不正确'
+      return
+    }
+  }
+
+  // 检查人机验证
+  if (!captchaToken.value) {
+    errors.captcha = '请先完成人机验证'
+    return
+  }
+
+  sendCodeLoading.value = true
+  try {
+    const response = await authAPI.sendVerificationCode({
+      type: verifyType.value,
+      email: form.email,
+      phone: form.phone,
+      captchaToken: captchaToken.value
+    })
+
+    if (response.code === 200) {
+      uiStore.showNotification('验证码已发送，请检查您的' + (verifyType.value === 'EMAIL' ? '邮箱' : '短信'), 'success')
+      currentStep.value = 2
+      startCountdown()
+      // 重置 captcha token，下次需要重新验证
+      captchaToken.value = ''
+    } else {
+      uiStore.showNotification(response.message, 'error')
+    }
+  } catch (error) {
+    uiStore.showNotification('发送验证码失败: ' + error.message, 'error')
+  } finally {
+    sendCodeLoading.value = false
+  }
+}
+
+// 重新发送验证码
+const handleResendCode = async () => {
+  // 需要重新进行人机验证
+  if (!captchaToken.value) {
+    errors.captcha = '请先完成人机验证'
+    captchaRef.value?.openCaptcha()
+    return
+  }
+
+  resendLoading.value = true
+  try {
+    const response = await authAPI.sendVerificationCode({
+      type: verifyType.value,
+      email: form.email,
+      phone: form.phone,
+      captchaToken: captchaToken.value
+    })
+
+    if (response.code === 200) {
+      uiStore.showNotification('验证码已重新发送', 'success')
+      startCountdown()
+      captchaToken.value = ''
+    } else {
+      uiStore.showNotification(response.message, 'error')
+    }
+  } catch (error) {
+    uiStore.showNotification('重新发送失败: ' + error.message, 'error')
+  } finally {
+    resendLoading.value = false
+  }
+}
+
+// 开始倒计时
+const startCountdown = () => {
+  countdown.value = 60
+  const interval = setInterval(() => {
+    countdown.value--
+    if (countdown.value <= 0) {
+      clearInterval(interval)
+    }
+  }, 1000)
+}
+
+// 第二步：验证验证码和用户名
+const handleVerifyCode = async () => {
+  errors.code = ''
+  errors.username = ''
+
+  if (!form.code.trim()) {
+    errors.code = '请输入验证码'
+    return
+  }
+
+  if (form.code.length !== 4) {
+    errors.code = '验证码必须是 4 位数字'
+    return
+  }
+
+  if (!form.username.trim()) {
+    errors.username = '请输入用户名'
+    return
+  }
+
+  if (form.username.length < 3) {
+    errors.username = '用户名至少 3 个字符'
+    return
+  }
+
+  verifyCodeLoading.value = true
+  try {
+    const response = await authAPI.verifyCode({
+      type: verifyType.value,
+      email: form.email,
+      phone: form.phone,
+      code: form.code
+    })
+
+    if (response.code === 200 && response.data.success) {
+      uiStore.showNotification('验证成功', 'success')
+      currentStep.value = 3
+    } else {
+      errors.code = response.message || '验证失败'
+      uiStore.showNotification(errors.code, 'error')
+    }
+  } catch (error) {
+    errors.code = '验证失败: ' + error.message
+    uiStore.showNotification(errors.code, 'error')
+  } finally {
+    verifyCodeLoading.value = false
+  }
+}
+
+// 第三步：完成注册
+const handleRegister = async () => {
+  errors.password = ''
+  errors.confirmPassword = ''
+
+  if (!form.password) {
+    errors.password = '请输入密码'
+    return
+  }
+
+  if (form.password.length < 8) {
+    errors.password = '密码长度至少为 8 位'
+    return
+  }
+
+  if (!form.confirmPassword) {
+    errors.confirmPassword = '请确认密码'
+    return
+  }
+
+  if (form.password !== form.confirmPassword) {
+    errors.confirmPassword = '两次输入的密码不一致'
+    return
+  }
+
+  registerLoading.value = true
+  const startTime = Date.now()
+  console.log('【注册】开始提交注册请求...')
+  
+  try {
+    console.log('【注册】发送请求数据:', {
+      username: form.username,
+      type: verifyType.value,
+      email: form.email,
+      phone: form.phone,
+      code: form.code
+    })
+    
+    const response = await authAPI.register({
+      type: verifyType.value,
+      email: form.email,
+      phone: form.phone,
+      code: form.code,
+      username: form.username,
+      password: form.password,
+      confirmPassword: form.confirmPassword
+    })
+
+    const duration = Date.now() - startTime
+    console.log('【注册】收到响应，用时:', duration, 'ms')
+    console.log('【注册】响应数据:', response)
+
+    if (response.code === 200) {
+      console.log('【注册】✓ 注册成功')
+      uiStore.showNotification('注册成功，请登录', 'success')
+      currentStep.value = 4
+      setTimeout(() => {
+        goToLogin()
+      }, 2000)
+    } else {
+      const errorMsg = response.message || '注册失败，请重试'
+      console.log('【注册】✗ 服务器返回错误:', errorMsg)
+      uiStore.showNotification(errorMsg, 'error')
+    }
+  } catch (error) {
+    const duration = Date.now() - startTime
+    console.error('【注册】✗ 注册请求异常 - 用时:', duration, 'ms')
+    console.error('【注册】异常详情:', error)
+    console.error('【注册】错误类型:', error.code)
+    console.error('【注册】错误信息:', error.message)
+    
+    // 更详细的错误提示
+    let errorMessage = '注册失败'
+    if (error.code === 'ECONNABORTED') {
+      errorMessage = '请求超时，服务器响应较慢。请检查网络连接或重试'
+    } else if (error.message && error.message.includes('timeout')) {
+      errorMessage = '请求超时（' + duration + 'ms），请重试或检查网络'
+    } else if (duration > 60000) {
+      errorMessage = '注册耗时过长(' + (duration/1000).toFixed(1) + '秒)，可能是网络问题。请检查连接后重试'
+    } else if (error.response?.status === 500) {
+      errorMessage = '服务器错误 (500)：' + (error.response?.data?.message || '请稍后重试')
+    } else if (error.response?.status === 504) {
+      errorMessage = '服务器网关超时 (504)：请稍后重试'
+    } else if (error.message) {
+      errorMessage = error.message
+    } else {
+      errorMessage = '注册失败: ' + JSON.stringify(error)
+    }
+    
+    console.log('【注册】显示错误提示:', errorMessage)
+    uiStore.showNotification(errorMessage, 'error')
+  } finally {
+    registerLoading.value = false
+  }
+}
+
+// 返回上一步或返回登录
+const goBack = () => {
+  if (currentStep.value === 1) {
+    router.back()
+  } else {
+    currentStep.value = 1
+  }
+}
+
+// 返回登录
+const goToLogin = () => {
+  router.push('/login')
 }
 </script>
 
 <style scoped>
 .register-container {
-  height: 100vh;
+  min-height: 100vh;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   padding: 20px;
-  padding-top: 40px;
-  overflow-y: auto;
 }
 
-.register-card {
+.register-box {
   background: white;
-  border-radius: 10px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-  padding: 40px;
-  max-width: 450px;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
   width: 100%;
-  margin-bottom: 40px;
-  flex-shrink: 0;
+  max-width: 450px;
+  padding: 40px;
+  animation: slideUp 0.3s ease-out;
 }
 
-h1 {
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.register-header {
+  margin-bottom: 30px;
   text-align: center;
-  color: #333;
-  margin-bottom: 30px;
-  font-size: 28px;
 }
 
-.tabs {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 30px;
-  border-bottom: 2px solid #eee;
-}
-
-.tab-btn {
-  flex: 1;
-  padding: 12px 0;
-  border: none;
-  background: none;
-  color: #999;
-  font-size: 14px;
+.back-button {
+  display: inline-block;
+  margin-bottom: 15px;
   cursor: pointer;
-  transition: all 0.3s;
-  border-bottom: 3px solid transparent;
-  margin-bottom: -2px;
-}
-
-.tab-btn.active {
   color: #667eea;
-  border-bottom-color: #667eea;
+  font-weight: 500;
+  font-size: 14px;
+  transition: color 0.3s;
 }
 
-.form-group {
+.back-button:hover {
+  color: #764ba2;
+}
+
+.register-header h1 {
+  font-size: 28px;
+  font-weight: bold;
+  color: #333;
+  margin: 0 0 10px 0;
+}
+
+.register-header p {
+  font-size: 14px;
+  color: #666;
+  margin: 0;
+}
+
+.step-content {
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.verification-type-selector {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+  margin-bottom: 25px;
+}
+
+.type-btn {
+  padding: 12px 16px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  background: white;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s;
+  color: #666;
+}
+
+.type-btn:hover {
+  border-color: #667eea;
+  color: #667eea;
+}
+
+.type-btn.active {
+  border-color: #667eea;
+  background: #f0f4ff;
+  color: #667eea;
+}
+
+.input-group {
   margin-bottom: 20px;
 }
 
-.form-group label {
+.input-group label {
   display: block;
   margin-bottom: 8px;
+  font-weight: 500;
   color: #333;
   font-size: 14px;
-  font-weight: 500;
 }
 
-.form-group input {
-  width: 100%;
-  padding: 12px 15px;
-  border: 1px solid #ddd;
-  border-radius: 5px;
+.code-input-group {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.code-input-group :deep(.input-wrapper) {
+  display: flex;
+  align-items: center;
+}
+
+.code-input-group :deep(input) {
+  text-align: center;
+  letter-spacing: 2px;
+}
+
+.captcha-success-tip {
+  color: #51cf66;
   font-size: 14px;
-  transition: border-color 0.3s;
-  box-sizing: border-box;
-}
-
-.form-group input:focus {
-  outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-}
-
-.input-wrapper {
-  position: relative;
+  margin-top: 8px;
+  font-weight: 500;
 }
 
 .error-message {
-  display: block;
   color: #ff4757;
-  font-size: 12px;
-  margin-top: 5px;
-}
-
-.success-message {
-  display: block;
-  color: #2ed573;
-  font-size: 12px;
-  margin-top: 5px;
-}
-
-.code-input-wrapper {
-  display: flex;
-  gap: 10px;
-}
-
-.code-input-wrapper input {
-  flex: 1;
-  font-size: 18px;
-  letter-spacing: 5px;
-  text-align: center;
-}
-
-.send-btn {
-  padding: 12px 15px;
-  background: #667eea;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  font-size: 12px;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: background 0.3s;
-}
-
-.send-btn:hover:not(:disabled) {
-  background: #5568d3;
-}
-
-.send-btn:disabled {
-  background: #ccc;
-  cursor: not-allowed;
-}
-
-.captcha-btn {
-  width: 100%;
-  padding: 12px;
-  background: #f0f0f0;
-  color: #333;
-  border: 2px solid #ddd;
-  border-radius: 5px;
-  font-size: 16px;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.captcha-btn:hover {
-  border-color: #667eea;
-  background: #f5f5ff;
-}
-
-.captcha-btn.verified {
-  background: #d4edda;
-  border-color: #28a745;
-  color: #155724;
-}
-
-.register-btn {
-  width: 100%;
-  padding: 12px;
-  background: #667eea;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  font-size: 16px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.3s;
-  margin-top: 10px;
-}
-
-.register-btn:hover:not(:disabled) {
-  background: #5568d3;
-}
-
-.register-btn:disabled {
-  background: #ccc;
-  cursor: not-allowed;
-}
-
-.registered-prompt {
-  background: #fff3cd;
-  border: 1px solid #ffc107;
-  border-radius: 5px;
-  padding: 20px;
-  text-align: center;
-}
-
-.registered-prompt p {
-  color: #856404;
-  margin-bottom: 15px;
-}
-
-.btn-group {
-  display: flex;
-  gap: 10px;
-}
-
-.btn {
-  flex: 1;
-  padding: 10px;
-  border: none;
-  border-radius: 5px;
   font-size: 14px;
-  cursor: pointer;
-  text-decoration: none;
-  display: inline-block;
+  margin-top: 8px;
+}
+
+.captcha-container {
+  margin-top: 8px;
+}
+
+.code-input-group :deep(button) {
+  height: 44px;
+  min-width: 100px;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.password-strength {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.strength-bar {
+  height: 4px;
+  width: 100px;
+  border-radius: 2px;
+  background: #f0f0f0;
+}
+
+.strength-bar.weak {
+  background: #ff6b6b;
+}
+
+.strength-bar.medium {
+  background: #ffa94d;
+}
+
+.strength-bar.strong {
+  background: #51cf66;
+}
+
+.strength-text {
+  font-size: 12px;
+  color: #666;
+}
+
+.step-title {
   text-align: center;
+  margin-bottom: 25px;
+}
+
+.step-title h2 {
+  font-size: 20px;
+  color: #333;
+  margin: 0 0 10px 0;
+}
+
+.step-title p {
+  font-size: 14px;
+  color: #999;
+  margin: 0;
+  word-break: break-all;
+}
+
+.success-content {
+  text-align: center;
+}
+
+.success-icon {
+  font-size: 60px;
+  margin-bottom: 20px;
+  animation: scaleIn 0.3s ease-out;
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+.success-content h2 {
+  font-size: 24px;
+  color: #333;
+  margin: 0 0 10px 0;
+}
+
+.success-content p {
+  font-size: 14px;
+  color: #666;
+  margin: 0 0 30px 0;
+}
+
+.step-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 30px;
+  gap: 10px;
+}
+
+.step {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+  font-size: 12px;
+  background: #f0f0f0;
+  color: #999;
   transition: all 0.3s;
 }
 
-.btn-primary {
+.step.active {
   background: #667eea;
   color: white;
 }
 
-.btn-primary:hover {
-  background: #5568d3;
+.step.completed {
+  background: #51cf66;
+  color: white;
 }
 
-.btn-secondary {
-  background: #f1f3f4;
-  color: #333;
-  border: 1px solid #ddd;
+.separator {
+  width: 20px;
+  height: 2px;
+  background: #e0e0e0;
 }
 
-.btn-secondary:hover {
-  background: #e8eaed;
+.back-link {
+  display: block;
+  margin-top: 20px;
+  width: 100%;
+  padding: 12px;
+  border: none;
+  background: none;
+  color: #667eea;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: color 0.3s;
+}
+
+.back-link:hover {
+  color: #764ba2;
 }
 
 .login-link {
@@ -748,124 +911,25 @@ h1 {
 .login-link a {
   color: #667eea;
   text-decoration: none;
+  font-weight: 500;
 }
 
 .login-link a:hover {
   text-decoration: underline;
 }
 
-.error-alert {
-  background: #ffe4e6;
-  color: #ff4757;
-  padding: 12px;
-  border-radius: 5px;
-  margin-top: 20px;
-  font-size: 14px;
-  text-align: center;
-}
-
-.success-alert {
-  background: #d4edda;
-  color: #2ed573;
-  padding: 12px;
-  border-radius: 5px;
-  margin-top: 20px;
-  font-size: 14px;
-  text-align: center;
-}
-
-.validation-hints {
-  background: #fff3cd;
-  border: 1px solid #ffc107;
-  border-radius: 5px;
-  padding: 15px;
-  margin-top: 15px;
-  font-size: 13px;
-  color: #856404;
-}
-
-.hint-title {
-  font-weight: 600;
-  margin-bottom: 10px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.hint-items {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.hint-item {
-  padding-left: 0;
-  line-height: 1.5;
-}
-
-/* Toast 通知样式 */
-.toast {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  padding: 16px 24px;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  z-index: 9999;
-  max-width: 400px;
-  word-wrap: break-word;
-  animation: slideInRight 0.3s ease-in-out;
-}
-
-.toast.success {
-  background: #d4edda;
-  color: #155724;
-  border: 1px solid #c3e6cb;
-}
-
-.toast.error {
-  background: #f8d7da;
-  color: #721c24;
-  border: 1px solid #f5c6cb;
-}
-
-.toast-content {
-  font-size: 14px;
-  line-height: 1.5;
-}
-
-@keyframes slideInRight {
-  from {
-    transform: translateX(400px);
-    opacity: 0;
+@media (max-width: 480px) {
+  .register-box {
+    padding: 30px 20px;
   }
-  to {
-    transform: translateX(0);
-    opacity: 1;
+
+  .register-header h1 {
+    font-size: 24px;
   }
-}
 
-.toast-fade-enter-active,
-.toast-fade-leave-active {
-  transition: all 0.3s ease-in-out;
-}
-
-.toast-fade-enter-from {
-  transform: translateX(400px);
-  opacity: 0;
-}
-
-.toast-fade-leave-to {
-  transform: translateX(400px);
-  opacity: 0;
-}
-
-@media (max-width: 600px) {
-  .toast {
-    top: 10px;
-    right: 10px;
-    left: 10px;
-    max-width: none;
+  .type-btn {
+    font-size: 12px;
+    padding: 10px 12px;
   }
 }
 </style>

@@ -10,7 +10,6 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 
 /**
@@ -26,7 +25,7 @@ public class EmailServiceImpl implements EmailService {
     @Value("${spring.mail.username}")
     private String fromEmail;
     
-    @Value("${spring.application.name:记账管理系统}")
+    @Value("${spring.application.name:AI记账管家}")
     private String applicationName;
     
     @Override
@@ -41,7 +40,7 @@ public class EmailServiceImpl implements EmailService {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
             
-            helper.setFrom(fromEmail);
+            helper.setFrom(fromEmail, applicationName);
             helper.setTo(to);
             helper.setSubject(applicationName + " - 邮箱验证码");
             
@@ -52,6 +51,35 @@ public class EmailServiceImpl implements EmailService {
             log.info("【邮件】邮件内容已准备，开始发送...");
             mailSender.send(message);
             log.info("【邮件】验证码邮件已成功发送 - 收件人: {} - 验证码: {}", to, code);
+        } catch (Exception e) {
+            log.error("【邮件】发送邮件失败 - 收件人: {} - 错误: {}", to, e.getMessage(), e);
+            throw new RuntimeException("发送邮件失败: " + e.getMessage());
+        }
+    }
+    
+    @Override
+    public void sendResetPasswordCode(String to, String code) {
+        if (!StringUtils.hasText(to) || !StringUtils.hasText(code)) {
+            log.warn("【邮件】邮箱或验证码为空，无法发送邮件");
+            return;
+        }
+        
+        try {
+            log.info("【邮件】开始发送密码重置验证码邮件 - 收件人: {}", to);
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            
+            helper.setFrom(fromEmail, applicationName);
+            helper.setTo(to);
+            helper.setSubject(applicationName + " - 密码重置验证码");
+            
+            // HTML 格式的邮件内容
+            String htmlContent = buildResetPasswordCodeEmail(code);
+            helper.setText(htmlContent, true);
+            
+            log.info("【邮件】邮件内容已准备，开始发送...");
+            mailSender.send(message);
+            log.info("【邮件】密码重置验证码邮件已成功发送 - 收件人: {} - 验证码: {}", to, code);
         } catch (Exception e) {
             log.error("【邮件】发送邮件失败 - 收件人: {} - 错误: {}", to, e.getMessage(), e);
             throw new RuntimeException("发送邮件失败: " + e.getMessage());
@@ -75,13 +103,13 @@ public class EmailServiceImpl implements EmailService {
             mailSender.send(message);
             log.info("邮件已发送: {}", to);
         } catch (Exception e) {
-            log.error("发送邮件失败: {}", to, e);
+            log.error("发送邮件失败 - 收件人: {} - 错误: {}", to, e.getMessage(), e);
             throw new RuntimeException("发送邮件失败: " + e.getMessage());
         }
     }
     
     /**
-     * 构建验证码邮件 HTML 内容
+     * 构建注册验证码邮件 HTML 内容
      */
     private String buildVerificationCodeEmail(String code) {
         return "<!DOCTYPE html>\n" +
@@ -120,7 +148,62 @@ public class EmailServiceImpl implements EmailService {
                 "            <p>如有任何问题，请联系我们的客服团队。</p>\n" +
                 "        </div>\n" +
                 "        <div class=\"footer\">\n" +
-                "            <p>© 2024 " + applicationName + "。保留所有权利。</p>\n" +
+                "            <p>© 2026 " + applicationName + "。保留所有权利。</p>\n" +
+                "        </div>\n" +
+                "    </div>\n" +
+                "</body>\n" +
+                "</html>";
+    }
+    
+    /**
+     * 构建密码重置验证码邮件 HTML 内容
+     */
+    private String buildResetPasswordCodeEmail(String code) {
+        return "<!DOCTYPE html>\n" +
+                "<html>\n" +
+                "<head>\n" +
+                "    <meta charset=\"UTF-8\">\n" +
+                "    <style>\n" +
+                "        body { font-family: Arial, sans-serif; color: #333; }\n" +
+                "        .container { max-width: 600px; margin: 0 auto; padding: 20px; }\n" +
+                "        .header { background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); color: white; padding: 20px; border-radius: 5px 5px 0 0; text-align: center; }\n" +
+                "        .content { background: #f9f9f9; padding: 30px 20px; border-radius: 0 0 5px 5px; }\n" +
+                "        .code-box { background: white; border: 2px dashed #e74c3c; padding: 20px; text-align: center; margin: 20px 0; border-radius: 5px; }\n" +
+                "        .code-box .code { font-size: 36px; font-weight: bold; color: #e74c3c; letter-spacing: 8px; }\n" +
+                "        .code-box .tip { color: #999; font-size: 12px; margin-top: 10px; }\n" +
+                "        .footer { text-align: center; color: #999; font-size: 12px; margin-top: 20px; }\n" +
+                "        .warning { color: #ff4757; font-size: 13px; margin: 10px 0; }\n" +
+                "        .info-box { background: #fff3cd; border-left: 4px solid #ffc107; padding: 10px; margin: 15px 0; border-radius: 3px; }\n" +
+                "    </style>\n" +
+                "</head>\n" +
+                "<body>\n" +
+                "    <div class=\"container\">\n" +
+                "        <div class=\"header\">\n" +
+                "            <h2>密码重置</h2>\n" +
+                "        </div>\n" +
+                "        <div class=\"content\">\n" +
+                "            <p>尊敬的用户，您好！</p>\n" +
+                "            <p>您请求重置" + applicationName + "账户密码。请使用以下验证码完成重置：</p>\n" +
+                "            \n" +
+                "            <div class=\"code-box\">\n" +
+                "                <div class=\"code\">" + code + "</div>\n" +
+                "                <div class=\"tip\">验证码有效期：5分钟</div>\n" +
+                "            </div>\n" +
+                "            \n" +
+                "            <div class=\"info-box\">\n" +
+                "                <strong>⚠️ 重要提示：</strong>\n" +
+                "                <ul style=\"margin: 8px 0; padding-left: 20px;\">\n" +
+                "                    <li>如果您未进行此操作，请立即忽略此邮件</li>\n" +
+                "                    <li>请勿将验证码分享给任何人</li>\n" +
+                "                    <li>验证码仅在5分钟内有效，过期后需重新请求</li>\n" +
+                "                </ul>\n" +
+                "            </div>\n" +
+                "            \n" +
+                "            <p>如有任何问题或未进行此操作，请立即联系我们的客服团队。</p>\n" +
+                "        </div>\n" +
+                "        <div class=\"footer\">\n" +
+                "            <p>© 2026 " + applicationName + "。保留所有权利。</p>\n" +
+                "            <p style=\"margin-top: 10px; font-size: 11px;\">此邮件由系统自动发送，请勿直接回复。</p>\n" +
                 "        </div>\n" +
                 "    </div>\n" +
                 "</body>\n" +
